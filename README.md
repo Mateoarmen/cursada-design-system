@@ -2,18 +2,29 @@
 
 Gestión académica personal para estudiantes de la ORT (o cualquier facultad
 uruguaya): materias, notas, agenda de parciales/entregas, calendario y
-horario semanal — todo en un único archivo HTML que corre 100% local, sin
-backend ni cuenta, con persistencia en `localStorage`.
+horario semanal — todo en un único archivo HTML, con cuenta propia y datos
+sincronizados en la nube (Supabase). **Requiere conexión a internet** para
+autenticarse y guardar/leer datos — ver la sección "Cuenta y sincronización
+(Supabase)" más abajo para el detalle completo de esto, incluido de dónde
+viene y por qué dejó de ser 100% offline.
 
-Este proyecto es la implementación real de dos handoffs de Claude Design.
+Este proyecto es la implementación real de tres handoffs de Claude Design.
 El primero (`Cursada.dc.html`, 14 artboards) definió toda la estructura,
 pantallas y funcionalidad. El segundo (`Cursada Apple.dc.html`, turno 2 de
 dirección visual) reemplazó sólo el *estilo* — colores, tipografía, radios,
 sombras — manteniendo intacta la funcionalidad ya construida; ver
-"Dirección visual" más abajo. En ambos casos los `.dc.html` se usaron sólo
-como especificación visual: `support.js` y el runtime `<x-dc>`/`sc-for`/
-`{{ }}` son herramientas internas de Claude Design y no viajan en
-`out/Cursada.html`.
+"Dirección visual" más abajo. El tercero (`Cursada Marca.dc.html`, turno 3)
+trajo el sistema de marca (isotipo, paleta, wordmark, favicon); ver "Marca"
+más abajo. En todos los casos los `.dc.html` se usaron sólo como
+especificación visual: `support.js` y el runtime `<x-dc>`/`sc-for`/`{{ }}`
+son herramientas internas de Claude Design y no viajan en `out/Cursada.html`.
+
+Después de esos tres handoffs de producto/diseño, un cuarto pedido cambió la
+**arquitectura**: migrar de `localStorage` puro a cuentas de usuario con
+datos sincronizados en Supabase (Postgres + Auth + Storage). Ese cambio no
+tocó ninguna pantalla ni ningún cálculo — es exactamente la misma app, con
+una capa de persistencia y autenticación nueva debajo. El detalle completo
+está en "Cuenta y sincronización (Supabase)".
 
 ## Uso rápido
 
@@ -22,16 +33,24 @@ npm install && npm run build:app
 ```
 
 Esto genera `out/Cursada.html`. Abrilo con doble clic (o arrastralo a
-Chrome/Safari/Edge) — no necesita servidor. La primera vez que se abre carga
-las 7 materias de ejemplo (Contabilidad II, Microeconomía, Derecho Comercial,
-Marketing Estratégico, Estadística Aplicada, Comportamiento Organizacional,
-Finanzas Corporativas) más su agenda y calendario. A partir de ahí es tu
-información: editá o borrá lo que quieras y cargá lo tuyo — todo se guarda en
-el propio navegador (`localStorage`), asociado a esa copia del archivo.
+Chrome/Safari/Edge) — necesita conexión a internet (habla con Supabase para
+autenticarte y guardar tus datos), pero no necesita un servidor propio ni
+nada más allá del navegador. La primera vez, te pide crear una cuenta
+(email + contraseña) o iniciar sesión si ya tenés una; a partir de ahí es tu
+información, sincronizada a esa cuenta — abrí el mismo archivo (o
+cualquier copia de él) desde otro dispositivo, iniciá sesión con la misma
+cuenta, y vas a ver las mismas materias, notas y agenda.
+
+Ya no hay datos de ejemplo precargados en cuentas nuevas — arrancás con la
+pantalla de bienvenida y creás tu primera materia vos. (`src/seed.js` sigue
+existiendo y viaja en el bundle por si en el futuro hace falta un botón de
+"probar con datos de ejemplo", pero hoy no se usa en ningún lado — ver
+"Cambiar el idioma, la semilla o el margen de riesgo" más abajo.)
 
 **Requisito para el build:** Node.js 18 o superior (sólo para el paso de
 empaquetado — concatenar los archivos de `src/`; el resultado final no
-necesita Node para nada, sólo un navegador). Si no tenés Node instalado:
+necesita Node para nada, sólo un navegador con internet). Si no tenés Node
+instalado:
 - **Mac:** `brew install node` (instalá Homebrew primero desde brew.sh si
   hace falta), o bajalo de nodejs.org.
 - **Windows:** `winget install OpenJS.NodeJS.LTS` — si `npm` da error de
@@ -72,14 +91,19 @@ necesita Node para nada, sólo un navegador). Si no tenés Node instalado:
 - **Semestres**: selector en el side nav para crear un semestre nuevo o
   volver a uno anterior sin perder nada — ver la sección "Semestres" más
   abajo para el detalle completo de qué se acota por semestre y qué no.
+- **Perfil**: tocando tu nombre/avatar abajo del side nav se abre un modal
+  para cambiar tu nombre y tu foto (se recorta a cuadrado y se comprime antes
+  de subirse) — ver "Cuenta y sincronización (Supabase)" más abajo. El mismo
+  lugar tiene el botón para cerrar sesión.
 
 ## Cambiar el idioma, la semilla o el margen de riesgo
 
-- **Datos de ejemplo**: editá `src/seed.js` (materias, agenda, eventos
-  personales) y volvé a correr `npm run build:app`. Los cambios sólo afectan
-  el *primer arranque*; si ya abriste una versión anterior del archivo en tu
-  navegador, ese perfil ya tiene datos guardados y no se resembrará (a
-  propósito, para no pisar tus datos reales).
+- **Datos de ejemplo**: `src/seed.js` sigue existiendo (materias, agenda,
+  eventos personales) y viaja en el bundle, pero ninguna cuenta nueva lo usa
+  automáticamente — ver "Cuenta y sincronización (Supabase)" sobre por qué
+  se dejó de auto-sembrar. Si en algún momento se agrega un botón de "probar
+  con datos de ejemplo", este archivo es la fuente de esos datos; hoy es
+  código sin usar, a propósito, no un bug.
 - **Textos / idioma**: la interfaz vive en `src/app.html` (texto fijo) y
   `src/runtime.js` (texto generado dinámicamente — buscá los strings en
   español ahí).
@@ -92,12 +116,13 @@ necesita Node para nada, sólo un navegador). Si no tenés Node instalado:
 
 ```
 package.json
-build/build-app.mjs      → script de build (Node, sin dependencias)
-src/app.html              → chrome estático + <template> de cada listado dinámico
-src/styles.css            → tokens claro/oscuro, acentos de materia, layout
-src/runtime.js            → router, persistencia, lógica de estilo/notas, CRUD
-src/seed.js                → datos de ejemplo (editable, separado del runtime)
-out/Cursada.html           → el entregable final
+build/build-app.mjs        → script de build (Node, sin dependencias)
+src/app.html                → chrome estático + <template> de cada listado dinámico
+src/styles.css              → tokens claro/oscuro, acentos de materia, layout
+src/supabase-client.js      → credenciales + inicialización del cliente de Supabase
+src/runtime.js              → router, auth, persistencia (Supabase), lógica de estilo/notas, CRUD
+src/seed.js                  → datos de ejemplo (sin usar hoy, ver arriba)
+out/Cursada.html             → el entregable final
 ```
 
 ## Decisiones de implementación (para que no sean sorpresa)
@@ -250,18 +275,20 @@ Las decisiones detrás de esa tabla:
   (evaluaciones, entregas) sí son siempre los correctos, fechados, de ese
   semestre.
 
-**Migración de datos existentes:** si abrís esta versión con materias ya
-cargadas de una versión anterior (sin `semestreId`), `ensureSemestres()`
-corre una única vez, sin avisos ni fricción: crea un semestre llamado
-"Semestre actual", activo, y les asigna ese id a todas tus materias
-existentes. Nunca se vuelve a correr una vez que la colección `semestres`
-ya existe (aunque esté vacía). Si tu `localStorage` está realmente vacío
-(primer uso de la app), no hace nada — `seedIfEmpty()` crea su propio
-semestre semilla (el nombre sale de `CURSADA_SEED.semestre.nombre` en
-`src/seed.js`) junto con las 7 materias de ejemplo. Exportar ahora incluye
-`semestres` en el JSON; importar un JSON viejo (de antes de que existiera
-el concepto) aplica la misma migración — arma un semestre "Importado" y le
-asigna todas las materias del archivo, para que ninguna quede huérfana.
+**Alta de la primera materia, sin ningún semestre todavía:** una cuenta
+nueva arranca sin materias ni semestres (ya no hay semilla automática, ver
+"Cuenta y sincronización (Supabase)"). Si creás tu primera materia sin haber
+creado nunca un semestre, `src/runtime.js` crea uno solo ("Semestre actual",
+activo) en el momento, antes de guardar la materia — no hace falta que
+notes este paso, es transparente. Como red de seguridad adicional (no un
+camino esperado en uso normal), `ensureSemestresServerSide()` corre una vez
+después de cada login: si por algún motivo tu cuenta tiene materias sin
+ningún semestre, hace lo mismo. Exportar incluye `semestres` en el JSON;
+importar un JSON viejo (de antes de que existiera el concepto de semestre)
+arma un semestre "Importado" y le asigna todas las materias del archivo,
+para que ninguna quede huérfana — mismo criterio que la migración de
+`localStorage` a tu cuenta, ver esa sección para el detalle completo de
+cómo se resuelven los ids al importar.
 
 ## Dirección visual (turno 2 — estilo "Apple")
 
@@ -392,6 +419,178 @@ se incorporó al producto y las decisiones que tomé haciéndolo.
   descartadas (semana en barras, monograma tipográfico). Son referencia
   para marketing/distribución, no algo que ponerse a construir dentro de
   `out/Cursada.html` — que es, y sigue siendo, sólo la app.
+
+## Cuenta y sincronización (Supabase)
+
+Un cuarto pedido, después de los tres handoffs de diseño, cambió la
+arquitectura: la app dejó de ser "un archivo que funciona sin conexión" y
+pasó a requerir cuenta e internet para sincronizar. Fue un pedido explícito
+de cambio de arquitectura, no un ajuste — el trade-off (perder el
+funcionamiento 100% offline a cambio de tener los datos en la nube,
+accesibles desde cualquier dispositivo) fue aceptado y buscado de entrada.
+
+**El proyecto de Supabase (base, tablas, RLS, bucket de fotos) ya estaba
+armado** de antes — no se creó desde acá. El trabajo fue sólo del lado del
+cliente: conectar la app a esa base.
+
+- **Esquema**: 4 tablas (`semestres`, `materias`, `agenda`, `personal`) más
+  `profiles` (una fila por usuario, se crea sola con un trigger al
+  registrarse). Las columnas de la base están en `snake_case`
+  (`materia_id`, `color_id`, `todo_el_dia`, `semestre_id`) mientras el
+  código JS sigue en `camelCase` (`materiaId`, `colorId`, `todoElDia`,
+  `semestreId`), igual que siempre — la conversión vive en un puñado de
+  funciones `rowToX()`/`xToRow()` al principio de `src/runtime.js`, no
+  esparcida por el resto del archivo.
+- **Row Level Security** está activada en las 4 tablas: cada usuario sólo
+  puede leer/escribir sus propias filas (`auth.uid() = user_id`). Esto
+  significa que el cliente nunca filtra "traeme sólo lo mío" a mano — Supabase
+  ya lo hace solo — pero si hacés una consulta sin sesión activa, te
+  devuelve vacío, no un error; por eso ninguna pantalla de datos se muestra
+  sin sesión (ver "Flujo de autenticación").
+- **`semestres` tiene un índice único parcial** que impide más de un
+  `activo:true` por usuario a nivel de base de datos (no sólo a nivel de
+  UI). El código respeta esto mandando primero "desactivar el semestre
+  viejo" y después "activar el nuevo" como dos llamadas secuenciales — nunca
+  las manda en el mismo lote, para no arriesgarse a que la base rechace un
+  upsert con dos filas `activo:true` a la vez.
+- **Storage**: bucket `avatars`, público de lectura, escritura restringida
+  al dueño (`avatars/{user_id}/avatar.jpg` — mismo nombre de archivo
+  siempre, así una foto nueva simplemente pisa a la anterior).
+
+### El patrón de persistencia: caché en memoria + `save*Raw()` asíncrono
+
+Antes de este cambio, cada colección tenía funciones puente
+`loadXRaw()`/`saveXRaw(a)` que leían y escribían `localStorage`
+directamente, síncronas. Todo el resto del código (cálculos, render, CRUD)
+sólo conocía esas funciones, nunca `localStorage` en sí — ese fue
+exactamente el punto de enganche para no tener que reescribir el resto.
+
+- `loadXRaw()` sigue siendo **síncrona**: lee de un caché en memoria
+  (`CACHE.materias`, `CACHE.agenda`, etc.) que se llena una vez al iniciar
+  sesión. Esto es lo que evitó tener que convertir a `async` los ~30
+  lugares que sólo *leen* datos (`computeMaterias()`, todos los `render*()`,
+  etc.) — siguen funcionando exactamente igual que antes.
+- `saveXRaw(a)` pasó a ser **asíncrona** (devuelve `Promise<boolean>`):
+  compara el array nuevo contra el caché para saber qué filas borrar, sube
+  el array entero con `upsert()` (son colecciones chicas — decenas de
+  filas, no miles — así que upsertear todo es más simple y robusto que
+  diffear campo a campo) y actualiza el caché recién si la llamada a
+  Supabase salió bien. Cada uno de los ~10 lugares que *escriben* datos
+  (los `submit` de los 3 modales, sus botones de eliminar, borrar-todo,
+  importar, crear/renombrar/activar semestre) pasó a ser `async`/`await` —
+  es el único cambio mecánico que se repite en todo el archivo.
+- Un guardado fallido (sin internet, sesión vencida) no dice "guardado" y
+  sigue de largo: `avisarError()` reemplaza al viejo aviso de
+  "localStorage bloqueado" con un mensaje genérico de conexión, y el modal
+  correspondiente se queda abierto (no se cierra en falso) para que puedas
+  reintentar.
+
+### Flujo de autenticación
+
+- **Mientras se confirma si había sesión guardada** (Supabase tarda un
+  instante en resolver esto al abrir la app) se ve una pantalla de carga
+  simple, con el isotipo girando. Es el mismo estado que se muestra
+  mientras se cargan tus datos después de un login exitoso.
+  Si esa carga de datos falla (sin internet, error del servidor), se
+  muestra una pantalla de error con un botón "Reintentar" en vez de dejar
+  alguna vista a medio armar o en blanco.
+- **Sin sesión activa**, la app no muestra ninguna pantalla de datos — sólo
+  el formulario de login/registro (email + contraseña; sin login social por
+  ahora). El mismo formulario alterna entre "Iniciar sesión" y "Crear
+  cuenta" con un toggle arriba.
+- El proyecto de Supabase tiene **confirmación de email activada**: al
+  registrarte no queda una sesión activa hasta que confirmás el mail que te
+  llega — la app lo detecta (`signUp()` no devuelve sesión) y te lo explica
+  en la propia pantalla en vez de fallar en silencio o intentar mostrar la
+  app con una sesión que no existe.
+- Perfil (tocar tu nombre/avatar en el side nav) y cerrar sesión (el botón
+  de al lado) viven en el mismo lugar donde ya vivían los demás controles
+  de alcance global (tema, semestre) — no se agregó un lugar nuevo en la
+  barra superior para no competir con las acciones de cada vista.
+
+### Perfil de usuario
+
+Nombre y foto se editan desde el modal de perfil (mismo patrón visual que
+los otros 3 modales de la app). La foto se recorta a cuadrado (centrado) y
+se reescala a 256px de lado con `<canvas>` antes de subirse — no hace falta
+un avatar más grande en ningún lugar de la interfaz, y subir el archivo
+original sin comprimir hubiera sido innecesariamente pesado. Sin foto, el
+avatar muestra las iniciales del nombre (o la primera letra del email, si
+todavía no cargaste un nombre) sobre un color de la misma paleta de 9
+acentos que ya usan las materias (`ACCENTS`) — el color es determinístico
+por usuario (siempre el mismo, elegido a partir de tu id de cuenta), no
+aleatorio en cada carga.
+
+### Migración de datos que ya tenías en `localStorage`
+
+Si veniamos probando esta app antes de que existiera Supabase (o alguien
+abre esta versión en un navegador donde ya había datos de la versión
+100% local), esos datos no se pierden ni se suben solos: después del primer
+login, si la app encuentra datos bajo las claves viejas `cursada:*` en ese
+navegador, te ofrece un aviso explícito — "Importar mis datos locales a tu
+cuenta" — con un resumen de cuántas materias/evaluaciones/eventos
+encontró. Sólo se sube si tocás el botón; si tocás "No, gracias", no te
+vuelve a preguntar en ese navegador para esa cuenta (se guarda un flag en
+`localStorage`, por cuenta y por navegador — así que si tenés datos viejos
+en *otro* navegador o dispositivo, ahí sí te va a preguntar, correctamente).
+Los datos viejos nunca se borran del navegador como parte de este flujo
+(son sólo lectura) — importar es una operación de "sumar", no de "mover".
+
+Los ids del lote importado **siempre se regeneran** (nunca se reusan los
+que traía `localStorage`), armando un mapa id-viejo → id-nuevo para poder
+resolver las referencias (`materia.semestreId`, `agenda.materiaId`) con los
+ids nuevos — así nunca hay riesgo de que un id viejo choque con uno que ya
+exista en la cuenta de destino. Semestres se importan primero (las materias
+los referencian), materias antes que agenda (agenda referencia materias).
+Si la cuenta de destino ya tiene un semestre activo, los semestres
+importados entran todos inactivos — evita chocar con la restricción de "un
+solo activo" de la base; podés activar uno del selector después. El mismo
+código (`importCollections()`) también es lo que usa el botón "Importar" de
+la barra superior para un JSON exportado — misma semántica, un solo lugar.
+
+### Build: el SDK de Supabase
+
+`build/build-app.mjs` sigue concatenando `src/*` en un único HTML sin
+bundler ni paso de compilación nuevo, pero ahora agrega un
+`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">`
+(CDN de jsdelivr) antes de `src/supabase-client.js` — es la única llamada
+de red que agrega el *build* en sí; las que la app hace en tiempo real
+contra Supabase son aparte y son el punto central de este cambio. Las
+credenciales (`SUPABASE_URL`, la clave `anon`) viven en un único lugar,
+`src/supabase-client.js`, no repetidas. La clave `anon` es pública por
+diseño — está pensada para vivir en el código del cliente; la seguridad
+real la da Row Level Security en las tablas, no el secreto de esa clave.
+
+### Qué falta para producción real
+
+Esto funciona y está probado, pero quedó pensado para uso personal/demo, no
+para lanzarlo como producto con usuarios que no controlás vos. Antes de eso
+faltaría, como mínimo:
+
+- **Dominio propio** para el `out/Cursada.html` publicado (hoy, si se abre
+  como archivo local o desde cualquier host genérico, los links de
+  confirmación de email de Supabase igual funcionan, pero no hay una URL
+  "oficial" del producto).
+- **Recuperación de contraseña** ("olvidé mi contraseña") — no se
+  implementó en este pedido, a propósito, para no ampliar el alcance; hoy
+  si alguien pierde su contraseña no tiene forma de recuperar la cuenta
+  desde la app.
+- **Políticas de contraseña** más allá del mínimo de 6 caracteres que exige
+  Supabase por defecto (longitud/complejidad configurable desde el panel de
+  Supabase, no desde este código).
+- **Límites de rate** en signup/login más allá de los defaults del proyecto
+  de Supabase (protección contra fuerza bruta / spam de cuentas) — revisar
+  la configuración del proyecto, no algo que se controle desde el cliente.
+- **Login social** (Google, Apple, etc.) — mencionado en el pedido original
+  como explícitamente fuera de alcance por ahora.
+- **Verificación de dominio de email / anti-spam** para que los mails de
+  confirmación no cayan en spam en proveedores grandes — depende de la
+  configuración de SMTP del proyecto de Supabase (por defecto usa un
+  servicio compartido con límites bajos, pensado para desarrollo).
+- **Manejo de sesión expirada en medio del uso** — hoy, si el token vence
+  mientras la app está abierta, la próxima operación de guardado va a
+  fallar con el aviso de error genérico; no hay un flujo dedicado de
+  "tu sesión venció, iniciá sesión de nuevo" con redirección automática.
 
 ## Ver también
 

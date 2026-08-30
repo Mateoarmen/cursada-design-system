@@ -2152,10 +2152,14 @@
   // ================================================================
   // IMPORTAR DATOS LOCALES (migración desde la versión sin cuenta)
   // ================================================================
+  // Devuelve true si mostró el aviso (para que INIT/SESIÓN decida si además
+  // corresponde mostrar el onboarding — ambos son overlays de pantalla
+  // completa, y el aviso de importación tiene prioridad porque hay datos
+  // reales de por medio, ver más abajo).
   function maybeOfrecerImportLocal() {
-    if (importLocalYaResuelto()) return;
+    if (importLocalYaResuelto()) return false;
     var legacy = readLegacyLocalData();
-    if (!legacy) { marcarImportLocalResuelto(); return; }
+    if (!legacy) { marcarImportLocalResuelto(); return false; }
     document.getElementById('import-local-resumen').textContent =
       legacy.materias.length + (legacy.materias.length === 1 ? ' materia' : ' materias') + ', ' +
       legacy.agenda.length + (legacy.agenda.length === 1 ? ' evaluación' : ' evaluaciones') + ' y ' +
@@ -2172,8 +2176,13 @@
       closeAllModals();
       renderRoute();
     };
-    btnNo.onclick = function () { marcarImportLocalResuelto(); closeAllModals(); };
+    btnNo.onclick = function () {
+      marcarImportLocalResuelto();
+      closeAllModals();
+      if (!CACHE.materias.length) showOnboarding();
+    };
     openModal('modal-importar-local');
+    return true;
   }
 
   // ================================================================
@@ -2194,8 +2203,14 @@
     setGate(null);
     renderSidenavUser();
     handleRoute();
-    if (!CACHE.materias.length) showOnboarding();
-    maybeOfrecerImportLocal();
+    // El aviso de "importar datos locales" y el onboarding son los dos
+    // overlays de pantalla completa que pueden aparecer al iniciar sesión —
+    // nunca los dos a la vez (si no, el de arriba tapa al de abajo). El
+    // aviso de importación tiene prioridad: hay datos reales del usuario de
+    // por medio, y decidir qué hacer con ellos no debería competir visualmente
+    // con la pantalla de bienvenida genérica.
+    var mostroImportLocal = maybeOfrecerImportLocal();
+    if (!mostroImportLocal && !CACHE.materias.length) showOnboarding();
   }
 
   function onSignedOut() {
