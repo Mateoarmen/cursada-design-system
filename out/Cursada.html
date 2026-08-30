@@ -522,6 +522,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .auth-error{font-size:12px;color:var(--c-danger);background:rgba(255,59,48,.1);border-radius:8px;padding:9px 11px;line-height:1.4}
 .auth-info{font-size:12px;color:var(--c-ink2);background:var(--c-surfaceAlt);border-radius:8px;padding:9px 11px;line-height:1.4}
 
+#auth-check-email-panel{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+#auth-check-email-panel.hidden{display:none}
+.auth-check-icon{width:52px;height:52px;border-radius:50%;background:var(--acc-azul-soft);color:var(--c-accent);font-size:22px;display:flex;align-items:center;justify-content:center;flex:none}
+.auth-check-title{font-family:var(--font-display);font-size:19px;font-weight:600}
+.auth-check-body{font-size:13px;color:var(--c-ink2);line-height:1.55}
+#auth-form-panel.hidden{display:none}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:400;background:var(--c-ink);color:var(--c-bg);font-size:13px;font-weight:600;padding:12px 18px;border-radius:12px;box-shadow:var(--c-modal-shadow);max-width:calc(100vw - 48px);text-align:center}
+.toast.hidden{display:none}
+html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);border:1px solid var(--c-line)}
+
 /* ---------- Perfil / usuario (side nav) ---------- */
 .sidenav-user{cursor:pointer}
 .sidenav-user .av{overflow:hidden}
@@ -552,21 +563,32 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 <!-- ============ LOGIN / REGISTRO ============ -->
 <div class="auth-screen hidden" id="auth-screen">
   <div class="auth-card">
-    <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
-    <span class="auth-sub">Gestión académica personal — con cuenta, sincronizada entre tus dispositivos.</span>
-    <div class="seg" id="auth-mode-toggle">
-      <button type="button" class="seg-item is-on" data-auth-mode="signin">Iniciar sesión</button>
-      <button type="button" class="seg-item" data-auth-mode="signup">Crear cuenta</button>
+    <div id="auth-form-panel">
+      <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
+      <span class="auth-sub">Gestión académica personal — con cuenta, sincronizada entre tus dispositivos.</span>
+      <div class="seg" id="auth-mode-toggle">
+        <button type="button" class="seg-item is-on" data-auth-mode="signin">Iniciar sesión</button>
+        <button type="button" class="seg-item" data-auth-mode="signup">Crear cuenta</button>
+      </div>
+      <form id="form-auth">
+        <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></div>
+        <div class="field"><label>Contraseña</label><input name="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></div>
+        <span class="auth-error hidden" id="auth-error"></span>
+        <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
+      </form>
     </div>
-    <form id="form-auth">
-      <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></div>
-      <div class="field"><label>Contraseña</label><input name="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></div>
-      <span class="auth-error hidden" id="auth-error"></span>
-      <span class="auth-info hidden" id="auth-info"></span>
-      <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
-    </form>
+    <div id="auth-check-email-panel" class="hidden">
+      <div class="auth-check-icon">✉</div>
+      <span class="auth-check-title">Confirmá tu cuenta</span>
+      <span class="auth-check-body">Te mandamos un mail a <b id="auth-check-email"></b> con un link para confirmar tu cuenta. Abrilo (revisá spam si no aparece) y después volvé acá.</span>
+      <span class="auth-info hidden" id="auth-resend-info"></span>
+      <button type="button" class="btn" id="btn-auth-resend" style="width:100%;height:40px">Reenviar mail</button>
+      <button type="button" class="btn btn-primary" id="btn-auth-check-volver" style="width:100%;height:44px">Ya confirmé, iniciar sesión</button>
+    </div>
   </div>
 </div>
+
+<div class="toast hidden" id="toast"></div>
 
 <div class="sidenav-backdrop" id="sidenav-backdrop"></div>
 <div id="app" class="hidden">
@@ -3299,6 +3321,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // AUTENTICACIÓN
   // ================================================================
   var AUTH_MODE = 'signin'; // 'signin' | 'signup'
+  var JUST_SIGNED_UP = false; // true entre un signUp() con sesión inmediata y el próximo onSignedIn()
 
   // Controla qué pantalla de nivel superior se ve: 'gate-loading' (cargando
   // sesión o datos), 'auth-screen' (sin sesión), 'gate-error' (falló la carga
@@ -3326,17 +3349,40 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     AUTH_MODE = mode;
     document.querySelectorAll('#auth-mode-toggle [data-auth-mode]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-auth-mode') === mode); });
     document.getElementById('auth-submit').textContent = mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión';
-    showAuthError(''); showAuthInfo('');
+    showAuthError('');
   }
   function showAuthError(msg) {
     var e = document.getElementById('auth-error');
-    if (msg) document.getElementById('auth-info').classList.add('hidden');
     e.textContent = msg || ''; e.classList.toggle('hidden', !msg);
   }
-  function showAuthInfo(msg) {
-    var i = document.getElementById('auth-info');
-    if (msg) document.getElementById('auth-error').classList.add('hidden');
-    i.textContent = msg || ''; i.classList.toggle('hidden', !msg);
+
+  // Pantalla dedicada de "confirmá tu cuenta" — reemplaza al formulario
+  // entero (no un texto chico al lado, fácil de pasar por alto) cuando el
+  // registro no devuelve sesión porque el proyecto tiene confirmación de
+  // email activada.
+  var ULTIMO_EMAIL_REGISTRADO = '';
+  function showCheckEmailPanel(email) {
+    ULTIMO_EMAIL_REGISTRADO = email;
+    document.getElementById('auth-check-email').textContent = email;
+    document.getElementById('auth-resend-info').classList.add('hidden');
+    document.getElementById('auth-form-panel').classList.add('hidden');
+    document.getElementById('auth-check-email-panel').classList.remove('hidden');
+  }
+  function showFormPanel() {
+    document.getElementById('auth-check-email-panel').classList.add('hidden');
+    document.getElementById('auth-form-panel').classList.remove('hidden');
+  }
+
+  // Toast breve para feedback puntual que no necesita bloquear la pantalla
+  // (p. ej. "cuenta creada" cuando el registro sí devuelve sesión de una —
+  // proyectos sin confirmación de email activada).
+  var toastTimer = null;
+  function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 4000);
   }
 
   function bindAuthUI() {
@@ -3348,7 +3394,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       var form = ev.target;
       var email = form.email.value.trim();
       var password = form.password.value;
-      showAuthError(''); showAuthInfo('');
+      showAuthError('');
       var btn = document.getElementById('auth-submit');
       setBtnBusy(btn, true, AUTH_MODE === 'signup' ? 'Creando cuenta…' : 'Entrando…');
       try {
@@ -3356,16 +3402,46 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
           ? await sb().auth.signUp({ email: email, password: password })
           : await sb().auth.signInWithPassword({ email: email, password: password });
         if (res.error) throw res.error;
-        if (AUTH_MODE === 'signup' && res.data && !res.data.session) {
-          // El proyecto tiene confirmación de email activada: no hay sesión
-          // todavía hasta que confirme el mail — no intentamos arrancar la app.
-          showAuthInfo('Te mandamos un mail para confirmar tu cuenta. Confirmalo y después iniciá sesión.');
-          setAuthMode('signin');
+        if (AUTH_MODE === 'signup') {
+          if (res.data && !res.data.session) {
+            // El proyecto tiene confirmación de email activada: no hay sesión
+            // todavía hasta que confirme el mail — se muestra la pantalla
+            // dedicada en vez de intentar arrancar la app.
+            showCheckEmailPanel(email);
+          } else {
+            // Sesión inmediata (confirmación de email desactivada en el
+            // proyecto): la cuenta ya quedó creada y activa — se lo
+            // confirmamos con un toast antes de que entre a la app (el
+            // listener de onAuthStateChange dispara el arranque solo).
+            JUST_SIGNED_UP = true;
+          }
         }
-        // Si sí hay sesión, el listener de onAuthStateChange (SIGNED_IN) es
-        // el que dispara la carga de datos y muestra la app.
+        // Con sesión, el listener de onAuthStateChange (SIGNED_IN) es el
+        // que dispara la carga de datos y muestra la app.
       } catch (e) {
         showAuthError(traducirErrorAuth(e));
+      } finally {
+        setBtnBusy(btn, false);
+      }
+    });
+    document.getElementById('btn-auth-check-volver').addEventListener('click', function () {
+      showFormPanel();
+      setAuthMode('signin');
+      var emailInput = document.querySelector('#form-auth [name="email"]');
+      if (emailInput) emailInput.value = ULTIMO_EMAIL_REGISTRADO;
+    });
+    document.getElementById('btn-auth-resend').addEventListener('click', async function () {
+      var btn = document.getElementById('btn-auth-resend');
+      var info = document.getElementById('auth-resend-info');
+      setBtnBusy(btn, true, 'Reenviando…');
+      try {
+        var res = await sb().auth.resend({ type: 'signup', email: ULTIMO_EMAIL_REGISTRADO });
+        if (res.error) throw res.error;
+        info.textContent = 'Listo, te lo volvimos a mandar.';
+        info.classList.remove('hidden');
+      } catch (e) {
+        info.textContent = traducirErrorAuth(e);
+        info.classList.remove('hidden');
       } finally {
         setBtnBusy(btn, false);
       }
@@ -3515,6 +3591,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     setGate(null);
     renderSidenavUser();
     handleRoute();
+    if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // El aviso de "importar datos locales" y el onboarding son los dos
     // overlays de pantalla completa que pueden aparecer al iniciar sesión —
     // nunca los dos a la vez (si no, el de arriba tapa al de abajo). El
@@ -3528,6 +3605,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   function onSignedOut() {
     CURRENT_USER = null; CURRENT_PROFILE = null;
     CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
+    showFormPanel();
     setAuthMode('signin');
     setGate('auth-screen');
   }

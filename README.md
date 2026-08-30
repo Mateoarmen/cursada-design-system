@@ -500,9 +500,16 @@ exactamente el punto de enganche para no tener que reescribir el resto.
   cuenta" con un toggle arriba.
 - El proyecto de Supabase tiene **confirmación de email activada**: al
   registrarte no queda una sesión activa hasta que confirmás el mail que te
-  llega — la app lo detecta (`signUp()` no devuelve sesión) y te lo explica
-  en la propia pantalla en vez de fallar en silencio o intentar mostrar la
-  app con una sesión que no existe.
+  llega. La app lo detecta (`signUp()` no devuelve sesión) y, en vez de un
+  texto chico al lado del formulario, reemplaza toda la tarjeta de login por
+  una pantalla dedicada de "Confirmá tu cuenta" — con el email al que te
+  escribimos, un botón para reenviar el mail (`supabase.auth.resend()`, con
+  su propio feedback si falla) y un botón "Ya confirmé, iniciar sesión" que
+  vuelve al formulario en modo login con el email precargado. Si el proyecto
+  tuviera la confirmación de email desactivada (`signUp()` devuelve sesión
+  de una), se muestra en cambio un toast breve de "¡Cuenta creada!" antes de
+  entrar directo a la app — mismo evento, dos configuraciones posibles del
+  proyecto, cada una con su propio feedback en vez de dejarlo implícito.
 - Perfil (tocar tu nombre/avatar en el side nav) y cerrar sesión (el botón
   de al lado) viven en el mismo lugar donde ya vivían los demás controles
   de alcance global (tema, semestre) — no se agregó un lugar nuevo en la

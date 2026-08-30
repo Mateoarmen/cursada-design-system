@@ -14,21 +14,32 @@
 <!-- ============ LOGIN / REGISTRO ============ -->
 <div class="auth-screen hidden" id="auth-screen">
   <div class="auth-card">
-    <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
-    <span class="auth-sub">Gestión académica personal — con cuenta, sincronizada entre tus dispositivos.</span>
-    <div class="seg" id="auth-mode-toggle">
-      <button type="button" class="seg-item is-on" data-auth-mode="signin">Iniciar sesión</button>
-      <button type="button" class="seg-item" data-auth-mode="signup">Crear cuenta</button>
+    <div id="auth-form-panel">
+      <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
+      <span class="auth-sub">Gestión académica personal — con cuenta, sincronizada entre tus dispositivos.</span>
+      <div class="seg" id="auth-mode-toggle">
+        <button type="button" class="seg-item is-on" data-auth-mode="signin">Iniciar sesión</button>
+        <button type="button" class="seg-item" data-auth-mode="signup">Crear cuenta</button>
+      </div>
+      <form id="form-auth">
+        <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></div>
+        <div class="field"><label>Contraseña</label><input name="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></div>
+        <span class="auth-error hidden" id="auth-error"></span>
+        <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
+      </form>
     </div>
-    <form id="form-auth">
-      <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></div>
-      <div class="field"><label>Contraseña</label><input name="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></div>
-      <span class="auth-error hidden" id="auth-error"></span>
-      <span class="auth-info hidden" id="auth-info"></span>
-      <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
-    </form>
+    <div id="auth-check-email-panel" class="hidden">
+      <div class="auth-check-icon">✉</div>
+      <span class="auth-check-title">Confirmá tu cuenta</span>
+      <span class="auth-check-body">Te mandamos un mail a <b id="auth-check-email"></b> con un link para confirmar tu cuenta. Abrilo (revisá spam si no aparece) y después volvé acá.</span>
+      <span class="auth-info hidden" id="auth-resend-info"></span>
+      <button type="button" class="btn" id="btn-auth-resend" style="width:100%;height:40px">Reenviar mail</button>
+      <button type="button" class="btn btn-primary" id="btn-auth-check-volver" style="width:100%;height:44px">Ya confirmé, iniciar sesión</button>
+    </div>
   </div>
 </div>
+
+<div class="toast hidden" id="toast"></div>
 
 <div class="sidenav-backdrop" id="sidenav-backdrop"></div>
 <div id="app" class="hidden">

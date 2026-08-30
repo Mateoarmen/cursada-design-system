@@ -1987,6 +1987,7 @@
   // AUTENTICACIÓN
   // ================================================================
   var AUTH_MODE = 'signin'; // 'signin' | 'signup'
+  var JUST_SIGNED_UP = false; // true entre un signUp() con sesión inmediata y el próximo onSignedIn()
 
   // Controla qué pantalla de nivel superior se ve: 'gate-loading' (cargando
   // sesión o datos), 'auth-screen' (sin sesión), 'gate-error' (falló la carga
@@ -2014,17 +2015,40 @@
     AUTH_MODE = mode;
     document.querySelectorAll('#auth-mode-toggle [data-auth-mode]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-auth-mode') === mode); });
     document.getElementById('auth-submit').textContent = mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión';
-    showAuthError(''); showAuthInfo('');
+    showAuthError('');
   }
   function showAuthError(msg) {
     var e = document.getElementById('auth-error');
-    if (msg) document.getElementById('auth-info').classList.add('hidden');
     e.textContent = msg || ''; e.classList.toggle('hidden', !msg);
   }
-  function showAuthInfo(msg) {
-    var i = document.getElementById('auth-info');
-    if (msg) document.getElementById('auth-error').classList.add('hidden');
-    i.textContent = msg || ''; i.classList.toggle('hidden', !msg);
+
+  // Pantalla dedicada de "confirmá tu cuenta" — reemplaza al formulario
+  // entero (no un texto chico al lado, fácil de pasar por alto) cuando el
+  // registro no devuelve sesión porque el proyecto tiene confirmación de
+  // email activada.
+  var ULTIMO_EMAIL_REGISTRADO = '';
+  function showCheckEmailPanel(email) {
+    ULTIMO_EMAIL_REGISTRADO = email;
+    document.getElementById('auth-check-email').textContent = email;
+    document.getElementById('auth-resend-info').classList.add('hidden');
+    document.getElementById('auth-form-panel').classList.add('hidden');
+    document.getElementById('auth-check-email-panel').classList.remove('hidden');
+  }
+  function showFormPanel() {
+    document.getElementById('auth-check-email-panel').classList.add('hidden');
+    document.getElementById('auth-form-panel').classList.remove('hidden');
+  }
+
+  // Toast breve para feedback puntual que no necesita bloquear la pantalla
+  // (p. ej. "cuenta creada" cuando el registro sí devuelve sesión de una —
+  // proyectos sin confirmación de email activada).
+  var toastTimer = null;
+  function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 4000);
   }
 
   function bindAuthUI() {
@@ -2036,7 +2060,7 @@
       var form = ev.target;
       var email = form.email.value.trim();
       var password = form.password.value;
-      showAuthError(''); showAuthInfo('');
+      showAuthError('');
       var btn = document.getElementById('auth-submit');
       setBtnBusy(btn, true, AUTH_MODE === 'signup' ? 'Creando cuenta…' : 'Entrando…');
       try {
@@ -2044,16 +2068,46 @@
           ? await sb().auth.signUp({ email: email, password: password })
           : await sb().auth.signInWithPassword({ email: email, password: password });
         if (res.error) throw res.error;
-        if (AUTH_MODE === 'signup' && res.data && !res.data.session) {
-          // El proyecto tiene confirmación de email activada: no hay sesión
-          // todavía hasta que confirme el mail — no intentamos arrancar la app.
-          showAuthInfo('Te mandamos un mail para confirmar tu cuenta. Confirmalo y después iniciá sesión.');
-          setAuthMode('signin');
+        if (AUTH_MODE === 'signup') {
+          if (res.data && !res.data.session) {
+            // El proyecto tiene confirmación de email activada: no hay sesión
+            // todavía hasta que confirme el mail — se muestra la pantalla
+            // dedicada en vez de intentar arrancar la app.
+            showCheckEmailPanel(email);
+          } else {
+            // Sesión inmediata (confirmación de email desactivada en el
+            // proyecto): la cuenta ya quedó creada y activa — se lo
+            // confirmamos con un toast antes de que entre a la app (el
+            // listener de onAuthStateChange dispara el arranque solo).
+            JUST_SIGNED_UP = true;
+          }
         }
-        // Si sí hay sesión, el listener de onAuthStateChange (SIGNED_IN) es
-        // el que dispara la carga de datos y muestra la app.
+        // Con sesión, el listener de onAuthStateChange (SIGNED_IN) es el
+        // que dispara la carga de datos y muestra la app.
       } catch (e) {
         showAuthError(traducirErrorAuth(e));
+      } finally {
+        setBtnBusy(btn, false);
+      }
+    });
+    document.getElementById('btn-auth-check-volver').addEventListener('click', function () {
+      showFormPanel();
+      setAuthMode('signin');
+      var emailInput = document.querySelector('#form-auth [name="email"]');
+      if (emailInput) emailInput.value = ULTIMO_EMAIL_REGISTRADO;
+    });
+    document.getElementById('btn-auth-resend').addEventListener('click', async function () {
+      var btn = document.getElementById('btn-auth-resend');
+      var info = document.getElementById('auth-resend-info');
+      setBtnBusy(btn, true, 'Reenviando…');
+      try {
+        var res = await sb().auth.resend({ type: 'signup', email: ULTIMO_EMAIL_REGISTRADO });
+        if (res.error) throw res.error;
+        info.textContent = 'Listo, te lo volvimos a mandar.';
+        info.classList.remove('hidden');
+      } catch (e) {
+        info.textContent = traducirErrorAuth(e);
+        info.classList.remove('hidden');
       } finally {
         setBtnBusy(btn, false);
       }
@@ -2203,6 +2257,7 @@
     setGate(null);
     renderSidenavUser();
     handleRoute();
+    if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // El aviso de "importar datos locales" y el onboarding son los dos
     // overlays de pantalla completa que pueden aparecer al iniciar sesión —
     // nunca los dos a la vez (si no, el de arriba tapa al de abajo). El
@@ -2216,6 +2271,7 @@
   function onSignedOut() {
     CURRENT_USER = null; CURRENT_PROFILE = null;
     CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
+    showFormPanel();
     setAuthMode('signin');
     setGate('auth-screen');
   }

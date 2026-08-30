@@ -514,6 +514,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .auth-error{font-size:12px;color:var(--c-danger);background:rgba(255,59,48,.1);border-radius:8px;padding:9px 11px;line-height:1.4}
 .auth-info{font-size:12px;color:var(--c-ink2);background:var(--c-surfaceAlt);border-radius:8px;padding:9px 11px;line-height:1.4}
 
+#auth-check-email-panel{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+#auth-check-email-panel.hidden{display:none}
+.auth-check-icon{width:52px;height:52px;border-radius:50%;background:var(--acc-azul-soft);color:var(--c-accent);font-size:22px;display:flex;align-items:center;justify-content:center;flex:none}
+.auth-check-title{font-family:var(--font-display);font-size:19px;font-weight:600}
+.auth-check-body{font-size:13px;color:var(--c-ink2);line-height:1.55}
+#auth-form-panel.hidden{display:none}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:400;background:var(--c-ink);color:var(--c-bg);font-size:13px;font-weight:600;padding:12px 18px;border-radius:12px;box-shadow:var(--c-modal-shadow);max-width:calc(100vw - 48px);text-align:center}
+.toast.hidden{display:none}
+html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);border:1px solid var(--c-line)}
+
 /* ---------- Perfil / usuario (side nav) ---------- */
 .sidenav-user{cursor:pointer}
 .sidenav-user .av{overflow:hidden}
