@@ -1,0 +1,681 @@
+<!-- ============ CARGANDO SESIÓN / ERROR DE CARGA ============ -->
+<div class="gate-screen" id="gate-loading">
+  <div class="gate-spinner"></div>
+  <span class="gate-text" id="gate-loading-text">Cargando sesión…</span>
+</div>
+
+<div class="gate-screen hidden" id="gate-error">
+  <div class="gate-brand"><div class="mark"></div></div>
+  <span class="gate-title">No se pudo cargar tu cuenta</span>
+  <span class="gate-text">Revisá tu conexión a internet e intentá de nuevo.</span>
+  <button type="button" class="btn btn-primary" id="btn-gate-retry">Reintentar</button>
+</div>
+
+<!-- ============ LOGIN / REGISTRO ============ -->
+<div class="auth-screen hidden" id="auth-screen">
+  <div class="auth-card">
+    <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
+    <span class="auth-sub">Gestión académica personal — con cuenta, sincronizada entre tus dispositivos.</span>
+    <div class="seg" id="auth-mode-toggle">
+      <button type="button" class="seg-item is-on" data-auth-mode="signin">Iniciar sesión</button>
+      <button type="button" class="seg-item" data-auth-mode="signup">Crear cuenta</button>
+    </div>
+    <form id="form-auth">
+      <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></div>
+      <div class="field"><label>Contraseña</label><input name="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></div>
+      <span class="auth-error hidden" id="auth-error"></span>
+      <span class="auth-info hidden" id="auth-info"></span>
+      <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
+    </form>
+  </div>
+</div>
+
+<div class="sidenav-backdrop" id="sidenav-backdrop"></div>
+<div id="app" class="hidden">
+  <aside class="sidenav" id="sidenav">
+    <div class="sidenav-brand">
+      <div class="mark"></div>
+      <span class="name">cursada</span>
+    </div>
+    <button type="button" class="semestre-switcher" id="btn-semestre-switcher" title="Cambiar de semestre">
+      <span class="semestre-switcher-nombre" id="semestre-activo-nombre"></span>
+      <span class="chev">⌄</span>
+    </button>
+    <nav class="sidenav-nav" id="sidenav-nav">
+      <button class="nav-item" data-nav="inicio"><span class="mark"></span><span>Inicio</span></button>
+      <button class="nav-item" data-nav="materias"><span class="mark"></span><span>Materias</span></button>
+      <button class="nav-item" data-nav="agenda"><span class="mark"></span><span>Agenda</span></button>
+      <button class="nav-item" data-nav="calendario"><span class="mark"></span><span>Calendario</span></button>
+      <button class="nav-item" data-nav="horario"><span class="mark"></span><span>Horario</span></button>
+    </nav>
+    <div class="sidenav-legend hidden" id="sidenav-legend">
+      <span class="lbl" id="sidenav-legend-lbl">Referencias</span>
+      <div id="sidenav-legend-list"></div>
+    </div>
+    <div class="sidenav-toggles">
+      <label class="switch-row" style="cursor:pointer">
+        <span style="font-size:12px;color:var(--c-ink2)">Ver personales</span>
+        <button type="button" class="switch is-on" id="toggle-personales"><span class="knob"></span></button>
+      </label>
+      <label class="switch-row hidden" id="toggle-sabado-row" style="cursor:pointer">
+        <span style="font-size:12px;color:var(--c-ink2)">Mostrar sábado</span>
+        <button type="button" class="switch is-on" id="toggle-sabado"><span class="knob"></span></button>
+      </label>
+    </div>
+    <div class="sidenav-user" id="sidenav-user" title="Editar perfil">
+      <div class="av" id="sidenav-user-avatar"></div>
+      <div class="who"><b id="sidenav-user-nombre"></b><span id="sidenav-user-email"></span></div>
+      <button type="button" class="sidenav-logout" id="btn-logout" title="Cerrar sesión">⏻</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="app-toolbar">
+      <button class="hamburger-btn" id="btn-menu" aria-label="Abrir menú" title="Menú">
+        <span></span><span></span><span></span>
+      </button>
+      <button class="nav-item" data-nav="inicio" style="width:auto;height:34px;font-size:12px;font-weight:700;font-family:var(--font-display)">cursada</button>
+      <span class="mono" id="toolbar-view-label" style="font-size:12px;color:var(--c-ink3)"></span>
+      <div class="grow"></div>
+      <div class="seg" id="theme-toggle">
+        <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
+        <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
+      </div>
+      <div class="sep"></div>
+      <button class="toolbar-btn" id="btn-exportar">Exportar</button>
+      <button class="toolbar-btn" id="btn-importar">Importar</button>
+      <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
+      <button class="toolbar-btn" id="btn-borrar-todo">Borrar todo</button>
+      <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>
+    </div>
+
+    <!-- ============ INICIO ============ -->
+    <section class="view-screen" id="inicio">
+      <header class="topbar">
+        <span class="topbar-title"><span class="t">Inicio</span></span>
+        <div class="topbar-actions">
+          <input type="search" class="search-input" id="inicio-search" placeholder="Buscar materia o entrega" autocomplete="off">
+          <button class="icon-btn" title="Notificaciones"><span style="width:9px;height:9px;border-radius:50%;background:var(--c-danger);display:block"></span></button>
+          <button class="btn btn-primary" id="btn-inicio-nuevo">+ Nuevo</button>
+        </div>
+      </header>
+      <div class="view">
+        <div class="inicio-head">
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <span class="inicio-hello" id="inicio-hello">Hola, Joaquín</span>
+            <span class="inicio-date mono" id="inicio-date"></span>
+          </div>
+          <span class="inicio-note" id="inicio-note"></span>
+        </div>
+        <div class="kpi-row" id="kpi-row"></div>
+        <div class="inicio-cols">
+          <div class="card panel" style="flex:1.55;min-width:340px">
+            <div class="panel-head">
+              <span class="panel-title">Próximos 7 días</span>
+              <span class="panel-hint">académico + personal · <a href="#agenda">ver agenda</a></span>
+            </div>
+            <div id="proximos-list"></div>
+          </div>
+          <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:16px">
+            <div class="card panel" id="riesgo-panel">
+              <div class="panel-head" style="align-items:baseline">
+                <span class="panel-title">Materias en riesgo</span>
+                <span class="panel-hint mono">actual / aprueba con</span>
+              </div>
+              <div id="riesgo-list"></div>
+            </div>
+            <div class="card panel">
+              <span class="panel-title">Accesos rápidos</span>
+              <div class="accesos-row">
+                <button class="acceso-btn" id="acceso-materia">+ Materia</button>
+                <button class="acceso-btn" id="acceso-entrega">+ Entrega</button>
+                <button class="acceso-btn" id="acceso-evento">+ Evento personal</button>
+                <button class="acceso-btn" data-nav="horario">Ver horario</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MATERIAS ============ -->
+    <section class="view-screen hidden" id="materias">
+      <header class="topbar">
+        <span class="topbar-title"><span class="t">Materias</span><span class="meta mono" id="materias-count"></span></span>
+        <div class="topbar-actions">
+          <input type="search" class="search-input" id="materias-search" placeholder="Buscar materia" autocomplete="off">
+          <button class="btn btn-primary" id="btn-materias-nueva">+ Nueva materia</button>
+        </div>
+      </header>
+      <div class="view">
+        <div class="materias-toolbar">
+          <div class="filtros-row" id="materias-filtros"></div>
+          <div class="seg">
+            <button type="button" class="seg-item is-on" data-materias-view="tarjetas">Tarjetas</button>
+            <button type="button" class="seg-item" data-materias-view="tabla">Tabla</button>
+          </div>
+        </div>
+        <div class="materias-grid" id="materias-grid"></div>
+        <div style="overflow-x:auto" class="hidden" id="materias-table-wrap">
+          <table class="materias-table">
+            <thead><tr><th>Código</th><th>Materia</th><th>Docente</th><th>Créditos</th><th>Nota</th><th>Estado</th></tr></thead>
+            <tbody id="materias-table"></tbody>
+          </table>
+        </div>
+        <div class="empty-state hidden" id="materias-empty">
+          <div style="width:260px;height:150px;position:relative">
+            <div style="position:absolute;left:0;top:22px;width:150px;height:106px;border:1.5px solid var(--c-muted4);border-radius:12px;background:var(--c-surface)"></div>
+            <div style="position:absolute;left:18px;top:40px;width:86px;height:8px;border-radius:4px;background:var(--c-line)"></div>
+            <div style="position:absolute;left:18px;top:58px;width:112px;height:8px;border-radius:4px;background:var(--c-line-faint)"></div>
+            <div style="position:absolute;left:18px;top:76px;width:64px;height:8px;border-radius:4px;background:var(--c-line-faint)"></div>
+            <div style="position:absolute;right:8px;top:0;width:126px;height:106px;border:1.5px solid var(--c-muted4);border-radius:12px;background:var(--c-surface);display:flex;align-items:center;justify-content:center">
+              <div style="width:56px;height:56px;border-radius:50%;border:6px solid var(--c-line);border-top-color:var(--c-muted4)"></div>
+            </div>
+          </div>
+          <div class="empty-copy">
+            <span class="t">Todavía no cargaste ninguna materia</span>
+            <span class="s">Empezá con una: nombre, docente, horario y nota de aprobación. Con eso ya se arman tu calendario, tu horario semanal y el seguimiento de notas.</span>
+          </div>
+          <div class="empty-actions">
+            <button class="btn btn-primary" id="btn-empty-primera">Agregar mi primera materia</button>
+          </div>
+          <span class="empty-hint">nota 0–12, puntaje o porcentaje · vos elegís por materia</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DETALLE ============ -->
+    <section class="view-screen hidden" id="detalle">
+      <header class="topbar">
+        <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
+        <div class="topbar-actions">
+          <button class="btn" id="btn-detalle-editar">Editar materia</button>
+          <button class="btn btn-primary" id="btn-detalle-nueva-eval">+ Nueva evaluación</button>
+        </div>
+      </header>
+      <div class="view">
+        <div class="card detalle-head">
+          <div class="detalle-avatar" id="detalle-avatar"></div>
+          <div class="detalle-title">
+            <div class="row"><span class="n" id="detalle-nombre"></span><span class="badge" id="detalle-estado-badge"></span></div>
+            <span class="meta mono" id="detalle-meta"></span>
+          </div>
+          <div class="detalle-side">
+            <div class="col"><span class="lbl">Salón</span><span class="val mono" id="detalle-salon"></span></div>
+            <div class="col"><span class="lbl">Cursada</span><span class="val mono" id="detalle-cursada"></span></div>
+          </div>
+        </div>
+        <div class="detalle-cols">
+          <div class="card detalle-col">
+            <div class="detalle-col-title"><span class="t">Calificación y aprobación</span><span class="escala-badge" id="detalle-escala-badge"></span></div>
+            <div class="detalle-ring-row">
+              <div class="ring" id="detalle-ring"><div class="ring-inner" id="detalle-ring-inner"></div></div>
+              <div class="notas-list" id="detalle-notas-list"></div>
+            </div>
+            <div class="callout" id="detalle-callout">
+              <b id="detalle-callout-t"></b>
+              <span id="detalle-callout-s"></span>
+            </div>
+            <div class="detalle-actions">
+              <button class="btn" id="btn-detalle-cargar-nota">Cargar nota</button>
+              <button class="btn" id="btn-detalle-escala">Cambiar escala y aprobación</button>
+            </div>
+          </div>
+          <div class="card detalle-col" style="flex:1.15">
+            <div class="panel-head"><span class="panel-title">Evaluaciones y entregas</span><span class="panel-hint mono" id="detalle-eval-count"></span></div>
+            <div class="eval-list" id="detalle-eval-list"></div>
+          </div>
+        </div>
+        <div class="card mini-horario">
+          <span class="panel-title">Mini horario de la materia</span>
+          <div class="mini-days" id="detalle-mini-days"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AGENDA ============ -->
+    <section class="view-screen hidden" id="agenda">
+      <header class="topbar">
+        <span class="topbar-title"><span class="t">Agenda</span><span class="meta mono" id="agenda-count"></span></span>
+        <div class="topbar-actions">
+          <input type="search" class="search-input" id="agenda-search" placeholder="Buscar en la agenda" autocomplete="off">
+          <select class="btn" id="agenda-filtro-materia" style="font-weight:500"><option value="">Todas las materias</option></select>
+          <select class="btn" id="agenda-filtro-estado" style="font-weight:500">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="hecho">Entregados/rendidos</option>
+          </select>
+          <button class="btn btn-primary" id="btn-agenda-nuevo">+ Nuevo</button>
+        </div>
+      </header>
+      <div class="view">
+        <div class="filtros-row" id="agenda-filtros"></div>
+        <div class="agenda-groups" id="agenda-groups"></div>
+      </div>
+    </section>
+
+    <!-- ============ CALENDARIO ============ -->
+    <section class="view-screen hidden" id="calendario">
+      <header class="topbar">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:none" id="cal-month-label"></span>
+          <div class="cal-nav"><button id="cal-prev">‹</button><button id="cal-next">›</button></div>
+          <button class="mono" id="cal-today-label" style="font-size:12px;color:var(--c-ink3);background:none;border:none;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;flex:none" title="Volver a hoy"></button>
+        </div>
+        <div class="topbar-actions">
+          <div class="seg" id="cal-view-toggle">
+            <button type="button" class="seg-item is-on" data-cal-view="mes">Mes</button>
+            <button type="button" class="seg-item" data-cal-view="semana">Semana</button>
+          </div>
+          <button class="btn btn-primary" id="btn-cal-evento">+ Evento personal</button>
+        </div>
+      </header>
+      <div class="calendario-wrap">
+        <div class="calendario-main">
+          <div class="cal-weekdays" id="cal-weekdays"></div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+        <div class="cal-side" id="cal-side">
+          <div class="cal-side-head"><span class="t" id="cal-side-title"></span><span class="m" id="cal-side-meta"></span></div>
+          <div id="cal-side-list"></div>
+          <div class="cal-side-add">
+            <button class="btn-block" id="btn-cal-side-add">+ Agregar en este día</button>
+            <span class="hint">Las clases se generan desde el horario semanal de cada materia.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HORARIO ============ -->
+    <section class="view-screen hidden" id="horario">
+      <header class="topbar">
+        <span class="topbar-title"><span class="t">Horario semanal</span><span class="meta mono" id="horario-meta"></span></span>
+        <div class="topbar-actions">
+          <span class="search-fake">Semestre 2 · 2026</span>
+          <button class="btn btn-primary" id="btn-horario-editar">+ Nueva materia</button>
+        </div>
+      </header>
+      <div class="view">
+        <div class="horario-grid-wrap">
+          <div class="horario-grid" id="horario-grid"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ ONBOARDING ============ -->
+<div class="onboarding hidden" id="onboarding">
+  <div class="ob-left">
+    <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
+    <div class="ob-body">
+      <span class="ob-eyebrow">Bienvenido</span>
+      <span class="ob-h1">Tu semestre entero en un solo lugar</span>
+      <span class="ob-p">Materias, notas sobre 12, parciales, entregas y también lo tuyo: un asado, el gimnasio, el trabajo. Todo en el mismo calendario, sin planillas.</span>
+      <div class="ob-steps">
+        <div class="ob-step"><span class="n">1</span><span>Cargá tus materias con horario, salón y nota de aprobación.</span></div>
+        <div class="ob-step"><span class="n">2</span><span>Agregá parciales, entregas y también tus planes personales.</span></div>
+        <div class="ob-step"><span class="n">3</span><span>Mirá todo junto: calendario, horario y cómo vas de nota.</span></div>
+      </div>
+      <div class="ob-cta">
+        <button class="btn btn-primary" id="btn-ob-empezar">Crear mi primera materia</button>
+        <span class="hint">Toma 40 segundos · sin registro</span>
+      </div>
+    </div>
+    <span class="ob-foot">Nota 0–12, puntaje o porcentaje · pensado para facultades uruguayas</span>
+  </div>
+  <div class="ob-right" id="ob-right"></div>
+</div>
+
+<!-- ============ MODAL MATERIA ============ -->
+<div class="modal-backdrop" id="modal-materia">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="titles"><span class="t" id="modal-materia-title">Nueva materia</span><span class="s">Los datos de horario alimentan el calendario y la grilla semanal.</span></div>
+      <button class="modal-close" data-close-modal>×</button>
+    </div>
+    <form id="form-materia">
+      <div class="modal-body">
+        <div class="field-row">
+          <div class="field" style="flex:1.6"><label>Nombre de la materia</label><input name="nombre" required placeholder="Ej: Contabilidad II"></div>
+          <div class="field" style="flex:none;width:130px"><label>Código</label><input name="cod" class="mono" placeholder="Ej: CON-201"></div>
+          <div class="field" style="flex:none;width:112px"><label>Créditos</label><input name="creditos" type="number" min="0" step="1" class="mono"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Docente</label><input name="doc" placeholder="Prof. …"></div>
+        </div>
+        <div class="field">
+          <label>Color de la materia</label>
+          <div class="swatches" id="modal-materia-swatches"></div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:1.4"><label>Salón / aula</label><input name="salon" placeholder="Ej: Edificio Central · Aula 402"></div>
+          <div class="field">
+            <label>Estado</label>
+            <select name="estado">
+              <option value="cursando">Cursando</option>
+              <option value="aprobada">Aprobada</option>
+              <option value="recursando">Recursando</option>
+              <option value="pendiente">Pendiente</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Horario semanal</label>
+          <div class="horario-rows" id="modal-materia-horario-rows"></div>
+          <button type="button" class="add-link" id="btn-add-franja">+ Agregar otra franja</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:11px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font-size:12px;font-weight:600;color:var(--c-ink2)">Sistema de calificación de esta materia</span>
+            <span class="mono" style="font-size:11px;color:var(--c-ink3)">se aplica sólo a esta materia</span>
+          </div>
+          <div class="seg-cards" id="modal-sistema-cards">
+            <button type="button" class="seg-card" data-sistema="nota"><b>Nota 0–12</b><span>escala clásica uruguaya</span></button>
+            <button type="button" class="seg-card" data-sistema="puntos"><b>Puntaje</b><span>total que definís vos</span></button>
+            <button type="button" class="seg-card" data-sistema="pct"><b>Porcentaje</b><span>0 a 100 %</span></button>
+          </div>
+          <div class="num-pill-row"><span class="lbl" id="modal-total-label">Puntaje total (pts)</span><div class="num-pills" id="modal-total-presets"></div></div>
+          <div class="num-pill-row"><span class="lbl" id="modal-aprob-label">Aprueba con (pts)</span><div class="num-pills" id="modal-aprob-presets"></div></div>
+          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y entregas".</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="mono" style="font-size:11px;color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-materia-hint"></span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="remove-link hidden" id="btn-materia-eliminar">Eliminar</button>
+          <button type="button" class="btn" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar materia</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL EVALUACIÓN ============ -->
+<div class="modal-backdrop" id="modal-evaluacion">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <span class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo examen o entrega</span>
+      <button class="modal-close" data-close-modal>×</button>
+    </div>
+    <form id="form-evaluacion">
+      <div class="modal-body pad-lg">
+        <div class="field">
+          <label>Materia</label>
+          <div class="chips-materia" id="modal-eval-materias"></div>
+        </div>
+        <div class="field">
+          <label>Tipo</label>
+          <div class="tipos-seg" id="modal-eval-tipos"></div>
+          <input type="text" id="modal-eval-tipo-custom" class="hidden" placeholder="Nombre del tipo (ej: Coloquio, Laboratorio)" autocomplete="off">
+        </div>
+        <div class="field"><label>Título</label><input name="titulo" required placeholder="Ej: Parcial 1 · unidades 1 a 4"></div>
+        <div class="field-row">
+          <div class="field"><label>Fecha</label><input name="fecha" type="date" required></div>
+          <div class="field"><label>Hora</label><input name="hora" type="time"></div>
+          <div class="field">
+            <label>Estado</label>
+            <select name="hecho"><option value="">Pendiente</option><option value="1">Entregado / rendido</option></select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:none;width:220px">
+            <label id="modal-eval-nota-label">Nota obtenida (opcional)</label>
+            <input name="nota" type="number" step="0.1" placeholder="Todavía sin calificar">
+          </div>
+        </div>
+        <div class="field"><label>Notas</label><textarea name="notas" placeholder="Qué llevar, temas incluidos, bibliografía…"></textarea></div>
+      </div>
+      <div class="modal-foot">
+        <span class="mono" style="font-size:11px;color:var(--c-ink3)">se agrega al calendario y a la agenda</span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="remove-link hidden" id="btn-evaluacion-eliminar">Eliminar</button>
+          <button type="button" class="btn" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL EVENTO PERSONAL ============ -->
+<div class="modal-backdrop" id="modal-personal">
+  <div class="modal modal-xs">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:10px;height:10px;border-radius:3px;background:var(--c-personal)"></div>
+        <span class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em">Nuevo evento personal</span>
+      </div>
+      <button class="modal-close" data-close-modal>×</button>
+    </div>
+    <form id="form-personal">
+      <div class="modal-body pad-lg">
+        <div class="field"><label>Título</label><input name="titulo" required placeholder="Ej: Cena en casa de mis viejos"></div>
+        <div class="field-row">
+          <div class="field" style="flex:1.2"><label>Fecha</label><input name="fecha" type="date" required></div>
+          <div class="field" id="modal-personal-hora-field"><label>Hora</label><input name="hora" type="time"></div>
+        </div>
+        <div class="switch-row" style="padding:14px 16px;background:var(--c-bg);border:1px solid var(--c-line);border-radius:12px">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <span style="font-size:14px;font-weight:600">Todo el día</span>
+            <span style="font-size:12px;color:var(--c-ink2)">Se muestra como barra en el día del calendario</span>
+          </div>
+          <button type="button" class="switch" id="toggle-todo-el-dia"><span class="knob"></span></button>
+        </div>
+        <div class="field">
+          <label>Categoría</label>
+          <div class="categoria-row">
+            <div class="categoria-item is-on"><div class="d"></div>Personal</div>
+            <div class="categoria-item" title="No disponible: los eventos personales sólo usan gris neutro">Trabajo</div>
+            <div class="categoria-item" title="No disponible: los eventos personales sólo usan gris neutro">Salud</div>
+          </div>
+          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Los eventos personales nunca usan colores de materia: quedan en gris neutro para no competir con lo académico.</span>
+        </div>
+      </div>
+      <div class="modal-foot" style="justify-content:flex-end">
+        <button type="button" class="remove-link hidden" id="btn-personal-eliminar" style="margin-right:auto">Eliminar</button>
+        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar evento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL SEMESTRES ============ -->
+<div class="modal-backdrop" id="modal-semestres">
+  <div class="modal modal-xs">
+    <div class="modal-head">
+      <div class="titles"><span class="t">Semestres</span><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
+      <button class="modal-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div id="semestres-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="field-row" style="align-items:flex-end;padding-top:8px;border-top:1px solid var(--c-line-faint)">
+        <div class="field"><label>Nuevo semestre</label><input type="text" id="input-nuevo-semestre" placeholder="Ej: 2027 · Primer semestre"></div>
+        <button type="button" class="btn btn-primary" id="btn-crear-semestre">Crear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL PERFIL ============ -->
+<div class="modal-backdrop" id="modal-perfil">
+  <div class="modal modal-xs">
+    <div class="modal-head">
+      <div class="titles"><span class="t">Tu perfil</span><span class="s" id="perfil-email"></span></div>
+      <button class="modal-close" data-close-modal>×</button>
+    </div>
+    <form id="form-perfil">
+      <div class="modal-body pad-lg">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="av" id="modal-perfil-avatar"></div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button type="button" class="btn" id="btn-perfil-foto">Cambiar foto</button>
+            <span style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
+          </div>
+          <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
+        </div>
+        <div class="field"><label>Nombre</label><input name="nombre" placeholder="Tu nombre"></div>
+      </div>
+      <div class="modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-perfil-guardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
+<div class="modal-backdrop" id="modal-importar-local">
+  <div class="modal modal-xs">
+    <div class="modal-head">
+      <div class="titles"><span class="t">Encontramos datos locales</span><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
+    </div>
+    <div class="modal-body pad-lg">
+      <span id="import-local-resumen"></span>
+      <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Se suman a tu cuenta — no se borran del navegador ni se pisan datos que ya tengas sincronizados.</span>
+    </div>
+    <div class="modal-foot" style="justify-content:flex-end">
+      <button type="button" class="btn" id="btn-import-local-no">No, gracias</button>
+      <button type="button" class="btn btn-primary" id="btn-import-local-si">Importar mis datos locales</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TEMPLATES ============ -->
+<template data-template="kpi-card">
+  <div class="card kpi-card"><span class="kpi-label" data-f="label"></span><span class="kpi-value" data-f="valor"></span><span class="kpi-sub mono" data-f="sub"></span></div>
+</template>
+
+<template data-template="prox-row">
+  <div class="prox-row">
+    <div class="prox-date"><div class="d" data-f="dia"></div><div class="m" data-f="mes"></div></div>
+    <div class="bar4" data-f="bar"></div>
+    <div class="prox-body">
+      <span class="prox-title" data-f="titulo"></span>
+      <div class="prox-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="metaTxt"></span></div>
+    </div>
+    <span class="badge" data-f="badge"></span>
+  </div>
+</template>
+
+<template data-template="riesgo-row">
+  <div class="riesgo-row">
+    <div class="ring" data-f="ring"><div class="ring-inner" data-f="ringInner"></div></div>
+    <div class="riesgo-body"><b data-f="nombre"></b><span data-f="riesgoTxt"></span></div>
+  </div>
+</template>
+
+<template data-template="materia-card">
+  <div class="card materia-card">
+    <div class="mc-top"><div class="mc-tile" data-f="tile"></div><span class="badge" data-f="badge"></span></div>
+    <div class="mc-name"><span class="n" data-f="nombre"></span><span class="d" data-f="doc"></span></div>
+    <div class="mc-mid">
+      <div class="ring" data-f="ring"><div class="ring-inner" data-f="ringInner"></div></div>
+      <div class="mc-meta"><span data-f="salon"></span><span data-f="horario"></span></div>
+    </div>
+    <div class="mc-foot"><span data-f="escalaTxt"></span><span class="tone-dot" data-f="toneDot"></span></div>
+  </div>
+</template>
+
+<template data-template="materia-table-row">
+  <tr>
+    <td class="mono" data-f="cod"></td>
+    <td data-f="nombre"></td>
+    <td data-f="doc"></td>
+    <td class="mono" data-f="creditos"></td>
+    <td class="mono" data-f="notaTxt"></td>
+    <td><span class="badge" data-f="badge"></span></td>
+  </tr>
+</template>
+
+<template data-template="filtro-pill">
+  <button type="button" class="pill" data-f="label"></button>
+</template>
+
+<template data-template="nota-row">
+  <div class="nota-row">
+    <span class="label" data-f="label"></span>
+    <div class="bar-wrap"><div class="bar-fill" data-f="barFill"></div></div>
+    <span class="v" data-f="val"></span>
+  </div>
+</template>
+
+<template data-template="eval-row">
+  <div class="eval-row">
+    <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+    <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
+    <span class="badge" data-f="badge"></span>
+  </div>
+</template>
+
+<template data-template="mini-day">
+  <div class="mini-day"><span class="lbl" data-f="dia"></span><div class="box" data-f="box"></div></div>
+</template>
+
+<template data-template="agenda-row">
+  <div class="agenda-row">
+    <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+    <div class="bar4" data-f="bar"></div>
+    <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="tipo"></span></div></div>
+    <span class="agenda-fecha" data-f="fecha"></span>
+    <span class="badge" data-f="badge"></span>
+  </div>
+</template>
+
+<template data-template="cal-cell">
+  <div class="cal-cell">
+    <div class="cal-cell-head"><span class="cal-num" data-f="num"></span><span class="cal-clases" data-f="clases"></span></div>
+    <div class="cal-events" data-f="eventos"></div>
+  </div>
+</template>
+
+<template data-template="cal-event">
+  <div class="cal-event" data-f="label"></div>
+</template>
+
+<template data-template="cal-day-card">
+  <div class="cal-day-card"><div class="row"><span class="chip" data-f="chip"></span><span class="m" data-f="hora"></span></div><span class="t" data-f="titulo"></span><span class="m" data-f="lugar"></span></div>
+</template>
+
+<template data-template="leyenda-item">
+  <div class="legend-row"><div class="dot" data-f="dot"></div><span data-f="label"></span></div>
+</template>
+
+<template data-template="horario-block">
+  <div class="hg-block" data-f="style"><span class="n" data-f="nombre"></span><span class="h" data-f="hora"></span><span class="s" data-f="salon"></span></div>
+</template>
+
+<template data-template="swatch">
+  <button type="button" class="swatch" data-f="swatch"></button>
+</template>
+
+<template data-template="horario-modal-row">
+  <div class="horario-modal-row">
+    <div class="dias-mini" data-f="dias"></div>
+    <input type="time" class="mono" data-f="inicio" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
+    <span style="color:var(--c-ink3);font-size:13px">a</span>
+    <input type="time" class="mono" data-f="fin" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
+    <button type="button" class="remove-link" data-f="remove">Quitar</button>
+  </div>
+</template>
+
+<template data-template="chip-materia">
+  <button type="button" class="chip-materia" data-f="chip"></button>
+</template>
+
+<template data-template="semestre-row">
+  <div class="semestre-row">
+    <button type="button" class="semestre-row-select" data-f="selectBtn">
+      <span class="semestre-row-check" data-f="check"></span>
+      <span class="semestre-row-nombre" data-f="nombre"></span>
+    </button>
+    <span class="semestre-row-meta" data-f="meta"></span>
+    <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar">✎</button>
+  </div>
+</template>
+
+<template data-template="tipo-item">
+  <button type="button" class="tipo-item"><span data-f="label"></span></button>
+</template>
