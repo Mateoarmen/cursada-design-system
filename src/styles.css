@@ -343,7 +343,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .detalle-actions{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap}
 .eval-list{display:flex;flex-direction:column}
 .eval-row{display:flex;align-items:center;gap:15px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
-.eval-row:first-child{border-top:none}
+/* Cada fila vive envuelta en .swipe-row (ver template eval-row en app.html —
+   necesario para el gesto de swipe en mobile, ver más abajo), así que
+   ".eval-row:first-child" ya no identifica la primera fila de la lista: cada
+   fila es first-child DENTRO de su propio wrapper, así que esa regla le
+   sacaría el borde a todas por igual. Se apunta la selección a través del
+   wrapper en su lugar. */
+.eval-list > .swipe-row:first-child .eval-row{border-top:none}
 .eval-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .eval-body .t{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .eval-body .t.done{color:var(--c-ink3);text-decoration:line-through}
@@ -364,7 +370,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .agenda-group-head .rule{flex:1;height:1px;background:var(--c-line-faint)}
 .agenda-list{overflow:hidden}
 .agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px;border-top:1px solid var(--c-line-faint)}
-.agenda-row:first-child{border-top:none}
+/* Mismo motivo que .eval-row de arriba: la fila vive envuelta en .swipe-row,
+   así que la selección de "primera fila" pasa por el wrapper. */
+.agenda-list > .swipe-row:first-child .agenda-row{border-top:none}
 .agenda-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .agenda-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .agenda-title.done{color:var(--c-ink3);text-decoration:line-through}
@@ -745,3 +753,357 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 .sidenav-logout{flex:none;width:26px;height:26px;border-radius:8px;border:none;background:transparent;color:var(--c-ink3);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
 .sidenav-logout:hover{background:var(--c-line-faint);color:var(--c-danger)}
 #import-local-resumen{font-size:14px;font-weight:600;line-height:1.4}
+
+/* ============================================================================
+   Capa mobile (≤760px) — handoff "Mobile web design optimization" de Claude
+   Design. Se apoya en los breakpoints que ya existían (900px, 640px del
+   Calendario, 680px/1100px de la grilla de Materias) y no reemplaza nada de
+   lo que hay arriba, sólo agrega. Tres decisiones de fondo: navegación por
+   tab bar abajo (5 vistas) + FAB de crear (el cajón lateral queda para
+   semestre/tema/perfil/utilidades), calendario semanal en tira de días con
+   lista del día elegido, y modales a pantalla completa que entran desde la
+   derecha (hojas inferiores para listas cortas: semestres, importar datos).
+
+   Dos ajustes sobre el handoff original, documentados en el README:
+   1. .tabbar/.fab/.quick-sheet/.row-menu/.weekstrip son elementos
+      persistentes en el DOM (no sólo-mobile, .weekstrip vive vacío hasta
+      que renderWeekstrip() lo llena) con botones/texto real adentro — sus
+      únicas reglas en el handoff viven dentro del @media, así que en
+      cualquier ancho MAYOR a 760px (desktop, o el hueco 761–900px de una
+      tablet) se verían sin estilo. Se agrega acá, fuera del @media, un
+      display:none por defecto que el bloque de 760px revierte. El JS
+      además esconde .weekstrip a mano fuera de la vista Semana (ver
+      renderCalendario) — el media query sólo controla el ancho, no el
+      viewMode.
+   2. Se omite ocultar los <select> de filtro de Agenda (materia/estado) en
+      el header — el handoff los quería mover a la fila de filtros pero no
+      traía el HTML/JS para eso, y ocultarlos sin reemplazo le sacaría a
+      Agenda la posibilidad de filtrar por materia o por estado en mobile.
+      Quedan visibles (ya envuelven razonablemente bien en una fila propia
+      con el flex-wrap que el header ya tenía).
+   ========================================================================= */
+.tabbar,.fab,.quick-sheet,.row-menu,.weekstrip{display:none}
+
+@media(max-width:760px){
+
+  /* ---------- chrome ---------- */
+  .app-toolbar{display:none}
+  .sidenav-tools{display:flex;flex-wrap:wrap;gap:8px;padding:0 8px}
+
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    min-height:0;height:calc(52px + env(safe-area-inset-top));
+    padding:env(safe-area-inset-top) 12px 0;
+    flex-wrap:nowrap;gap:6px;
+  }
+  .topbar-title{flex:1;align-items:center;gap:8px;overflow:hidden}
+  .topbar-title .t{font-size:21px;letter-spacing:-.022em}
+  .topbar-title .meta{display:none}
+  .topbar-crumb{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-actions{gap:6px;flex-wrap:nowrap;flex:none}
+  .topbar-actions > .btn-primary{display:none}
+  .topbar-actions .icon-btn,.topbar-actions .btn{height:38px}
+  .topbar-actions .icon-btn{width:38px}
+  .topbar-actions .search-fake{display:none}
+
+  .topbar-search{display:flex}
+  .search-input{display:none}
+  .topbar-search-done{display:none;flex:none}
+  .topbar.is-searching .topbar-title{display:none}
+  .topbar.is-searching .topbar-search{display:none}
+  .topbar.is-searching .topbar-actions{flex:1}
+  .topbar.is-searching .search-input{display:block;width:100%;flex:1;height:38px}
+  .topbar.is-searching .topbar-search-done{display:flex}
+
+  .view{padding:14px 14px calc(112px + env(safe-area-inset-bottom));gap:16px}
+
+  /* ---------- tab bar ---------- */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:120;
+    display:grid;grid-template-columns:repeat(5,1fr);
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(251,251,253,.86);backdrop-filter:blur(24px) saturate(180%);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    border-top:1px solid var(--c-line);
+  }
+  html[data-theme="oscuro"] .tabbar{background:rgba(28,28,30,.86)}
+  .tab{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    height:50px;border:none;background:transparent;border-radius:12px;
+    font-size:10px;font-weight:600;letter-spacing:-.01em;color:var(--c-ink3);
+  }
+  .tab .mark{width:9px;height:9px;border-radius:50%;background:var(--c-muted6);transition:background 120ms ease,transform 160ms var(--ease-out)}
+  .tab[data-nav="materias"] .mark{border-radius:3px}
+  .tab[data-nav="agenda"] .mark{border-radius:2px;transform:rotate(45deg)}
+  .tab[data-nav="calendario"] .mark{border-radius:1px;box-shadow:0 0 0 1px currentColor inset}
+  .tab[data-nav="horario"] .mark{width:12px;height:8px;border-radius:2px}
+  .tab.is-on{color:var(--c-accent)}
+  .tab.is-on .mark{background:var(--c-accent)}
+  .tab.is-on[data-nav="agenda"] .mark{transform:rotate(45deg) scale(1.05)}
+
+  /* ---------- FAB ---------- */
+  .fab{
+    position:fixed;right:16px;z-index:121;
+    bottom:calc(72px + env(safe-area-inset-bottom));
+    width:56px;height:56px;border-radius:19px;border:none;
+    background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));
+    color:#fff;font-size:27px;font-weight:300;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 24px rgba(10,99,240,.34),inset 0 1px 0 rgba(255,255,255,.28);
+  }
+  .fab:active{transform:scale(.94)}
+  /* display:flex acá (no sólo en .is-open): la regla de afuera del @media
+     la pone display:none para que no se vea en desktop; adentro del
+     breakpoint ya tiene que estar en flex siempre para poder animar
+     opacity/transform al abrir — un elemento display:none no transiciona. */
+  .quick-sheet{position:fixed;left:12px;right:12px;bottom:calc(136px + env(safe-area-inset-bottom));z-index:122;
+    display:flex;flex-direction:column;
+    background:var(--c-surface);border-radius:18px;box-shadow:var(--c-modal-shadow);overflow:hidden;
+    opacity:0;visibility:hidden;transform:translateY(8px) scale(.97);pointer-events:none;
+    transition:opacity 150ms var(--ease-out),transform 150ms var(--ease-out),visibility 150ms}
+  .quick-sheet.is-open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+  .quick-sheet button{display:flex;align-items:center;width:100%;height:52px;padding:0 18px;border:none;
+    background:transparent;color:var(--c-ink);font-size:15px;font-weight:500;text-align:left;
+    border-top:1px solid var(--c-line-faint)}
+  .quick-sheet button:first-child{border-top:none}
+
+  /* ---------- toques ---------- */
+  .btn{height:44px;padding:0 18px;font-size:14px;border-radius:12px}
+  .btn-sm{height:38px;font-size:13px}
+  .icon-btn{height:44px;width:44px;border-radius:12px}
+  .pill{height:38px;font-size:13px}
+  .acceso-btn{height:44px;font-size:14px}
+  .seg-item{height:36px;padding:0 16px}
+  .cal-nav button{width:40px;height:40px}
+  .filtros-row,.materias-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .filtros-row::-webkit-scrollbar,.materias-toolbar::-webkit-scrollbar{display:none}
+  .filtros-row > *,.materias-toolbar > *{flex:none}
+
+  /* ---------- Inicio ---------- */
+  .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}
+  .inicio-hello{font-size:27px;letter-spacing:-.03em}
+  .inicio-note{font-size:14px}
+  .kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi-card{min-width:0;padding:14px 15px;gap:6px;border-radius:16px}
+  .kpi-label{font-size:12px;line-height:1.3}
+  .kpi-value{font-size:27px;letter-spacing:-.028em}
+  .kpi-sub{font-size:11px}
+  .inicio-cols{flex-direction:column;gap:12px}
+  .inicio-cols > *{min-width:0!important;width:100%;flex:none!important}
+  .panel{padding:16px 16px 18px;border-radius:18px;gap:8px}
+  .panel-title{font-size:17px}
+  .panel-hint{font-size:12px}
+  .prox-row{gap:12px;padding:11px 0}
+  .prox-date{width:34px}
+  .prox-date .d{font-size:17px}
+  .prox-date .m{font-size:10px}
+  .prox-title{font-size:14.5px}
+  .prox-meta .m{font-size:12px}
+  .prox-row{flex-wrap:wrap;row-gap:6px}
+  .prox-body{flex:1 1 160px}
+  .prox-row > .badge{margin-left:46px}
+  .riesgo-row{gap:12px}
+  .riesgo-body b{font-size:14.5px}
+  .accesos-row{gap:8px}
+
+  /* ---------- Materias ---------- */
+  .materia-card{padding:16px;gap:13px;border-radius:18px}
+  .mc-name .n{font-size:16.5px}
+  .materia-add{min-height:104px}
+  .materias-toolbar > .seg{display:none}
+  #materias-table-wrap{display:none!important}
+
+  /* ---------- Detalle ---------- */
+  .detalle-head{padding:16px;gap:14px;border-radius:18px}
+  .detalle-avatar{width:52px;height:52px;border-radius:15px;font-size:13px}
+  .detalle-title .n{font-size:22px}
+  .detalle-title{flex:1 1 180px}
+  .detalle-side{margin-left:0;width:100%;gap:0;display:grid;grid-template-columns:1fr 1fr;
+    padding-top:13px;border-top:1px solid var(--c-line-faint)}
+  .detalle-col{min-width:0;padding:16px;border-radius:18px;gap:16px}
+  .detalle-ring-row{gap:16px}
+  .nota-row .bar-wrap{width:56px}
+  .nota-row .v{width:56px;font-size:13px}
+  .nota-row .label{font-size:13px}
+  .callout{padding:13px 15px!important}
+  .callout b,.callout span{font-size:13.5px}
+  .detalle-actions .btn{flex:1 1 auto;justify-content:center}
+  .eval-body .t{font-size:14.5px}
+  .eval-row{gap:12px;flex-wrap:wrap;row-gap:6px}
+  .eval-body{flex:1 1 170px}
+  .eval-row > .badge{margin-left:34px}
+  .mini-horario{padding:16px;border-radius:18px}
+  .mini-days{overflow-x:auto;scrollbar-width:none;gap:8px}
+  .mini-days::-webkit-scrollbar{display:none}
+  .mini-day{flex:none;width:74px}
+  .mini-day .box{height:48px!important;font-size:10.5px!important}
+
+  /* ---------- Agenda ---------- */
+  .agenda-groups{gap:16px}
+  .agenda-row{padding:12px 14px;gap:12px}
+  .agenda-title{font-size:14.5px}
+  .agenda-fecha{margin-left:34px;font-size:12.5px}
+  .agenda-row > .badge{margin-left:auto}
+
+  /* Swipe para marcar entregado. El fondo verde vive detrás de la fila (no
+     un ::after sobre ella) para que el check se vea aparecer desde el
+     borde. Sólo se activa durante el gesto (.is-dragging/.is-armed): en
+     reposo el fondo es el mismo --c-surface que la fila, si no el borde de
+     1px entre filas (ver debajo) dejaba asomar una línea verde siempre. */
+  .swipe-row{position:relative;overflow:hidden;background:var(--c-surface)}
+  .swipe-row.is-dragging,.swipe-row.is-armed{background:var(--c-success)}
+  .swipe-row + .swipe-row{border-top:1px solid var(--c-line-faint)}
+  .swipe-action{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;
+    padding-right:20px;color:#fff;font-size:14px;font-weight:600;letter-spacing:-.01em;
+    opacity:calc(var(--sx,0) / 72);pointer-events:none}
+  .swipe-row > .agenda-row,.swipe-row > .eval-row{
+    position:relative;background:var(--c-surface);border-top:none;
+    transform:translateX(calc(var(--sx,0) * -1px));
+    transition:transform 200ms var(--ease-out);
+  }
+  .swipe-row.is-dragging > .agenda-row,.swipe-row.is-dragging > .eval-row{transition:none}
+  .swipe-row.is-armed .swipe-action{opacity:1}
+
+  /* Long press: la fila se hunde apenas y aparece el menú contextual. Mismo
+     motivo de display:flex/opacity/visibility que .quick-sheet arriba —
+     JS reposiciona left/top/bottom sobre la fila apretada antes de abrirlo. */
+  .swipe-row.is-pressed > .agenda-row,.swipe-row.is-pressed > .eval-row{transform:scale(.98)}
+  .row-menu{position:fixed;left:12px;right:12px;z-index:122;
+    display:flex;flex-direction:column;
+    background:var(--c-surface);border-radius:16px;box-shadow:var(--c-modal-shadow);overflow:hidden;
+    opacity:0;visibility:hidden;transform:translateY(6px) scale(.97);pointer-events:none;
+    transition:opacity 150ms var(--ease-out),transform 150ms var(--ease-out),visibility 150ms}
+  .row-menu.is-open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+  .row-menu button{display:flex;align-items:center;width:100%;height:50px;padding:0 18px;border:none;
+    background:transparent;font-size:15px;color:var(--c-ink);text-align:left;border-top:1px solid var(--c-line-faint)}
+  .row-menu button:first-child{border-top:none}
+  .row-menu button.danger{color:var(--c-danger)}
+
+  /* ---------- Calendario ---------- */
+  .calendario-wrap{flex-direction:column;gap:0}
+  .calendario-main{padding:12px 14px 0}
+  .weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+    scroll-snap-align:start;touch-action:pan-y pinch-zoom}
+  .ws-day{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0 7px;
+    border:none;background:transparent;border-radius:14px;color:var(--c-ink)}
+  .ws-day .wd{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3)}
+  .ws-day .dn{font-size:17px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+    width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .ws-day.is-hoy .dn{color:var(--c-accent)}
+  .ws-day.is-sel .dn{background:var(--c-accent);color:#fff}
+  .ws-day.is-sel .wd{color:var(--c-ink)}
+  .ws-dots{display:flex;gap:2.5px;height:5px;align-items:center;justify-content:center}
+  .ws-dots i{width:5px;height:5px;border-radius:50%;display:block}
+
+  .cal-cell{min-height:52px}
+  .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line);
+    padding:16px 14px calc(112px + env(safe-area-inset-bottom));background:transparent;gap:12px}
+  .cal-side-head .t{font-size:18px}
+  .cal-day-card{padding:12px 13px;border-radius:14px}
+  .cal-side-add{display:none}
+
+  /* ---------- Horario ---------- */
+  .horario-grid{gap:2px}
+  .horario-grid{grid-template-columns:26px repeat(6,1fr)!important}
+  .hg-day-label{font-size:9px;letter-spacing:.02em}
+  .hg-hour-label{font-size:8px;padding-right:3px}
+  .hg-cell{border-radius:4px}
+  .hg-block{padding:4px 5px;border-radius:7px;gap:0;margin:.5px;border-left-width:2.5px}
+  .hg-block .n{font-size:9.5px;line-height:1.12;letter-spacing:-.01em;
+    display:-webkit-box!important;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+    overflow:hidden;overflow-wrap:anywhere;hyphens:auto}
+  .hg-block .h,.hg-block .s{display:none}
+  #horario .view{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+  /* ---------- Modales: pantalla completa, entran desde la derecha ---------- */
+  .modal-backdrop{padding:0;background:var(--c-bg);align-items:stretch;overflow:hidden}
+  .modal{
+    width:100%;max-width:none;margin:0;border-radius:0;
+    max-height:none;min-height:100dvh;box-shadow:none;
+    transform:translateX(100%);
+    transition:transform 240ms var(--ease-drawer);
+  }
+  .modal-backdrop.is-open .modal{transform:translateX(0);transition:transform 300ms var(--ease-drawer)}
+  .modal-head{padding:calc(14px + env(safe-area-inset-top)) 16px 14px}
+  .modal-head .titles .t{font-size:19px}
+  .modal-head .titles .s{font-size:12.5px}
+  .modal-close{width:38px;height:38px;font-size:17px}
+  .modal-body,.modal-body.pad-lg{padding:16px;gap:16px}
+  .modal-foot{padding:14px 16px calc(14px + env(safe-area-inset-bottom));flex-direction:column-reverse;align-items:stretch;gap:10px}
+  .modal-foot > div{display:flex!important;flex-direction:column;gap:10px;width:100%}
+  .modal-foot .btn{width:100%;justify-content:center;height:48px}
+  .modal-foot .mono{display:none}
+  .modal-foot .remove-link{height:44px}
+  .field input,.field select,.field textarea{height:48px;font-size:16px;border-radius:13px} /* 16px: evita el zoom automático de iOS al enfocar */
+  .field label{font-size:12.5px}
+  .swatch{width:38px;height:38px}
+  .dia-mini{width:40px;height:44px}
+  .tipo-item{min-width:0;flex:1 1 30%;height:44px}
+  .seg-card{min-width:0;flex:1 1 100%}
+  .num-pill{height:40px;min-width:54px}
+  .horario-modal-row{gap:8px}
+  .horario-modal-row input[type=time]{flex:1 1 40%;min-width:0;height:44px!important}
+  .categoria-item{height:44px}
+
+  /* Hojas inferiores (listas cortas: semestres, importar datos). */
+  .modal-backdrop.is-sheet{align-items:flex-end;background:var(--c-overlay)}
+  .modal-backdrop.is-sheet .modal{
+    min-height:0;border-radius:22px 22px 0 0;max-height:88dvh;overflow-y:auto;
+    transform:translateY(100%);box-shadow:var(--c-modal-shadow);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .modal-backdrop.is-sheet.is-open .modal{transform:translateY(var(--dy,0px))}
+  .modal-backdrop.is-sheet.is-dragging .modal{transition:none}
+  .sheet-grabber{position:sticky;top:0;z-index:3;background:var(--c-surface);padding:9px 0 3px;
+    display:flex;justify-content:center}
+  .sheet-grabber::after{content:'';width:38px;height:4.5px;border-radius:999px;background:var(--c-muted4)}
+  .modal-backdrop.is-sheet .modal-head{padding-top:8px}
+
+  .modal-backdrop.is-gate .modal{min-height:100dvh;border-radius:0}
+
+  /* ---------- Auth ---------- */
+  .auth-screen{align-items:stretch;padding:0}
+  .auth-card{width:100%;border-radius:0;box-shadow:none;background:var(--c-bg);
+    padding:calc(28px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+    justify-content:center;gap:14px}
+  .auth-card .field input{background:var(--c-surface)}
+  .btn-google{height:50px}
+  .auth-card .btn{height:50px}
+
+  /* ---------- Onboarding / vacíos ---------- */
+  .onboarding{flex-direction:column;overflow-y:auto}
+  .ob-left{flex:none;padding:calc(28px + env(safe-area-inset-top)) 20px 28px;gap:26px}
+  .ob-body{margin-top:26px;gap:18px}
+  .ob-h1{font-size:33px}
+  .ob-p{font-size:15px}
+  .ob-cta{flex-direction:column;align-items:stretch;gap:10px}
+  .ob-cta .btn{width:100%;justify-content:center}
+  .ob-cta .hint{text-align:center}
+  .ob-right{display:none}
+  .ob-foot{margin-top:22px}
+  .empty-state{padding:0 20px;gap:20px}
+  .empty-copy .t{font-size:22px}
+  .empty-copy .s{font-size:14px}
+  .empty-actions{width:100%}
+  .empty-actions .btn{width:100%;justify-content:center}
+
+  /* ---------- cajón ---------- */
+  /* El breakpoint de 900px cierra el cajón con translateX(-260px), pensado
+     para su ancho de siempre (260px). Acá lo ensanchamos a 288px — sin
+     actualizar el cierre quedarían 28px del cajón asomando siempre en el
+     borde izquierdo. */
+  .sidenav{width:288px;padding:calc(20px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));gap:18px;transform:translateX(-288px)}
+  .sidenav.is-open{transform:translateX(0)}
+  .sidenav .nav-item{height:46px;font-size:15px}
+  .semestre-switcher{height:44px}
+  .sidenav-user{padding:12px}
+}
+
+/* El cajón tapa el tab bar/FAB cuando está abierto (si no, quedan dos
+   barras de navegación compitiendo). Fuera del bloque de arriba porque
+   .is-open lo pone el JS, no depende del ancho en sí. */
+@media(max-width:760px){
+  .sidenav.is-open ~ .main .tabbar,.sidenav.is-open ~ .main .fab{opacity:0;pointer-events:none;
+    transition:opacity 150ms var(--ease-out)}
+}

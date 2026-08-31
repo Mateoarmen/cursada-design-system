@@ -351,7 +351,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .detalle-actions{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap}
 .eval-list{display:flex;flex-direction:column}
 .eval-row{display:flex;align-items:center;gap:15px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
-.eval-row:first-child{border-top:none}
+/* Cada fila vive envuelta en .swipe-row (ver template eval-row en app.html —
+   necesario para el gesto de swipe en mobile, ver más abajo), así que
+   ".eval-row:first-child" ya no identifica la primera fila de la lista: cada
+   fila es first-child DENTRO de su propio wrapper, así que esa regla le
+   sacaría el borde a todas por igual. Se apunta la selección a través del
+   wrapper en su lugar. */
+.eval-list > .swipe-row:first-child .eval-row{border-top:none}
 .eval-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .eval-body .t{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .eval-body .t.done{color:var(--c-ink3);text-decoration:line-through}
@@ -372,7 +378,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .agenda-group-head .rule{flex:1;height:1px;background:var(--c-line-faint)}
 .agenda-list{overflow:hidden}
 .agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px;border-top:1px solid var(--c-line-faint)}
-.agenda-row:first-child{border-top:none}
+/* Mismo motivo que .eval-row de arriba: la fila vive envuelta en .swipe-row,
+   así que la selección de "primera fila" pasa por el wrapper. */
+.agenda-list > .swipe-row:first-child .agenda-row{border-top:none}
 .agenda-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .agenda-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .agenda-title.done{color:var(--c-ink3);text-decoration:line-through}
@@ -754,6 +762,360 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 .sidenav-logout:hover{background:var(--c-line-faint);color:var(--c-danger)}
 #import-local-resumen{font-size:14px;font-weight:600;line-height:1.4}
 
+/* ============================================================================
+   Capa mobile (≤760px) — handoff "Mobile web design optimization" de Claude
+   Design. Se apoya en los breakpoints que ya existían (900px, 640px del
+   Calendario, 680px/1100px de la grilla de Materias) y no reemplaza nada de
+   lo que hay arriba, sólo agrega. Tres decisiones de fondo: navegación por
+   tab bar abajo (5 vistas) + FAB de crear (el cajón lateral queda para
+   semestre/tema/perfil/utilidades), calendario semanal en tira de días con
+   lista del día elegido, y modales a pantalla completa que entran desde la
+   derecha (hojas inferiores para listas cortas: semestres, importar datos).
+
+   Dos ajustes sobre el handoff original, documentados en el README:
+   1. .tabbar/.fab/.quick-sheet/.row-menu/.weekstrip son elementos
+      persistentes en el DOM (no sólo-mobile, .weekstrip vive vacío hasta
+      que renderWeekstrip() lo llena) con botones/texto real adentro — sus
+      únicas reglas en el handoff viven dentro del @media, así que en
+      cualquier ancho MAYOR a 760px (desktop, o el hueco 761–900px de una
+      tablet) se verían sin estilo. Se agrega acá, fuera del @media, un
+      display:none por defecto que el bloque de 760px revierte. El JS
+      además esconde .weekstrip a mano fuera de la vista Semana (ver
+      renderCalendario) — el media query sólo controla el ancho, no el
+      viewMode.
+   2. Se omite ocultar los <select> de filtro de Agenda (materia/estado) en
+      el header — el handoff los quería mover a la fila de filtros pero no
+      traía el HTML/JS para eso, y ocultarlos sin reemplazo le sacaría a
+      Agenda la posibilidad de filtrar por materia o por estado en mobile.
+      Quedan visibles (ya envuelven razonablemente bien en una fila propia
+      con el flex-wrap que el header ya tenía).
+   ========================================================================= */
+.tabbar,.fab,.quick-sheet,.row-menu,.weekstrip{display:none}
+
+@media(max-width:760px){
+
+  /* ---------- chrome ---------- */
+  .app-toolbar{display:none}
+  .sidenav-tools{display:flex;flex-wrap:wrap;gap:8px;padding:0 8px}
+
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    min-height:0;height:calc(52px + env(safe-area-inset-top));
+    padding:env(safe-area-inset-top) 12px 0;
+    flex-wrap:nowrap;gap:6px;
+  }
+  .topbar-title{flex:1;align-items:center;gap:8px;overflow:hidden}
+  .topbar-title .t{font-size:21px;letter-spacing:-.022em}
+  .topbar-title .meta{display:none}
+  .topbar-crumb{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-actions{gap:6px;flex-wrap:nowrap;flex:none}
+  .topbar-actions > .btn-primary{display:none}
+  .topbar-actions .icon-btn,.topbar-actions .btn{height:38px}
+  .topbar-actions .icon-btn{width:38px}
+  .topbar-actions .search-fake{display:none}
+
+  .topbar-search{display:flex}
+  .search-input{display:none}
+  .topbar-search-done{display:none;flex:none}
+  .topbar.is-searching .topbar-title{display:none}
+  .topbar.is-searching .topbar-search{display:none}
+  .topbar.is-searching .topbar-actions{flex:1}
+  .topbar.is-searching .search-input{display:block;width:100%;flex:1;height:38px}
+  .topbar.is-searching .topbar-search-done{display:flex}
+
+  .view{padding:14px 14px calc(112px + env(safe-area-inset-bottom));gap:16px}
+
+  /* ---------- tab bar ---------- */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:120;
+    display:grid;grid-template-columns:repeat(5,1fr);
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(251,251,253,.86);backdrop-filter:blur(24px) saturate(180%);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    border-top:1px solid var(--c-line);
+  }
+  html[data-theme="oscuro"] .tabbar{background:rgba(28,28,30,.86)}
+  .tab{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    height:50px;border:none;background:transparent;border-radius:12px;
+    font-size:10px;font-weight:600;letter-spacing:-.01em;color:var(--c-ink3);
+  }
+  .tab .mark{width:9px;height:9px;border-radius:50%;background:var(--c-muted6);transition:background 120ms ease,transform 160ms var(--ease-out)}
+  .tab[data-nav="materias"] .mark{border-radius:3px}
+  .tab[data-nav="agenda"] .mark{border-radius:2px;transform:rotate(45deg)}
+  .tab[data-nav="calendario"] .mark{border-radius:1px;box-shadow:0 0 0 1px currentColor inset}
+  .tab[data-nav="horario"] .mark{width:12px;height:8px;border-radius:2px}
+  .tab.is-on{color:var(--c-accent)}
+  .tab.is-on .mark{background:var(--c-accent)}
+  .tab.is-on[data-nav="agenda"] .mark{transform:rotate(45deg) scale(1.05)}
+
+  /* ---------- FAB ---------- */
+  .fab{
+    position:fixed;right:16px;z-index:121;
+    bottom:calc(72px + env(safe-area-inset-bottom));
+    width:56px;height:56px;border-radius:19px;border:none;
+    background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));
+    color:#fff;font-size:27px;font-weight:300;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 24px rgba(10,99,240,.34),inset 0 1px 0 rgba(255,255,255,.28);
+  }
+  .fab:active{transform:scale(.94)}
+  /* display:flex acá (no sólo en .is-open): la regla de afuera del @media
+     la pone display:none para que no se vea en desktop; adentro del
+     breakpoint ya tiene que estar en flex siempre para poder animar
+     opacity/transform al abrir — un elemento display:none no transiciona. */
+  .quick-sheet{position:fixed;left:12px;right:12px;bottom:calc(136px + env(safe-area-inset-bottom));z-index:122;
+    display:flex;flex-direction:column;
+    background:var(--c-surface);border-radius:18px;box-shadow:var(--c-modal-shadow);overflow:hidden;
+    opacity:0;visibility:hidden;transform:translateY(8px) scale(.97);pointer-events:none;
+    transition:opacity 150ms var(--ease-out),transform 150ms var(--ease-out),visibility 150ms}
+  .quick-sheet.is-open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+  .quick-sheet button{display:flex;align-items:center;width:100%;height:52px;padding:0 18px;border:none;
+    background:transparent;color:var(--c-ink);font-size:15px;font-weight:500;text-align:left;
+    border-top:1px solid var(--c-line-faint)}
+  .quick-sheet button:first-child{border-top:none}
+
+  /* ---------- toques ---------- */
+  .btn{height:44px;padding:0 18px;font-size:14px;border-radius:12px}
+  .btn-sm{height:38px;font-size:13px}
+  .icon-btn{height:44px;width:44px;border-radius:12px}
+  .pill{height:38px;font-size:13px}
+  .acceso-btn{height:44px;font-size:14px}
+  .seg-item{height:36px;padding:0 16px}
+  .cal-nav button{width:40px;height:40px}
+  .filtros-row,.materias-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .filtros-row::-webkit-scrollbar,.materias-toolbar::-webkit-scrollbar{display:none}
+  .filtros-row > *,.materias-toolbar > *{flex:none}
+
+  /* ---------- Inicio ---------- */
+  .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}
+  .inicio-hello{font-size:27px;letter-spacing:-.03em}
+  .inicio-note{font-size:14px}
+  .kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi-card{min-width:0;padding:14px 15px;gap:6px;border-radius:16px}
+  .kpi-label{font-size:12px;line-height:1.3}
+  .kpi-value{font-size:27px;letter-spacing:-.028em}
+  .kpi-sub{font-size:11px}
+  .inicio-cols{flex-direction:column;gap:12px}
+  .inicio-cols > *{min-width:0!important;width:100%;flex:none!important}
+  .panel{padding:16px 16px 18px;border-radius:18px;gap:8px}
+  .panel-title{font-size:17px}
+  .panel-hint{font-size:12px}
+  .prox-row{gap:12px;padding:11px 0}
+  .prox-date{width:34px}
+  .prox-date .d{font-size:17px}
+  .prox-date .m{font-size:10px}
+  .prox-title{font-size:14.5px}
+  .prox-meta .m{font-size:12px}
+  .prox-row{flex-wrap:wrap;row-gap:6px}
+  .prox-body{flex:1 1 160px}
+  .prox-row > .badge{margin-left:46px}
+  .riesgo-row{gap:12px}
+  .riesgo-body b{font-size:14.5px}
+  .accesos-row{gap:8px}
+
+  /* ---------- Materias ---------- */
+  .materia-card{padding:16px;gap:13px;border-radius:18px}
+  .mc-name .n{font-size:16.5px}
+  .materia-add{min-height:104px}
+  .materias-toolbar > .seg{display:none}
+  #materias-table-wrap{display:none!important}
+
+  /* ---------- Detalle ---------- */
+  .detalle-head{padding:16px;gap:14px;border-radius:18px}
+  .detalle-avatar{width:52px;height:52px;border-radius:15px;font-size:13px}
+  .detalle-title .n{font-size:22px}
+  .detalle-title{flex:1 1 180px}
+  .detalle-side{margin-left:0;width:100%;gap:0;display:grid;grid-template-columns:1fr 1fr;
+    padding-top:13px;border-top:1px solid var(--c-line-faint)}
+  .detalle-col{min-width:0;padding:16px;border-radius:18px;gap:16px}
+  .detalle-ring-row{gap:16px}
+  .nota-row .bar-wrap{width:56px}
+  .nota-row .v{width:56px;font-size:13px}
+  .nota-row .label{font-size:13px}
+  .callout{padding:13px 15px!important}
+  .callout b,.callout span{font-size:13.5px}
+  .detalle-actions .btn{flex:1 1 auto;justify-content:center}
+  .eval-body .t{font-size:14.5px}
+  .eval-row{gap:12px;flex-wrap:wrap;row-gap:6px}
+  .eval-body{flex:1 1 170px}
+  .eval-row > .badge{margin-left:34px}
+  .mini-horario{padding:16px;border-radius:18px}
+  .mini-days{overflow-x:auto;scrollbar-width:none;gap:8px}
+  .mini-days::-webkit-scrollbar{display:none}
+  .mini-day{flex:none;width:74px}
+  .mini-day .box{height:48px!important;font-size:10.5px!important}
+
+  /* ---------- Agenda ---------- */
+  .agenda-groups{gap:16px}
+  .agenda-row{padding:12px 14px;gap:12px}
+  .agenda-title{font-size:14.5px}
+  .agenda-fecha{margin-left:34px;font-size:12.5px}
+  .agenda-row > .badge{margin-left:auto}
+
+  /* Swipe para marcar entregado. El fondo verde vive detrás de la fila (no
+     un ::after sobre ella) para que el check se vea aparecer desde el
+     borde. Sólo se activa durante el gesto (.is-dragging/.is-armed): en
+     reposo el fondo es el mismo --c-surface que la fila, si no el borde de
+     1px entre filas (ver debajo) dejaba asomar una línea verde siempre. */
+  .swipe-row{position:relative;overflow:hidden;background:var(--c-surface)}
+  .swipe-row.is-dragging,.swipe-row.is-armed{background:var(--c-success)}
+  .swipe-row + .swipe-row{border-top:1px solid var(--c-line-faint)}
+  .swipe-action{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;
+    padding-right:20px;color:#fff;font-size:14px;font-weight:600;letter-spacing:-.01em;
+    opacity:calc(var(--sx,0) / 72);pointer-events:none}
+  .swipe-row > .agenda-row,.swipe-row > .eval-row{
+    position:relative;background:var(--c-surface);border-top:none;
+    transform:translateX(calc(var(--sx,0) * -1px));
+    transition:transform 200ms var(--ease-out);
+  }
+  .swipe-row.is-dragging > .agenda-row,.swipe-row.is-dragging > .eval-row{transition:none}
+  .swipe-row.is-armed .swipe-action{opacity:1}
+
+  /* Long press: la fila se hunde apenas y aparece el menú contextual. Mismo
+     motivo de display:flex/opacity/visibility que .quick-sheet arriba —
+     JS reposiciona left/top/bottom sobre la fila apretada antes de abrirlo. */
+  .swipe-row.is-pressed > .agenda-row,.swipe-row.is-pressed > .eval-row{transform:scale(.98)}
+  .row-menu{position:fixed;left:12px;right:12px;z-index:122;
+    display:flex;flex-direction:column;
+    background:var(--c-surface);border-radius:16px;box-shadow:var(--c-modal-shadow);overflow:hidden;
+    opacity:0;visibility:hidden;transform:translateY(6px) scale(.97);pointer-events:none;
+    transition:opacity 150ms var(--ease-out),transform 150ms var(--ease-out),visibility 150ms}
+  .row-menu.is-open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+  .row-menu button{display:flex;align-items:center;width:100%;height:50px;padding:0 18px;border:none;
+    background:transparent;font-size:15px;color:var(--c-ink);text-align:left;border-top:1px solid var(--c-line-faint)}
+  .row-menu button:first-child{border-top:none}
+  .row-menu button.danger{color:var(--c-danger)}
+
+  /* ---------- Calendario ---------- */
+  .calendario-wrap{flex-direction:column;gap:0}
+  .calendario-main{padding:12px 14px 0}
+  .weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+    scroll-snap-align:start;touch-action:pan-y pinch-zoom}
+  .ws-day{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0 7px;
+    border:none;background:transparent;border-radius:14px;color:var(--c-ink)}
+  .ws-day .wd{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3)}
+  .ws-day .dn{font-size:17px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+    width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .ws-day.is-hoy .dn{color:var(--c-accent)}
+  .ws-day.is-sel .dn{background:var(--c-accent);color:#fff}
+  .ws-day.is-sel .wd{color:var(--c-ink)}
+  .ws-dots{display:flex;gap:2.5px;height:5px;align-items:center;justify-content:center}
+  .ws-dots i{width:5px;height:5px;border-radius:50%;display:block}
+
+  .cal-cell{min-height:52px}
+  .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line);
+    padding:16px 14px calc(112px + env(safe-area-inset-bottom));background:transparent;gap:12px}
+  .cal-side-head .t{font-size:18px}
+  .cal-day-card{padding:12px 13px;border-radius:14px}
+  .cal-side-add{display:none}
+
+  /* ---------- Horario ---------- */
+  .horario-grid{gap:2px}
+  .horario-grid{grid-template-columns:26px repeat(6,1fr)!important}
+  .hg-day-label{font-size:9px;letter-spacing:.02em}
+  .hg-hour-label{font-size:8px;padding-right:3px}
+  .hg-cell{border-radius:4px}
+  .hg-block{padding:4px 5px;border-radius:7px;gap:0;margin:.5px;border-left-width:2.5px}
+  .hg-block .n{font-size:9.5px;line-height:1.12;letter-spacing:-.01em;
+    display:-webkit-box!important;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+    overflow:hidden;overflow-wrap:anywhere;hyphens:auto}
+  .hg-block .h,.hg-block .s{display:none}
+  #horario .view{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+  /* ---------- Modales: pantalla completa, entran desde la derecha ---------- */
+  .modal-backdrop{padding:0;background:var(--c-bg);align-items:stretch;overflow:hidden}
+  .modal{
+    width:100%;max-width:none;margin:0;border-radius:0;
+    max-height:none;min-height:100dvh;box-shadow:none;
+    transform:translateX(100%);
+    transition:transform 240ms var(--ease-drawer);
+  }
+  .modal-backdrop.is-open .modal{transform:translateX(0);transition:transform 300ms var(--ease-drawer)}
+  .modal-head{padding:calc(14px + env(safe-area-inset-top)) 16px 14px}
+  .modal-head .titles .t{font-size:19px}
+  .modal-head .titles .s{font-size:12.5px}
+  .modal-close{width:38px;height:38px;font-size:17px}
+  .modal-body,.modal-body.pad-lg{padding:16px;gap:16px}
+  .modal-foot{padding:14px 16px calc(14px + env(safe-area-inset-bottom));flex-direction:column-reverse;align-items:stretch;gap:10px}
+  .modal-foot > div{display:flex!important;flex-direction:column;gap:10px;width:100%}
+  .modal-foot .btn{width:100%;justify-content:center;height:48px}
+  .modal-foot .mono{display:none}
+  .modal-foot .remove-link{height:44px}
+  .field input,.field select,.field textarea{height:48px;font-size:16px;border-radius:13px} /* 16px: evita el zoom automático de iOS al enfocar */
+  .field label{font-size:12.5px}
+  .swatch{width:38px;height:38px}
+  .dia-mini{width:40px;height:44px}
+  .tipo-item{min-width:0;flex:1 1 30%;height:44px}
+  .seg-card{min-width:0;flex:1 1 100%}
+  .num-pill{height:40px;min-width:54px}
+  .horario-modal-row{gap:8px}
+  .horario-modal-row input[type=time]{flex:1 1 40%;min-width:0;height:44px!important}
+  .categoria-item{height:44px}
+
+  /* Hojas inferiores (listas cortas: semestres, importar datos). */
+  .modal-backdrop.is-sheet{align-items:flex-end;background:var(--c-overlay)}
+  .modal-backdrop.is-sheet .modal{
+    min-height:0;border-radius:22px 22px 0 0;max-height:88dvh;overflow-y:auto;
+    transform:translateY(100%);box-shadow:var(--c-modal-shadow);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .modal-backdrop.is-sheet.is-open .modal{transform:translateY(var(--dy,0px))}
+  .modal-backdrop.is-sheet.is-dragging .modal{transition:none}
+  .sheet-grabber{position:sticky;top:0;z-index:3;background:var(--c-surface);padding:9px 0 3px;
+    display:flex;justify-content:center}
+  .sheet-grabber::after{content:'';width:38px;height:4.5px;border-radius:999px;background:var(--c-muted4)}
+  .modal-backdrop.is-sheet .modal-head{padding-top:8px}
+
+  .modal-backdrop.is-gate .modal{min-height:100dvh;border-radius:0}
+
+  /* ---------- Auth ---------- */
+  .auth-screen{align-items:stretch;padding:0}
+  .auth-card{width:100%;border-radius:0;box-shadow:none;background:var(--c-bg);
+    padding:calc(28px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+    justify-content:center;gap:14px}
+  .auth-card .field input{background:var(--c-surface)}
+  .btn-google{height:50px}
+  .auth-card .btn{height:50px}
+
+  /* ---------- Onboarding / vacíos ---------- */
+  .onboarding{flex-direction:column;overflow-y:auto}
+  .ob-left{flex:none;padding:calc(28px + env(safe-area-inset-top)) 20px 28px;gap:26px}
+  .ob-body{margin-top:26px;gap:18px}
+  .ob-h1{font-size:33px}
+  .ob-p{font-size:15px}
+  .ob-cta{flex-direction:column;align-items:stretch;gap:10px}
+  .ob-cta .btn{width:100%;justify-content:center}
+  .ob-cta .hint{text-align:center}
+  .ob-right{display:none}
+  .ob-foot{margin-top:22px}
+  .empty-state{padding:0 20px;gap:20px}
+  .empty-copy .t{font-size:22px}
+  .empty-copy .s{font-size:14px}
+  .empty-actions{width:100%}
+  .empty-actions .btn{width:100%;justify-content:center}
+
+  /* ---------- cajón ---------- */
+  /* El breakpoint de 900px cierra el cajón con translateX(-260px), pensado
+     para su ancho de siempre (260px). Acá lo ensanchamos a 288px — sin
+     actualizar el cierre quedarían 28px del cajón asomando siempre en el
+     borde izquierdo. */
+  .sidenav{width:288px;padding:calc(20px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));gap:18px;transform:translateX(-288px)}
+  .sidenav.is-open{transform:translateX(0)}
+  .sidenav .nav-item{height:46px;font-size:15px}
+  .semestre-switcher{height:44px}
+  .sidenav-user{padding:12px}
+}
+
+/* El cajón tapa el tab bar/FAB cuando está abierto (si no, quedan dos
+   barras de navegación compitiendo). Fuera del bloque de arriba porque
+   .is-open lo pone el JS, no depende del ancho en sí. */
+@media(max-width:760px){
+  .sidenav.is-open ~ .main .tabbar,.sidenav.is-open ~ .main .fab{opacity:0;pointer-events:none;
+    transition:opacity 150ms var(--ease-out)}
+}
+
 </style>
 </head>
 <body>
@@ -934,7 +1296,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <header class="topbar">
         <span class="topbar-title"><h1 class="t">Inicio</h1></span>
         <div class="topbar-actions">
+          <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
           <input type="search" class="search-input" id="inicio-search" placeholder="Buscar materia o entrega" aria-label="Buscar materia o entrega" autocomplete="off">
+          <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <button class="icon-btn" title="Notificaciones" aria-label="Notificaciones"><span aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:var(--c-danger);display:block"></span></button>
           <button class="btn btn-primary" id="btn-inicio-nuevo">+ Nuevo</button>
         </div>
@@ -983,7 +1347,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <header class="topbar">
         <span class="topbar-title"><h1 class="t">Materias</h1><span class="meta mono" id="materias-count"></span></span>
         <div class="topbar-actions">
+          <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
           <input type="search" class="search-input" id="materias-search" placeholder="Buscar materia" aria-label="Buscar materia" autocomplete="off">
+          <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <button class="btn btn-primary" id="btn-materias-nueva">+ Nueva materia</button>
         </div>
       </header>
@@ -1078,7 +1444,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <header class="topbar">
         <span class="topbar-title"><h1 class="t">Agenda</h1><span class="meta mono" id="agenda-count"></span></span>
         <div class="topbar-actions">
+          <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
           <input type="search" class="search-input" id="agenda-search" placeholder="Buscar en la agenda" aria-label="Buscar en la agenda" autocomplete="off">
+          <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <select class="btn" id="agenda-filtro-materia" aria-label="Filtrar por materia" style="font-weight:500"><option value="">Todas las materias</option></select>
           <select class="btn" id="agenda-filtro-estado" aria-label="Filtrar por estado" style="font-weight:500">
             <option value="">Todos los estados</option>
@@ -1112,6 +1480,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       </header>
       <div class="calendario-wrap">
         <div class="calendario-main">
+          <!-- Mobile (≤760px) + vista Semana: tira de 7 días en vez de la
+               grilla (no entra legible en 390px de ancho) — ver
+               renderWeekstrip() en runtime.js. Oculta por defecto. -->
+          <div class="weekstrip" id="cal-weekstrip"></div>
           <div class="cal-weekdays" id="cal-weekdays"></div>
           <div class="cal-grid" id="cal-grid"></div>
         </div>
@@ -1142,6 +1514,29 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       </div>
     </section>
   </div>
+
+  <!-- Mobile (≤760px): navegación por tab bar + FAB de crear. Ocultos por
+       defecto (ver styles.css) — invisibles en desktop y en el hueco
+       761–900px, sólo aparecen dentro de su propio @media. -->
+  <button class="fab" id="btn-fab" aria-label="Nuevo"><span aria-hidden="true">+</span></button>
+  <div class="quick-sheet" id="quick-sheet" aria-label="Crear">
+    <button type="button" id="quick-materia">+ Materia</button>
+    <button type="button" id="quick-entrega">+ Entrega</button>
+    <button type="button" id="quick-evento">+ Evento personal</button>
+  </div>
+  <div class="row-menu" id="row-menu" aria-label="Acciones para la fila seleccionada">
+    <button type="button" id="row-menu-editar">Editar evaluación</button>
+    <button type="button" id="row-menu-entregado">Marcar como entregado</button>
+    <button type="button" id="row-menu-materia">Ver la materia</button>
+    <button type="button" id="row-menu-eliminar" class="danger">Eliminar</button>
+  </div>
+  <nav class="tabbar" id="tabbar" aria-label="Navegación principal">
+    <button class="tab" data-nav="inicio"><span class="mark"></span>Inicio</button>
+    <button class="tab" data-nav="materias"><span class="mark"></span>Materias</button>
+    <button class="tab" data-nav="agenda"><span class="mark"></span>Agenda</button>
+    <button class="tab" data-nav="calendario"><span class="mark"></span>Calendario</button>
+    <button class="tab" data-nav="horario"><span class="mark"></span>Horario</button>
+  </nav>
 </div>
 
 <!-- ============ ONBOARDING ============ -->
@@ -1323,8 +1718,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL SEMESTRES ============ -->
-<div class="modal-backdrop" id="modal-semestres">
+<div class="modal-backdrop is-sheet" id="modal-semestres">
   <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
     <div class="modal-head">
       <div class="titles"><h2 class="t">Semestres</h2><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
@@ -1377,8 +1773,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
-<div class="modal-backdrop" id="modal-importar-local">
+<div class="modal-backdrop is-sheet" id="modal-importar-local">
   <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
     <div class="modal-head">
       <div class="titles"><h2 class="t">Encontramos datos locales</h2><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
     </div>
@@ -1453,10 +1850,13 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </template>
 
 <template data-template="eval-row">
-  <div class="eval-row">
-    <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
-    <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
-    <span class="badge" data-f="badge"></span>
+  <div class="swipe-row">
+    <div class="swipe-action">✓ Listo</div>
+    <div class="eval-row">
+      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
+      <span class="badge" data-f="badge"></span>
+    </div>
   </div>
 </template>
 
@@ -1465,12 +1865,15 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </template>
 
 <template data-template="agenda-row">
-  <div class="agenda-row">
-    <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
-    <div class="bar4" data-f="bar"></div>
-    <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="tipo"></span></div></div>
-    <span class="agenda-fecha" data-f="fecha"></span>
-    <span class="badge" data-f="badge"></span>
+  <div class="swipe-row">
+    <div class="swipe-action">✓ Listo</div>
+    <div class="agenda-row">
+      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <div class="bar4" data-f="bar"></div>
+      <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="tipo"></span></div></div>
+      <span class="agenda-fecha" data-f="fecha"></span>
+      <span class="badge" data-f="badge"></span>
+    </div>
   </div>
 </template>
 
@@ -1715,6 +2118,9 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     }).filter(Boolean).join(';');
   }
   function isDark() { return document.documentElement.getAttribute('data-theme') === 'oscuro'; }
+  // Mismo breakpoint que la capa mobile de styles.css (@media max-width:760px)
+  // — un solo lugar si algún día cambia.
+  function esMobile() { return window.matchMedia('(max-width:760px)').matches; }
   function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function tpl(name) {
@@ -2282,6 +2688,9 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var activeKey = STATE.route.view === 'detalle' ? 'materias' : STATE.route.view;
     document.querySelectorAll('.nav-item[data-nav]').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-nav') === activeKey); });
     document.querySelectorAll('.toolbar-btn[data-nav]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-nav') === activeKey); });
+    // Tab bar mobile: mismo activeKey, mismo patrón — queda sincronizado
+    // solo en cada cambio de ruta, sin un hook aparte.
+    document.querySelectorAll('.tab[data-nav]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-nav') === activeKey); });
     var lbl = document.getElementById('toolbar-view-label');
     if (lbl) lbl.textContent = VIEW_LABELS[STATE.route.view] || '';
 
@@ -2447,6 +2856,13 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // MATERIAS
   // ================================================================
   function renderMaterias() {
+    // En mobile la tabla queda oculta con !important (no hay ancho para
+    // columnas) y el toggle Tarjetas/Tabla también se esconde — pero si
+    // STATE.materiasView seguía en 'tabla' (por ejemplo, volviendo de un
+    // link con ?vista=tabla), esta vista sólo arma una de las dos según ese
+    // estado: sin este guard, la tabla se arma pero el CSS la tapa y la
+    // grilla ni se construye — Materias quedaría en blanco en mobile.
+    if (esMobile()) STATE.materiasView = 'tarjetas';
     syncStateToURL();
     var materias = computeMateriasDelActivo();
     document.getElementById('materias-count').textContent = materias.length + (materias.length === 1 ? ' materia' : ' materias') + ' · ' + materias.reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0) + ' créditos';
@@ -2608,6 +3024,10 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       var info = agendaBadgeInfo(a, t);
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
       makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar evaluación ' + a.titulo);
+      // Swipe para marcar entregado, sin long-press acá: ya estás en el
+      // detalle de la materia, y editar/eliminar ya están a un toque
+      // (la fila abre el modal, que tiene su propio botón de eliminar).
+      attachSwipeToComplete(node, function () { toggleAgendaHecho(a.id, true); });
       evalList.appendChild(node);
     });
 
@@ -2641,6 +3061,71 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var ok = await saveAgendaRaw(arr);
     if (!ok) avisarError();
     renderRoute();
+  }
+  // Misma acción que "Eliminar" del modal de evaluación (runtime.js, botón
+  // btn-evaluacion-eliminar) pero standalone: la del modal depende de
+  // STATE.editing.evaluacionId (sólo tiene sentido con el modal abierto),
+  // acá no hay modal de por medio.
+  async function eliminarEvaluacionId(id) {
+    if (!confirm('¿Eliminar esta evaluación?')) return;
+    var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
+    if (!ok) avisarError();
+    renderRoute();
+  }
+
+  // ---- Mobile: swipe para marcar entregado + long-press para menú
+  // contextual. Sin ningún touchstart/swipe previo en el repo — gestos
+  // nuevos de punta a punta. Pointer Events (no touchstart/touchmove) para
+  // que funcione igual con touch y con mouse (útil para probarlo acá
+  // mismo con el navegador de este entorno).
+  var SWIPE_THRESHOLD = 72, SWIPE_VELOCITY = .11, LONGPRESS_MS = 500;
+  function attachSwipeToComplete(swipeRowEl, onComplete, onLongPress) {
+    var startX = 0, startY = 0, startT = 0, dragging = false, moved = false, pressTimer = null;
+    function reset() {
+      swipeRowEl.classList.remove('is-dragging', 'is-armed');
+      swipeRowEl.style.setProperty('--sx', 0);
+    }
+    swipeRowEl.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      startX = e.clientX; startY = e.clientY; startT = Date.now(); dragging = false; moved = false;
+      if (onLongPress) {
+        pressTimer = setTimeout(function () {
+          if (moved) return;
+          swipeRowEl.classList.add('is-pressed');
+          onLongPress();
+        }, LONGPRESS_MS);
+      }
+    });
+    swipeRowEl.addEventListener('pointermove', function (e) {
+      var dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) { moved = true; clearTimeout(pressTimer); }
+      if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { dragging = true; swipeRowEl.classList.add('is-dragging'); }
+      if (!dragging) return;
+      var sx = Math.max(0, -dx); // el fondo "✓ Listo" está a la derecha: sólo arrastrar hacia la izquierda arma
+      swipeRowEl.style.setProperty('--sx', sx);
+      swipeRowEl.classList.toggle('is-armed', sx > SWIPE_THRESHOLD);
+    });
+    swipeRowEl.addEventListener('pointerup', function (e) {
+      clearTimeout(pressTimer);
+      if (!dragging) { reset(); return; }
+      var dt = Math.max(Date.now() - startT, 1);
+      var sx = Math.max(0, -(e.clientX - startX));
+      var velocidad = sx / dt;
+      swipeRowEl.classList.remove('is-dragging');
+      if (sx > SWIPE_THRESHOLD || velocidad > SWIPE_VELOCITY) { swipeRowEl.style.setProperty('--sx', 320); onComplete(); }
+      else { reset(); }
+    });
+    swipeRowEl.addEventListener('pointercancel', reset);
+  }
+  // Sólo para filas de Agenda (no las evaluaciones del detalle de materia:
+  // ahí "ver la materia" no suma nada, ya estás en ella, y editar/eliminar
+  // ya están a un toque via el modal) — reasigna las 4 acciones del
+  // row-menu compartido a la fila actual cada vez que se abre.
+  function wireRowMenuActions(item) {
+    document.getElementById('row-menu-editar').onclick = function () { closeRowMenu(); openEvaluacionModal({ editId: item.id }); };
+    document.getElementById('row-menu-entregado').onclick = function () { closeRowMenu(); toggleAgendaHecho(item.id, true); };
+    document.getElementById('row-menu-materia').onclick = function () { closeRowMenu(); if (item.materiaId) location.hash = '#materia-' + item.materiaId; };
+    document.getElementById('row-menu-eliminar').onclick = function () { closeRowMenu(); eliminarEvaluacionId(item.id); };
   }
 
   // ================================================================
@@ -2747,6 +3232,16 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         if (ev.target === check) return;
         if (item.kind === 'materia') openEvaluacionModal({ editId: item.id }); else openPersonalModal({ editId: item.id });
       }, 'Editar ' + item.titulo);
+      // Swipe para marcar entregado + long-press para el menú contextual —
+      // sólo evaluaciones (kind:'materia'): los eventos personales no
+      // tienen "entregado" que marcar (mismo motivo por el que el checkbox
+      // de arriba queda disabled para ellos).
+      if (item.kind === 'materia') {
+        attachSwipeToComplete(node, function () { toggleAgendaHecho(item.id, true); }, function () {
+          openRowMenuAt(node);
+          wireRowMenuActions(item);
+        });
+      }
       list.appendChild(node);
     });
     wrap.appendChild(head); wrap.appendChild(list);
@@ -2884,6 +3379,49 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     return node;
   }
 
+  // Mobile + vista Semana: tira de 7 días con puntos de color en vez de la
+  // grilla (no entra legible en 390px). Mismas fuentes de datos que ya usa
+  // buildDayCell (clasesDeDiaRaw/eventosDeDia) — así respeta los mismos
+  // toggles (Ver clases/evaluaciones/personales, materias ocultas) sin
+  // duplicar el filtrado. Un punto por color DISTINTO presente ese día (no
+  // uno por ítem) — mismo criterio que ya usa el mes en ≤640px.
+  var WS_LETRAS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']; // índice = Date.getDay()
+  function renderWeekstrip() {
+    var wrap = document.getElementById('cal-weekstrip');
+    clear(wrap);
+    var start = STATE.calWeekStart;
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var iso = toISODate(d);
+      var isHoy = iso === todayISO();
+      var isSel = iso === STATE.calSelected;
+      var btn = el('button', 'ws-day' + (isHoy ? ' is-hoy' : '') + (isSel ? ' is-sel' : ''));
+      btn.type = 'button';
+      btn.setAttribute('aria-label', DIAS_LARGOS[d.getDay()] + ' ' + d.getDate());
+      btn.setAttribute('aria-pressed', String(isSel));
+      var wd = el('span', 'wd'); wd.textContent = WS_LETRAS[d.getDay()];
+      var dn = el('span', 'dn'); dn.textContent = String(d.getDate());
+      var dotsWrap = el('span', 'ws-dots');
+      var colores = {};
+      clasesDeDiaRaw(designDia(d)).forEach(function (x) { colores[x.materia.strong] = true; });
+      eventosDeDia(iso).forEach(function (ev) { colores[ev.color] = true; });
+      Object.keys(colores).slice(0, 4).forEach(function (c) { var dot = el('i'); dot.style.background = c; dotsWrap.appendChild(dot); });
+      btn.appendChild(wd); btn.appendChild(dn); btn.appendChild(dotsWrap);
+      // OJO: `var iso`/`var btn` viven en el scope de la función entera (no
+      // del bloque del for), así que un click diferido que los leyera del
+      // closure vería siempre el valor de la última vuelta (domingo). Se
+      // leen de `this`/data-iso en el momento del click en cambio.
+      btn.setAttribute('data-iso', iso);
+      btn.addEventListener('click', function () {
+        STATE.calSelected = this.getAttribute('data-iso');
+        document.querySelectorAll('.ws-day.is-sel').forEach(function (b) { b.classList.remove('is-sel'); b.setAttribute('aria-pressed', 'false'); });
+        this.classList.add('is-sel'); this.setAttribute('aria-pressed', 'true');
+        renderCalSide();
+      });
+      wrap.appendChild(btn);
+    }
+  }
+
   function renderCalendario() {
     syncStateToURL();
     document.getElementById('cal-today-label').textContent = 'hoy · ' + DIAS_CORTOS[today().getDay()] + ' ' + today().getDate();
@@ -2897,6 +3435,12 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     clear(grid);
     grid.classList.toggle('is-semana', STATE.calViewMode === 'semana');
 
+    var weekstripNode = document.getElementById('cal-weekstrip');
+    var mostrarTira = esMobile() && STATE.calViewMode === 'semana';
+    weekstripNode.style.display = mostrarTira ? '' : 'none';
+    weekdaysNode.style.display = mostrarTira ? 'none' : '';
+    grid.style.display = mostrarTira ? 'none' : '';
+
     if (STATE.calViewMode === 'semana') {
       var start = STATE.calWeekStart;
       var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
@@ -2905,9 +3449,13 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         ? (start.getDate() + '–' + end.getDate() + ' de ' + MESES_LARGOS[start.getMonth()] + ' ' + start.getFullYear())
         : (start.getDate() + ' ' + MESES_CORTOS[start.getMonth()] + ' – ' + end.getDate() + ' ' + MESES_CORTOS[end.getMonth()] + ' ' + end.getFullYear());
       document.getElementById('cal-month-label').textContent = label;
-      for (var i = 0; i < 7; i++) {
-        var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-        grid.appendChild(buildDayCell(d, { semana: true }));
+      if (mostrarTira) {
+        renderWeekstrip();
+      } else {
+        for (var i = 0; i < 7; i++) {
+          var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+          grid.appendChild(buildDayCell(d, { semana: true }));
+        }
       }
     } else {
       document.getElementById('cal-month-label').textContent = MESES_LARGOS[STATE.calMonth].charAt(0).toUpperCase() + MESES_LARGOS[STATE.calMonth].slice(1) + ' ' + STATE.calYear;
@@ -3112,6 +3660,29 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     elm.classList.remove('is-open');
   }
   function closeAllModals() { document.querySelectorAll('.modal-backdrop.is-open').forEach(closeModalEl); }
+
+  // ---- Mobile: quick-sheet (long-press del FAB) y row-menu (long-press de
+  // una fila de Agenda/evaluación) — dos popovers chicos, mismo patrón de
+  // apertura/cierre que un modal pero sin backdrop propio. ----
+  function closeQuickSheet() { document.getElementById('quick-sheet').classList.remove('is-open'); }
+  function openQuickSheet() { closeRowMenu(); document.getElementById('quick-sheet').classList.add('is-open'); }
+  function closeRowMenu() {
+    document.getElementById('row-menu').classList.remove('is-open');
+    document.querySelectorAll('.swipe-row.is-pressed').forEach(function (r) { r.classList.remove('is-pressed'); });
+  }
+  // Reposiciona el menú sobre la fila que se mantuvo apretada — arriba si
+  // no entra abajo (fila cerca del borde inferior, tapada por el tab bar).
+  function openRowMenuAt(rowEl) {
+    closeQuickSheet();
+    var menu = document.getElementById('row-menu');
+    var r = rowEl.getBoundingClientRect();
+    var menuH = 4 * 50; // 4 botones de 50px, ver .row-menu button en styles.css
+    var margin = 10;
+    if (r.bottom + margin + menuH < window.innerHeight) menu.style.top = (r.bottom + margin) + 'px';
+    else menu.style.top = Math.max(margin, r.top - margin - menuH) + 'px';
+    menu.style.bottom = 'auto';
+    menu.classList.add('is-open');
+  }
   // Estado ocupado de un botón mientras espera una llamada a Supabase — hay
   // red de por medio ahora, así que un guardado puede tardar un instante.
   function setBtnBusy(btn, busy, busyLabel) {
@@ -3578,6 +4149,11 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   var CORE_VIEWS = ['inicio', 'materias', 'detalle', 'agenda', 'calendario', 'horario'];
   function renderRoute() {
     renderSidenav();
+    // Red de seguridad: si quedó un quick-sheet o un row-menu abierto (long
+    // press) y la ruta cambia por otro lado (tab bar, deep link), que no
+    // quede flotando sobre una vista distinta a la que lo abrió.
+    closeQuickSheet();
+    closeRowMenu();
     CORE_VIEWS.forEach(function (id) { document.getElementById(id).classList.toggle('hidden', STATE.route.view !== id); });
     if (STATE.route.view === 'inicio') renderInicio();
     else if (STATE.route.view === 'materias') renderMaterias();
@@ -3766,7 +4342,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       bd.addEventListener('click', function (e) { if (e.target === bd) closeModalEl(bd); });
       bd.querySelectorAll('[data-close-modal]').forEach(function (btn) { btn.addEventListener('click', function () { closeModalEl(bd); }); });
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeAllModals(); closeMobileNav(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeAllModals(); closeMobileNav(); closeQuickSheet(); closeRowMenu(); } });
 
     document.getElementById('btn-semestre-switcher').addEventListener('click', function () {
       renderSemestresModal();
@@ -3815,6 +4391,81 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     document.getElementById('agenda-search').addEventListener('input', function (e) { STATE.agendaQuery = e.target.value; renderAgenda(); });
     document.getElementById('btn-cal-evento').addEventListener('click', function () { openPersonalModal({ fecha: STATE.calSelected }); });
     document.getElementById('btn-horario-editar').addEventListener('click', function () { openMateriaModal(null); });
+
+    // ---- Mobile: FAB (tap = alta principal de la vista, long-press = hoja
+    // con las 3 altas) ----
+    // Mismo mapeo que ya usan los botones "+" de cada topbar/Accesos
+    // rápidos — el FAB no es una ruta de guardado nueva, sólo un atajo a la
+    // misma función según STATE.route.view en el momento del click.
+    function fabAction() {
+      var view = STATE.route.view;
+      if (view === 'detalle') { openEvaluacionModal({ materiaId: STATE.route.materiaId }); return; }
+      if (view === 'agenda') { openEvaluacionModal({}); return; }
+      if (view === 'calendario') { openPersonalModal({ fecha: STATE.calSelected }); return; }
+      openMateriaModal(null); // inicio, materias, horario
+    }
+    var btnFab = document.getElementById('btn-fab');
+    var fabPressTimer = null, fabLongPressed = false;
+    btnFab.addEventListener('pointerdown', function () {
+      fabLongPressed = false;
+      fabPressTimer = setTimeout(function () { fabLongPressed = true; openQuickSheet(); }, 500);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (evName) {
+      btnFab.addEventListener(evName, function () { clearTimeout(fabPressTimer); });
+    });
+    btnFab.addEventListener('click', function () {
+      if (fabLongPressed) { fabLongPressed = false; return; } // el long-press ya abrió la hoja; no ejecutar además la acción corta
+      fabAction();
+    });
+    document.getElementById('quick-materia').addEventListener('click', function () { closeQuickSheet(); openMateriaModal(null); });
+    document.getElementById('quick-entrega').addEventListener('click', function () { closeQuickSheet(); openEvaluacionModal({}); });
+    document.getElementById('quick-evento').addEventListener('click', function () { closeQuickSheet(); openPersonalModal({}); });
+    // Cerrar la hoja tocando afuera (no tiene backdrop propio).
+    document.addEventListener('click', function (e) {
+      var sheet = document.getElementById('quick-sheet');
+      if (sheet.classList.contains('is-open') && !sheet.contains(e.target) && e.target !== btnFab && !btnFab.contains(e.target)) closeQuickSheet();
+      var menu = document.getElementById('row-menu');
+      if (menu.classList.contains('is-open') && !menu.contains(e.target)) closeRowMenu();
+    });
+
+    // ---- Mobile: buscador que se expande en el header ----
+    document.querySelectorAll('[data-toggle-search]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var topbar = btn.closest('.topbar');
+        topbar.classList.toggle('is-searching');
+        var input = topbar.querySelector('.search-input');
+        if (topbar.classList.contains('is-searching') && input) input.focus();
+      });
+    });
+
+    // ---- Mobile: arrastrar el grabber de una hoja inferior (semestres,
+    // importar-local) para cerrarla. Cierra vía closeModalEl(bd) — nunca
+    // saca .is-open a mano — para no esquivar el aviso de "¿descartar
+    // cambios?" si alguna vez una hoja con formulario usa este patrón.
+    document.querySelectorAll('.sheet-grabber').forEach(function (grabber) {
+      var modal = grabber.closest('.modal');
+      var bd = grabber.closest('.modal-backdrop');
+      var dragging = false, dragStartY = 0;
+      grabber.addEventListener('pointerdown', function (e) {
+        dragging = true; dragStartY = e.clientY;
+        bd.classList.add('is-dragging');
+        grabber.setPointerCapture(e.pointerId);
+      });
+      grabber.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        modal.style.setProperty('--dy', Math.max(0, e.clientY - dragStartY) + 'px');
+      });
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        bd.classList.remove('is-dragging');
+        if (Math.max(0, e.clientY - dragStartY) > 96) closeModalEl(bd);
+        modal.style.setProperty('--dy', '0px');
+      }
+      grabber.addEventListener('pointerup', endDrag);
+      grabber.addEventListener('pointercancel', endDrag);
+    });
+
     document.getElementById('btn-ob-empezar').addEventListener('click', function () {
       hideOnboarding();
       if (computeMaterias().length) location.hash = '#materias';

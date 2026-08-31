@@ -1220,6 +1220,107 @@ alguien a la landing en ese momento sería fricción de más. Asume que
 sección "Landing page" más arriba) — es el mismo supuesto que ya usan sus 4
 botones.
 
+## Rediseño de navegación mobile (handoff: "Mobile web design optimization")
+
+Segundo handoff de Claude Design, esta vez sobre la experiencia mobile
+completa (no la landing, no ajustes de layout como la pasada anterior): tab
+bar abajo con 5 vistas + FAB de "crear" (tap = alta de la vista actual,
+long-press = hoja con las 3 altas), buscador que se expande en el header,
+swipe-para-completar + long-press con menú contextual en las filas de
+Agenda, calendario en tira de semana para mobile, grilla de Horario
+comprimida sin scroll horizontal, y modales a pantalla completa que entran
+desde la derecha (hojas inferiores con grabber arrastrable para listas
+cortas: semestres, importar local). Todo el alcance se implementó, gestos
+incluidos — fue una decisión explícita, no la versión recortada.
+
+**Pull-to-refresh (ítem 7 del propio CSS del handoff) quedó fuera a
+propósito.** Hoy no hay ningún punto de la app que vuelva a pedir datos a
+Supabase después del login (`loadAllFromSupabase()` corre una sola vez) —
+un gesto visual sin función real detrás habría sido una implementación a
+medias. Si en algún momento hace falta refrescar contra el servidor, se
+puede pedir aparte.
+
+Mismo principio que la pasada de mobile anterior: todo lo nuevo vive en un
+`@media(max-width:760px)` al final de `src/styles.css`, apoyado en los
+breakpoints que ya existían, nunca reemplazándolos. El JS nuevo reutiliza en
+vez de duplicar: el tab bar usa el mismo delegado `[data-nav]` y el mismo
+cálculo de `activeKey` que ya sincronizaba el cajón; el FAB y la hoja rápida
+llaman a los mismos `openMateriaModal`/`openEvaluacionModal`/
+`openPersonalModal` que ya usaban los accesos rápidos de Inicio; el swipe y
+el menú contextual de Agenda llaman a `toggleAgendaHecho`, la misma función
+del checkbox; el arrastre de las hojas inferiores cierra vía `closeModalEl`
+(no saca `.is-open` a mano), así conserva el aviso de cambios sin guardar; y
+la tira de semana usa `clasesDeDiaRaw`/`eventosDeDia`, las mismas fuentes
+que ya arma `buildDayCell`.
+
+### Gaps que traía el CSS del handoff (se completaron acá)
+
+- **`.tabbar`, `.fab`, `.quick-sheet`, `.row-menu` sin `display:none` por
+  defecto**: sus únicas reglas vivían dentro de `@media(max-width:760px)`.
+  Como son elementos persistentes en el DOM (no sólo-mobile — tienen
+  botones/texto real adentro), en cualquier ancho mayor a 760px se habrían
+  visto sin estilo. Se agregó una regla chica fuera del media query
+  ocultándolos por defecto.
+- **`STATE.materiasView` podía seguir en `'tabla'`** (por un `?vista=tabla`
+  en la URL) aunque el CSS de mobile oculte la tabla con `!important` —
+  `renderMaterias()` sólo arma una de las dos vistas según ese estado, así
+  que el resultado habría sido Materias en blanco en mobile. Se agregó un
+  guard de una línea al principio de `renderMaterias()`: en viewport angosto
+  fuerza `STATE.materiasView = 'tarjetas'` antes de decidir qué armar.
+- **El wrapper `.swipe-row` rompía `.agenda-row:first-child` /
+  `.eval-row:first-child`** (el selector que sacaba el borde superior de la
+  primera fila): envolver cada fila en un nuevo padre hace que cada una sea
+  `:first-child` de su propio wrapper, así que el selector viejo terminaba
+  sacando el borde de todas las filas en vez de sólo la primera. Se
+  re-apuntó a través del wrapper: `.agenda-list > .swipe-row:first-child
+  .agenda-row{border-top:none}` (y el equivalente de `.eval-row`).
+
+### Un bug del propio handoff, encontrado probando (no en el CSS que se pidió copiar)
+
+`.swipe-row` traía `background:var(--c-success)` fijo — el verde de fondo
+del "✓ Listo" que aparece detrás de la fila al arrastrarla. El problema:
+`.swipe-row + .swipe-row{border-top:1px solid var(--c-line-faint)}` dibuja
+el borde sobre ese wrapper (necesario: el borde tiene que quedar fijo
+mientras la fila interna se desliza durante el swipe), y con
+`box-sizing:border-box` ese borde de 1px le come una franja a la fila
+interna — que quedaba 1px más baja que su wrapper. Resultado: una línea
+verde asomando permanentemente entre cada fila de Agenda, no sólo durante el
+gesto. Se cambió a que el verde sólo se active durante el gesto
+(`.swipe-row.is-dragging,.swipe-row.is-armed{background:var(--c-success)}`),
+con `var(--c-surface)` como fondo de reposo — igual al de la fila, así el
+borde no revela nada raro cuando no se está arrastrando.
+
+### Cajón mobile asomando en el borde (interacción con el breakpoint de 900px, no de esta pasada)
+
+El breakpoint de 900px (de antes, sin tocar) cierra el cajón con
+`transform:translateX(-260px)`, calculado para su ancho de siempre (260px).
+El CSS de este handoff ensancha el cajón a 288px en mobile — sin actualizar
+ese cierre, quedaban 28px del cajón asomando siempre contra el borde
+izquierdo de la pantalla. Se agregó `transform:translateX(-288px)` dentro
+del bloque de 760px para que el cierre coincida con el nuevo ancho.
+
+### `renderWeekstrip()`: closure clásico de `var` en un `for`
+
+La primera versión guardaba `iso`/`btn` en variables `var` declaradas dentro
+del `for` que arma los 7 días de la tira, y el listener de click las leía
+del closure. Como `var` no tiene scope de bloque, las 7 vueltas comparten la
+misma variable — para cuando alguien tocaba cualquier día, `iso` ya tenía el
+valor de la última vuelta (domingo). Tocar cualquier día seleccionaba
+siempre el domingo. Se arregló leyendo la fecha desde `data-iso` en el
+propio botón (`this.getAttribute('data-iso')` dentro del handler) en vez de
+capturarla por closure.
+
+### Deviación deliberada: no se ocultó el filtro de materia/estado de Agenda
+
+El CSS del handoff traía `.topbar-actions > select.btn{display:none}`,
+pensado para ocultar los `<select>` de filtro de Agenda en mobile — su
+propio comentario decía que "se mueven a `.filtros-row`" pero no traía el
+markup ni el JS para hacerlo. Ocultarlos sin reemplazo habría sacado
+filtrado real que hoy funciona, así que esa línea no se copió: los
+`<select>` de Agenda siguen visibles en mobile (comparten fila con scroll
+horizontal, como el resto de `.filtros-row`), en vez de perder la función
+para "verse más prolijo".
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

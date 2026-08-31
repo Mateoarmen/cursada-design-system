@@ -80,6 +80,9 @@
     }).filter(Boolean).join(';');
   }
   function isDark() { return document.documentElement.getAttribute('data-theme') === 'oscuro'; }
+  // Mismo breakpoint que la capa mobile de styles.css (@media max-width:760px)
+  // — un solo lugar si algún día cambia.
+  function esMobile() { return window.matchMedia('(max-width:760px)').matches; }
   function el(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function tpl(name) {
@@ -647,6 +650,9 @@
     var activeKey = STATE.route.view === 'detalle' ? 'materias' : STATE.route.view;
     document.querySelectorAll('.nav-item[data-nav]').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-nav') === activeKey); });
     document.querySelectorAll('.toolbar-btn[data-nav]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-nav') === activeKey); });
+    // Tab bar mobile: mismo activeKey, mismo patrón — queda sincronizado
+    // solo en cada cambio de ruta, sin un hook aparte.
+    document.querySelectorAll('.tab[data-nav]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-nav') === activeKey); });
     var lbl = document.getElementById('toolbar-view-label');
     if (lbl) lbl.textContent = VIEW_LABELS[STATE.route.view] || '';
 
@@ -812,6 +818,13 @@
   // MATERIAS
   // ================================================================
   function renderMaterias() {
+    // En mobile la tabla queda oculta con !important (no hay ancho para
+    // columnas) y el toggle Tarjetas/Tabla también se esconde — pero si
+    // STATE.materiasView seguía en 'tabla' (por ejemplo, volviendo de un
+    // link con ?vista=tabla), esta vista sólo arma una de las dos según ese
+    // estado: sin este guard, la tabla se arma pero el CSS la tapa y la
+    // grilla ni se construye — Materias quedaría en blanco en mobile.
+    if (esMobile()) STATE.materiasView = 'tarjetas';
     syncStateToURL();
     var materias = computeMateriasDelActivo();
     document.getElementById('materias-count').textContent = materias.length + (materias.length === 1 ? ' materia' : ' materias') + ' · ' + materias.reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0) + ' créditos';
@@ -973,6 +986,10 @@
       var info = agendaBadgeInfo(a, t);
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
       makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar evaluación ' + a.titulo);
+      // Swipe para marcar entregado, sin long-press acá: ya estás en el
+      // detalle de la materia, y editar/eliminar ya están a un toque
+      // (la fila abre el modal, que tiene su propio botón de eliminar).
+      attachSwipeToComplete(node, function () { toggleAgendaHecho(a.id, true); });
       evalList.appendChild(node);
     });
 
@@ -1006,6 +1023,71 @@
     var ok = await saveAgendaRaw(arr);
     if (!ok) avisarError();
     renderRoute();
+  }
+  // Misma acción que "Eliminar" del modal de evaluación (runtime.js, botón
+  // btn-evaluacion-eliminar) pero standalone: la del modal depende de
+  // STATE.editing.evaluacionId (sólo tiene sentido con el modal abierto),
+  // acá no hay modal de por medio.
+  async function eliminarEvaluacionId(id) {
+    if (!confirm('¿Eliminar esta evaluación?')) return;
+    var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
+    if (!ok) avisarError();
+    renderRoute();
+  }
+
+  // ---- Mobile: swipe para marcar entregado + long-press para menú
+  // contextual. Sin ningún touchstart/swipe previo en el repo — gestos
+  // nuevos de punta a punta. Pointer Events (no touchstart/touchmove) para
+  // que funcione igual con touch y con mouse (útil para probarlo acá
+  // mismo con el navegador de este entorno).
+  var SWIPE_THRESHOLD = 72, SWIPE_VELOCITY = .11, LONGPRESS_MS = 500;
+  function attachSwipeToComplete(swipeRowEl, onComplete, onLongPress) {
+    var startX = 0, startY = 0, startT = 0, dragging = false, moved = false, pressTimer = null;
+    function reset() {
+      swipeRowEl.classList.remove('is-dragging', 'is-armed');
+      swipeRowEl.style.setProperty('--sx', 0);
+    }
+    swipeRowEl.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      startX = e.clientX; startY = e.clientY; startT = Date.now(); dragging = false; moved = false;
+      if (onLongPress) {
+        pressTimer = setTimeout(function () {
+          if (moved) return;
+          swipeRowEl.classList.add('is-pressed');
+          onLongPress();
+        }, LONGPRESS_MS);
+      }
+    });
+    swipeRowEl.addEventListener('pointermove', function (e) {
+      var dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) { moved = true; clearTimeout(pressTimer); }
+      if (!dragging && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { dragging = true; swipeRowEl.classList.add('is-dragging'); }
+      if (!dragging) return;
+      var sx = Math.max(0, -dx); // el fondo "✓ Listo" está a la derecha: sólo arrastrar hacia la izquierda arma
+      swipeRowEl.style.setProperty('--sx', sx);
+      swipeRowEl.classList.toggle('is-armed', sx > SWIPE_THRESHOLD);
+    });
+    swipeRowEl.addEventListener('pointerup', function (e) {
+      clearTimeout(pressTimer);
+      if (!dragging) { reset(); return; }
+      var dt = Math.max(Date.now() - startT, 1);
+      var sx = Math.max(0, -(e.clientX - startX));
+      var velocidad = sx / dt;
+      swipeRowEl.classList.remove('is-dragging');
+      if (sx > SWIPE_THRESHOLD || velocidad > SWIPE_VELOCITY) { swipeRowEl.style.setProperty('--sx', 320); onComplete(); }
+      else { reset(); }
+    });
+    swipeRowEl.addEventListener('pointercancel', reset);
+  }
+  // Sólo para filas de Agenda (no las evaluaciones del detalle de materia:
+  // ahí "ver la materia" no suma nada, ya estás en ella, y editar/eliminar
+  // ya están a un toque via el modal) — reasigna las 4 acciones del
+  // row-menu compartido a la fila actual cada vez que se abre.
+  function wireRowMenuActions(item) {
+    document.getElementById('row-menu-editar').onclick = function () { closeRowMenu(); openEvaluacionModal({ editId: item.id }); };
+    document.getElementById('row-menu-entregado').onclick = function () { closeRowMenu(); toggleAgendaHecho(item.id, true); };
+    document.getElementById('row-menu-materia').onclick = function () { closeRowMenu(); if (item.materiaId) location.hash = '#materia-' + item.materiaId; };
+    document.getElementById('row-menu-eliminar').onclick = function () { closeRowMenu(); eliminarEvaluacionId(item.id); };
   }
 
   // ================================================================
@@ -1112,6 +1194,16 @@
         if (ev.target === check) return;
         if (item.kind === 'materia') openEvaluacionModal({ editId: item.id }); else openPersonalModal({ editId: item.id });
       }, 'Editar ' + item.titulo);
+      // Swipe para marcar entregado + long-press para el menú contextual —
+      // sólo evaluaciones (kind:'materia'): los eventos personales no
+      // tienen "entregado" que marcar (mismo motivo por el que el checkbox
+      // de arriba queda disabled para ellos).
+      if (item.kind === 'materia') {
+        attachSwipeToComplete(node, function () { toggleAgendaHecho(item.id, true); }, function () {
+          openRowMenuAt(node);
+          wireRowMenuActions(item);
+        });
+      }
       list.appendChild(node);
     });
     wrap.appendChild(head); wrap.appendChild(list);
@@ -1249,6 +1341,49 @@
     return node;
   }
 
+  // Mobile + vista Semana: tira de 7 días con puntos de color en vez de la
+  // grilla (no entra legible en 390px). Mismas fuentes de datos que ya usa
+  // buildDayCell (clasesDeDiaRaw/eventosDeDia) — así respeta los mismos
+  // toggles (Ver clases/evaluaciones/personales, materias ocultas) sin
+  // duplicar el filtrado. Un punto por color DISTINTO presente ese día (no
+  // uno por ítem) — mismo criterio que ya usa el mes en ≤640px.
+  var WS_LETRAS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']; // índice = Date.getDay()
+  function renderWeekstrip() {
+    var wrap = document.getElementById('cal-weekstrip');
+    clear(wrap);
+    var start = STATE.calWeekStart;
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var iso = toISODate(d);
+      var isHoy = iso === todayISO();
+      var isSel = iso === STATE.calSelected;
+      var btn = el('button', 'ws-day' + (isHoy ? ' is-hoy' : '') + (isSel ? ' is-sel' : ''));
+      btn.type = 'button';
+      btn.setAttribute('aria-label', DIAS_LARGOS[d.getDay()] + ' ' + d.getDate());
+      btn.setAttribute('aria-pressed', String(isSel));
+      var wd = el('span', 'wd'); wd.textContent = WS_LETRAS[d.getDay()];
+      var dn = el('span', 'dn'); dn.textContent = String(d.getDate());
+      var dotsWrap = el('span', 'ws-dots');
+      var colores = {};
+      clasesDeDiaRaw(designDia(d)).forEach(function (x) { colores[x.materia.strong] = true; });
+      eventosDeDia(iso).forEach(function (ev) { colores[ev.color] = true; });
+      Object.keys(colores).slice(0, 4).forEach(function (c) { var dot = el('i'); dot.style.background = c; dotsWrap.appendChild(dot); });
+      btn.appendChild(wd); btn.appendChild(dn); btn.appendChild(dotsWrap);
+      // OJO: `var iso`/`var btn` viven en el scope de la función entera (no
+      // del bloque del for), así que un click diferido que los leyera del
+      // closure vería siempre el valor de la última vuelta (domingo). Se
+      // leen de `this`/data-iso en el momento del click en cambio.
+      btn.setAttribute('data-iso', iso);
+      btn.addEventListener('click', function () {
+        STATE.calSelected = this.getAttribute('data-iso');
+        document.querySelectorAll('.ws-day.is-sel').forEach(function (b) { b.classList.remove('is-sel'); b.setAttribute('aria-pressed', 'false'); });
+        this.classList.add('is-sel'); this.setAttribute('aria-pressed', 'true');
+        renderCalSide();
+      });
+      wrap.appendChild(btn);
+    }
+  }
+
   function renderCalendario() {
     syncStateToURL();
     document.getElementById('cal-today-label').textContent = 'hoy · ' + DIAS_CORTOS[today().getDay()] + ' ' + today().getDate();
@@ -1262,6 +1397,12 @@
     clear(grid);
     grid.classList.toggle('is-semana', STATE.calViewMode === 'semana');
 
+    var weekstripNode = document.getElementById('cal-weekstrip');
+    var mostrarTira = esMobile() && STATE.calViewMode === 'semana';
+    weekstripNode.style.display = mostrarTira ? '' : 'none';
+    weekdaysNode.style.display = mostrarTira ? 'none' : '';
+    grid.style.display = mostrarTira ? 'none' : '';
+
     if (STATE.calViewMode === 'semana') {
       var start = STATE.calWeekStart;
       var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
@@ -1270,9 +1411,13 @@
         ? (start.getDate() + '–' + end.getDate() + ' de ' + MESES_LARGOS[start.getMonth()] + ' ' + start.getFullYear())
         : (start.getDate() + ' ' + MESES_CORTOS[start.getMonth()] + ' – ' + end.getDate() + ' ' + MESES_CORTOS[end.getMonth()] + ' ' + end.getFullYear());
       document.getElementById('cal-month-label').textContent = label;
-      for (var i = 0; i < 7; i++) {
-        var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-        grid.appendChild(buildDayCell(d, { semana: true }));
+      if (mostrarTira) {
+        renderWeekstrip();
+      } else {
+        for (var i = 0; i < 7; i++) {
+          var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+          grid.appendChild(buildDayCell(d, { semana: true }));
+        }
       }
     } else {
       document.getElementById('cal-month-label').textContent = MESES_LARGOS[STATE.calMonth].charAt(0).toUpperCase() + MESES_LARGOS[STATE.calMonth].slice(1) + ' ' + STATE.calYear;
@@ -1477,6 +1622,29 @@
     elm.classList.remove('is-open');
   }
   function closeAllModals() { document.querySelectorAll('.modal-backdrop.is-open').forEach(closeModalEl); }
+
+  // ---- Mobile: quick-sheet (long-press del FAB) y row-menu (long-press de
+  // una fila de Agenda/evaluación) — dos popovers chicos, mismo patrón de
+  // apertura/cierre que un modal pero sin backdrop propio. ----
+  function closeQuickSheet() { document.getElementById('quick-sheet').classList.remove('is-open'); }
+  function openQuickSheet() { closeRowMenu(); document.getElementById('quick-sheet').classList.add('is-open'); }
+  function closeRowMenu() {
+    document.getElementById('row-menu').classList.remove('is-open');
+    document.querySelectorAll('.swipe-row.is-pressed').forEach(function (r) { r.classList.remove('is-pressed'); });
+  }
+  // Reposiciona el menú sobre la fila que se mantuvo apretada — arriba si
+  // no entra abajo (fila cerca del borde inferior, tapada por el tab bar).
+  function openRowMenuAt(rowEl) {
+    closeQuickSheet();
+    var menu = document.getElementById('row-menu');
+    var r = rowEl.getBoundingClientRect();
+    var menuH = 4 * 50; // 4 botones de 50px, ver .row-menu button en styles.css
+    var margin = 10;
+    if (r.bottom + margin + menuH < window.innerHeight) menu.style.top = (r.bottom + margin) + 'px';
+    else menu.style.top = Math.max(margin, r.top - margin - menuH) + 'px';
+    menu.style.bottom = 'auto';
+    menu.classList.add('is-open');
+  }
   // Estado ocupado de un botón mientras espera una llamada a Supabase — hay
   // red de por medio ahora, así que un guardado puede tardar un instante.
   function setBtnBusy(btn, busy, busyLabel) {
@@ -1943,6 +2111,11 @@
   var CORE_VIEWS = ['inicio', 'materias', 'detalle', 'agenda', 'calendario', 'horario'];
   function renderRoute() {
     renderSidenav();
+    // Red de seguridad: si quedó un quick-sheet o un row-menu abierto (long
+    // press) y la ruta cambia por otro lado (tab bar, deep link), que no
+    // quede flotando sobre una vista distinta a la que lo abrió.
+    closeQuickSheet();
+    closeRowMenu();
     CORE_VIEWS.forEach(function (id) { document.getElementById(id).classList.toggle('hidden', STATE.route.view !== id); });
     if (STATE.route.view === 'inicio') renderInicio();
     else if (STATE.route.view === 'materias') renderMaterias();
@@ -2131,7 +2304,7 @@
       bd.addEventListener('click', function (e) { if (e.target === bd) closeModalEl(bd); });
       bd.querySelectorAll('[data-close-modal]').forEach(function (btn) { btn.addEventListener('click', function () { closeModalEl(bd); }); });
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeAllModals(); closeMobileNav(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeAllModals(); closeMobileNav(); closeQuickSheet(); closeRowMenu(); } });
 
     document.getElementById('btn-semestre-switcher').addEventListener('click', function () {
       renderSemestresModal();
@@ -2180,6 +2353,81 @@
     document.getElementById('agenda-search').addEventListener('input', function (e) { STATE.agendaQuery = e.target.value; renderAgenda(); });
     document.getElementById('btn-cal-evento').addEventListener('click', function () { openPersonalModal({ fecha: STATE.calSelected }); });
     document.getElementById('btn-horario-editar').addEventListener('click', function () { openMateriaModal(null); });
+
+    // ---- Mobile: FAB (tap = alta principal de la vista, long-press = hoja
+    // con las 3 altas) ----
+    // Mismo mapeo que ya usan los botones "+" de cada topbar/Accesos
+    // rápidos — el FAB no es una ruta de guardado nueva, sólo un atajo a la
+    // misma función según STATE.route.view en el momento del click.
+    function fabAction() {
+      var view = STATE.route.view;
+      if (view === 'detalle') { openEvaluacionModal({ materiaId: STATE.route.materiaId }); return; }
+      if (view === 'agenda') { openEvaluacionModal({}); return; }
+      if (view === 'calendario') { openPersonalModal({ fecha: STATE.calSelected }); return; }
+      openMateriaModal(null); // inicio, materias, horario
+    }
+    var btnFab = document.getElementById('btn-fab');
+    var fabPressTimer = null, fabLongPressed = false;
+    btnFab.addEventListener('pointerdown', function () {
+      fabLongPressed = false;
+      fabPressTimer = setTimeout(function () { fabLongPressed = true; openQuickSheet(); }, 500);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (evName) {
+      btnFab.addEventListener(evName, function () { clearTimeout(fabPressTimer); });
+    });
+    btnFab.addEventListener('click', function () {
+      if (fabLongPressed) { fabLongPressed = false; return; } // el long-press ya abrió la hoja; no ejecutar además la acción corta
+      fabAction();
+    });
+    document.getElementById('quick-materia').addEventListener('click', function () { closeQuickSheet(); openMateriaModal(null); });
+    document.getElementById('quick-entrega').addEventListener('click', function () { closeQuickSheet(); openEvaluacionModal({}); });
+    document.getElementById('quick-evento').addEventListener('click', function () { closeQuickSheet(); openPersonalModal({}); });
+    // Cerrar la hoja tocando afuera (no tiene backdrop propio).
+    document.addEventListener('click', function (e) {
+      var sheet = document.getElementById('quick-sheet');
+      if (sheet.classList.contains('is-open') && !sheet.contains(e.target) && e.target !== btnFab && !btnFab.contains(e.target)) closeQuickSheet();
+      var menu = document.getElementById('row-menu');
+      if (menu.classList.contains('is-open') && !menu.contains(e.target)) closeRowMenu();
+    });
+
+    // ---- Mobile: buscador que se expande en el header ----
+    document.querySelectorAll('[data-toggle-search]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var topbar = btn.closest('.topbar');
+        topbar.classList.toggle('is-searching');
+        var input = topbar.querySelector('.search-input');
+        if (topbar.classList.contains('is-searching') && input) input.focus();
+      });
+    });
+
+    // ---- Mobile: arrastrar el grabber de una hoja inferior (semestres,
+    // importar-local) para cerrarla. Cierra vía closeModalEl(bd) — nunca
+    // saca .is-open a mano — para no esquivar el aviso de "¿descartar
+    // cambios?" si alguna vez una hoja con formulario usa este patrón.
+    document.querySelectorAll('.sheet-grabber').forEach(function (grabber) {
+      var modal = grabber.closest('.modal');
+      var bd = grabber.closest('.modal-backdrop');
+      var dragging = false, dragStartY = 0;
+      grabber.addEventListener('pointerdown', function (e) {
+        dragging = true; dragStartY = e.clientY;
+        bd.classList.add('is-dragging');
+        grabber.setPointerCapture(e.pointerId);
+      });
+      grabber.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        modal.style.setProperty('--dy', Math.max(0, e.clientY - dragStartY) + 'px');
+      });
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        bd.classList.remove('is-dragging');
+        if (Math.max(0, e.clientY - dragStartY) > 96) closeModalEl(bd);
+        modal.style.setProperty('--dy', '0px');
+      }
+      grabber.addEventListener('pointerup', endDrag);
+      grabber.addEventListener('pointercancel', endDrag);
+    });
+
     document.getElementById('btn-ob-empezar').addEventListener('click', function () {
       hideOnboarding();
       if (computeMaterias().length) location.hash = '#materias';

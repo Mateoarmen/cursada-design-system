@@ -175,7 +175,9 @@
       <header class="topbar">
         <span class="topbar-title"><h1 class="t">Inicio</h1></span>
         <div class="topbar-actions">
+          <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
           <input type="search" class="search-input" id="inicio-search" placeholder="Buscar materia o entrega" aria-label="Buscar materia o entrega" autocomplete="off">
+          <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <button class="icon-btn" title="Notificaciones" aria-label="Notificaciones"><span aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:var(--c-danger);display:block"></span></button>
           <button class="btn btn-primary" id="btn-inicio-nuevo">+ Nuevo</button>
         </div>
@@ -224,7 +226,9 @@
       <header class="topbar">
         <span class="topbar-title"><h1 class="t">Materias</h1><span class="meta mono" id="materias-count"></span></span>
         <div class="topbar-actions">
+          <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
           <input type="search" class="search-input" id="materias-search" placeholder="Buscar materia" aria-label="Buscar materia" autocomplete="off">
+          <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <button class="btn btn-primary" id="btn-materias-nueva">+ Nueva materia</button>
         </div>
       </header>
@@ -319,7 +323,9 @@
       <header class="topbar">
         <span class="topbar-title"><h1 class="t">Agenda</h1><span class="meta mono" id="agenda-count"></span></span>
         <div class="topbar-actions">
+          <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
           <input type="search" class="search-input" id="agenda-search" placeholder="Buscar en la agenda" aria-label="Buscar en la agenda" autocomplete="off">
+          <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <select class="btn" id="agenda-filtro-materia" aria-label="Filtrar por materia" style="font-weight:500"><option value="">Todas las materias</option></select>
           <select class="btn" id="agenda-filtro-estado" aria-label="Filtrar por estado" style="font-weight:500">
             <option value="">Todos los estados</option>
@@ -353,6 +359,10 @@
       </header>
       <div class="calendario-wrap">
         <div class="calendario-main">
+          <!-- Mobile (≤760px) + vista Semana: tira de 7 días en vez de la
+               grilla (no entra legible en 390px de ancho) — ver
+               renderWeekstrip() en runtime.js. Oculta por defecto. -->
+          <div class="weekstrip" id="cal-weekstrip"></div>
           <div class="cal-weekdays" id="cal-weekdays"></div>
           <div class="cal-grid" id="cal-grid"></div>
         </div>
@@ -383,6 +393,29 @@
       </div>
     </section>
   </div>
+
+  <!-- Mobile (≤760px): navegación por tab bar + FAB de crear. Ocultos por
+       defecto (ver styles.css) — invisibles en desktop y en el hueco
+       761–900px, sólo aparecen dentro de su propio @media. -->
+  <button class="fab" id="btn-fab" aria-label="Nuevo"><span aria-hidden="true">+</span></button>
+  <div class="quick-sheet" id="quick-sheet" aria-label="Crear">
+    <button type="button" id="quick-materia">+ Materia</button>
+    <button type="button" id="quick-entrega">+ Entrega</button>
+    <button type="button" id="quick-evento">+ Evento personal</button>
+  </div>
+  <div class="row-menu" id="row-menu" aria-label="Acciones para la fila seleccionada">
+    <button type="button" id="row-menu-editar">Editar evaluación</button>
+    <button type="button" id="row-menu-entregado">Marcar como entregado</button>
+    <button type="button" id="row-menu-materia">Ver la materia</button>
+    <button type="button" id="row-menu-eliminar" class="danger">Eliminar</button>
+  </div>
+  <nav class="tabbar" id="tabbar" aria-label="Navegación principal">
+    <button class="tab" data-nav="inicio"><span class="mark"></span>Inicio</button>
+    <button class="tab" data-nav="materias"><span class="mark"></span>Materias</button>
+    <button class="tab" data-nav="agenda"><span class="mark"></span>Agenda</button>
+    <button class="tab" data-nav="calendario"><span class="mark"></span>Calendario</button>
+    <button class="tab" data-nav="horario"><span class="mark"></span>Horario</button>
+  </nav>
 </div>
 
 <!-- ============ ONBOARDING ============ -->
@@ -564,8 +597,9 @@
 </div>
 
 <!-- ============ MODAL SEMESTRES ============ -->
-<div class="modal-backdrop" id="modal-semestres">
+<div class="modal-backdrop is-sheet" id="modal-semestres">
   <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
     <div class="modal-head">
       <div class="titles"><h2 class="t">Semestres</h2><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
@@ -618,8 +652,9 @@
 </div>
 
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
-<div class="modal-backdrop" id="modal-importar-local">
+<div class="modal-backdrop is-sheet" id="modal-importar-local">
   <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
     <div class="modal-head">
       <div class="titles"><h2 class="t">Encontramos datos locales</h2><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
     </div>
@@ -694,10 +729,13 @@
 </template>
 
 <template data-template="eval-row">
-  <div class="eval-row">
-    <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
-    <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
-    <span class="badge" data-f="badge"></span>
+  <div class="swipe-row">
+    <div class="swipe-action">✓ Listo</div>
+    <div class="eval-row">
+      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
+      <span class="badge" data-f="badge"></span>
+    </div>
   </div>
 </template>
 
@@ -706,12 +744,15 @@
 </template>
 
 <template data-template="agenda-row">
-  <div class="agenda-row">
-    <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
-    <div class="bar4" data-f="bar"></div>
-    <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="tipo"></span></div></div>
-    <span class="agenda-fecha" data-f="fecha"></span>
-    <span class="badge" data-f="badge"></span>
+  <div class="swipe-row">
+    <div class="swipe-action">✓ Listo</div>
+    <div class="agenda-row">
+      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <div class="bar4" data-f="bar"></div>
+      <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="tipo"></span></div></div>
+      <span class="agenda-fecha" data-f="fecha"></span>
+      <span class="badge" data-f="badge"></span>
+    </div>
   </div>
 </template>
 
