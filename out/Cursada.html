@@ -594,6 +594,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .hamburger-btn{display:flex}
   .app-toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .app-toolbar > .nav-item{display:none} /* "Cursada" wordmark button: redundant con el hamburger en mobile */
+  #toolbar-view-label{display:none} /* nombre de la vista repetido: cada vista ya tiene su propio <h1> debajo */
   /* transform, no left — un cambio de left dispara layout en cada frame,
      translateX sólo compositing. --ease-drawer (la curva "estilo iOS" que
      ya usa Vaul/Ionic) en vez de la ease default, que se siente plana para
@@ -615,6 +616,35 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .detalle-cols{flex-direction:column}
   .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line)}
   .calendario-wrap{flex-direction:column}
+  /* .agenda-fecha tiene un width:170px fijo pensado para desktop — en un
+     celular angosto ese ancho fijo (+ checkbox + barra + badge) no deja
+     casi nada para .agenda-body, que termina calculando 0px de ancho
+     disponible: el título deja de wrappear dentro de su columna y el
+     texto se renderiza pisando la columna de fecha (probado, no es
+     hipotético). Un flex-basis en .agenda-body fuerza el wrap del row
+     ANTES de que eso pase — fecha y badge pasan a su propia línea. */
+  .agenda-row{flex-wrap:wrap;row-gap:6px;padding:13px 16px}
+  .agenda-body{flex:1 1 180px}
+  .agenda-fecha{width:auto;text-align:left;margin-left:55px} /* 22px checkbox + 15px gap + 3px barra + 15px gap: alinea bajo el título */
+  /* Varios .field dentro de un .field-row traen un width fijo puesto para
+     desktop (ej. Código 130px, Créditos 112px en el modal de materia) que
+     nunca cede — con el resto de los .field angostándose alrededor, "Nombre
+     de la materia" terminaba con ~69px reales de ancho, la etiqueta
+     wrappeando en 4 líneas y el input casi inusable (probado, no
+     hipotético). En mobile cada fila de campos pasa a una columna: todos
+     los .field a ancho completo, sin importar el width/flex que traían
+     inline (por eso el !important — inline le gana a cualquier regla salvo
+     esa, y son ~5 lugares distintos entre los modales, no vale la pena
+     tocar cada uno a mano cuando esta regla los cubre a todos de una). */
+  .field-row{flex-direction:column}
+  .field-row .field{width:auto!important;flex:1 1 auto!important}
+  /* Mismo problema en otra forma: .num-pill-row centra verticalmente una
+     etiqueta de una línea contra los .num-pills, que en mobile envuelven a
+     2-3 filas — la etiqueta quedaba flotando a media altura, pisando
+     visualmente la primera fila de pills en vez de estar arriba de todas.
+     Etiqueta arriba, pills abajo, resuelve las dos cosas a la vez. */
+  .num-pill-row{flex-direction:column;align-items:flex-start;gap:8px}
+  .num-pill-row .lbl{width:auto}
 }
 /* Grilla de 7 columnas real en ~350px de ancho de celda no deja lugar para
    texto legible (probado: el label se corta a 2-3 caracteres y termina
@@ -889,8 +919,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
       </div>
       <div class="sep"></div>
-      <button class="toolbar-btn" id="btn-exportar">Exportar</button>
-      <button class="toolbar-btn" id="btn-importar">Importar</button>
+      <!-- Import/export JSON ocultos a pedido — el botón y el listener
+           siguen enteros en runtime.js, sólo se sacó la entrada visual.
+           Sacar el `hidden` de estos dos <button> alcanza para reactivarlo. -->
+      <button class="toolbar-btn hidden" id="btn-exportar">Exportar</button>
+      <button class="toolbar-btn hidden" id="btn-importar">Importar</button>
       <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
       <button class="toolbar-btn" id="btn-borrar-todo">Borrar todo</button>
       <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>
@@ -3020,7 +3053,16 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // ================================================================
   // MODALES
   // ================================================================
-  function openModal(id) { document.getElementById(id).classList.add('is-open'); }
+  // Un solo punto de apertura (mismo espíritu que closeModalEl más abajo,
+  // el punto único de cierre): así ningún modal nuevo puede olvidarse de
+  // cerrar el cajón mobile. Antes, abrir el modal de perfil o el de
+  // semestres desde adentro del cajón (ambos triggers viven ahí) dejaba el
+  // cajón abierto encima — el cajón tiene más z-index que un modal normal,
+  // así que quedaba tapando el modal en vez de al revés.
+  function openModal(id) {
+    document.getElementById(id).classList.add('is-open');
+    closeMobileNav();
+  }
   // Modales con un formulario real donde perder lo tipeado importa — se les
   // guarda una "foto" del formulario al abrir (snapshotModalForm) para poder
   // avisar si hay cambios sin guardar al intentar cerrar sin querer.
@@ -4300,10 +4342,17 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       if (!confirm('¿Cerrar sesión?')) return;
       // Marca este signOut() como deliberado — así el listener de SIGNED_OUT
       // sabe que no es un vencimiento de sesión inesperado (ver
-      // onAuthStateChange) y muestra el login normal, no el aviso de "tu
-      // sesión venció".
+      // onAuthStateChange) y no muestra el aviso de "tu sesión venció".
       CERRANDO_SESION_DELIBERADO = true;
       await sb().auth.signOut();
+      // Cerrar sesión a propósito vuelve a la landing (index.html), no al
+      // formulario de login dentro de la app — es "salir del producto", no
+      // "quedate acá para volver a entrar". Ruta relativa: los dos archivos
+      // se sirven siempre desde el mismo directorio (ver README, sección
+      // Landing page). El aviso de sesión vencida es la excepción: ese botón
+      // sigue yendo al login de acá adentro, porque ahí sí es "reingresá
+      // para seguir donde estabas", no un logout elegido.
+      location.href = 'index.html';
     });
     document.getElementById('input-avatar').addEventListener('change', async function (e) {
       var file = e.target.files[0];

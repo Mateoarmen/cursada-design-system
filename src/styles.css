@@ -586,6 +586,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .hamburger-btn{display:flex}
   .app-toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .app-toolbar > .nav-item{display:none} /* "Cursada" wordmark button: redundant con el hamburger en mobile */
+  #toolbar-view-label{display:none} /* nombre de la vista repetido: cada vista ya tiene su propio <h1> debajo */
   /* transform, no left — un cambio de left dispara layout en cada frame,
      translateX sólo compositing. --ease-drawer (la curva "estilo iOS" que
      ya usa Vaul/Ionic) en vez de la ease default, que se siente plana para
@@ -607,6 +608,35 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .detalle-cols{flex-direction:column}
   .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line)}
   .calendario-wrap{flex-direction:column}
+  /* .agenda-fecha tiene un width:170px fijo pensado para desktop — en un
+     celular angosto ese ancho fijo (+ checkbox + barra + badge) no deja
+     casi nada para .agenda-body, que termina calculando 0px de ancho
+     disponible: el título deja de wrappear dentro de su columna y el
+     texto se renderiza pisando la columna de fecha (probado, no es
+     hipotético). Un flex-basis en .agenda-body fuerza el wrap del row
+     ANTES de que eso pase — fecha y badge pasan a su propia línea. */
+  .agenda-row{flex-wrap:wrap;row-gap:6px;padding:13px 16px}
+  .agenda-body{flex:1 1 180px}
+  .agenda-fecha{width:auto;text-align:left;margin-left:55px} /* 22px checkbox + 15px gap + 3px barra + 15px gap: alinea bajo el título */
+  /* Varios .field dentro de un .field-row traen un width fijo puesto para
+     desktop (ej. Código 130px, Créditos 112px en el modal de materia) que
+     nunca cede — con el resto de los .field angostándose alrededor, "Nombre
+     de la materia" terminaba con ~69px reales de ancho, la etiqueta
+     wrappeando en 4 líneas y el input casi inusable (probado, no
+     hipotético). En mobile cada fila de campos pasa a una columna: todos
+     los .field a ancho completo, sin importar el width/flex que traían
+     inline (por eso el !important — inline le gana a cualquier regla salvo
+     esa, y son ~5 lugares distintos entre los modales, no vale la pena
+     tocar cada uno a mano cuando esta regla los cubre a todos de una). */
+  .field-row{flex-direction:column}
+  .field-row .field{width:auto!important;flex:1 1 auto!important}
+  /* Mismo problema en otra forma: .num-pill-row centra verticalmente una
+     etiqueta de una línea contra los .num-pills, que en mobile envuelven a
+     2-3 filas — la etiqueta quedaba flotando a media altura, pisando
+     visualmente la primera fila de pills en vez de estar arriba de todas.
+     Etiqueta arriba, pills abajo, resuelve las dos cosas a la vez. */
+  .num-pill-row{flex-direction:column;align-items:flex-start;gap:8px}
+  .num-pill-row .lbl{width:auto}
 }
 /* Grilla de 7 columnas real en ~350px de ancho de celda no deja lugar para
    texto legible (probado: el label se corta a 2-3 caracteres y termina

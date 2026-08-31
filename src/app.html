@@ -160,8 +160,11 @@
         <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
       </div>
       <div class="sep"></div>
-      <button class="toolbar-btn" id="btn-exportar">Exportar</button>
-      <button class="toolbar-btn" id="btn-importar">Importar</button>
+      <!-- Import/export JSON ocultos a pedido — el botón y el listener
+           siguen enteros en runtime.js, sólo se sacó la entrada visual.
+           Sacar el `hidden` de estos dos <button> alcanza para reactivarlo. -->
+      <button class="toolbar-btn hidden" id="btn-exportar">Exportar</button>
+      <button class="toolbar-btn hidden" id="btn-importar">Importar</button>
       <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
       <button class="toolbar-btn" id="btn-borrar-todo">Borrar todo</button>
       <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>

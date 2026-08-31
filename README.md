@@ -1141,6 +1141,85 @@ secuencia.
   Nicolás, las 4 preguntas) son los que ya traía el mockup — no se
   inventó ni se editó texto nuevo.
 
+## Optimización mobile de toda la interfaz
+
+Auditoría vista por vista en 375px (probado con datos reales, no vacío) —
+esto documenta los bugs de verdad que aparecieron, no ajustes cosméticos.
+Cuatro eran genuinamente "funciona mal" (texto pisándose, campos casi
+inusables), no sólo "se ve angosto":
+
+- **Fila de Agenda pisándose**: `.agenda-fecha` tenía `width:170px` fijo,
+  pensado para desktop. En 375px, ese fijo + checkbox + badge no dejaban
+  espacio real para `.agenda-body` — el título dejaba de wrappear dentro de
+  su columna y el texto se renderizaba encima de la fecha (confirmado
+  midiendo el rect: `.agenda-body` calculaba 0px de ancho). Ahora la fila
+  pasa a dos líneas en mobile (`flex-wrap` + un `flex-basis` en
+  `.agenda-body` que fuerza el corte antes de que eso pase) — título arriba,
+  fecha y badge abajo, alineados bajo el título.
+- **Campos de los modales comprimidos a lo ilegible**: varios `.field`
+  dentro de un `.field-row` traen un `width` fijo puesto para desktop (p.
+  ej. Código 130px y Créditos 112px en el modal de materia) que nunca cede.
+  En mobile, "Nombre de la materia" terminaba con ~69px reales de ancho, la
+  etiqueta wrappeando en 4 líneas y el input casi inusable. Cada fila de
+  campos pasa a una columna en mobile — `.field-row .field{width:auto
+  !important}` cubre los ~5 lugares distintos entre los modales de una sola
+  vez (el `!important` es porque un `style=""` inline le gana a cualquier
+  regla de hoja de estilo salvo esa, y no valía la pena tocar cada `<div
+  class="field">` a mano).
+- **Mismo problema, otra forma, en `.num-pill-row`** (los presets de
+  "Puntaje total"/"Aprueba con" del modal de materia): centraba
+  verticalmente una etiqueta de una línea contra un grupo de pills que en
+  mobile envuelve a 2-3 filas — la etiqueta quedaba flotando a media altura
+  en vez de arriba de todas. Etiqueta arriba, pills abajo, en mobile.
+- **El cajón de navegación tapaba los modales que abrís desde adentro
+  suyo**: el modal de perfil y el de semestres se abren desde botones que
+  viven en el propio cajón mobile — pero el cajón (`z-index:150`) es más
+  alto que un modal normal (`z-index:100`), así que quedaba tapándolo en vez
+  de al revés. Se centralizó en `openModal(id)` (el único punto por el que
+  pasan los 6 modales de la app) que además de abrir el modal cierra el
+  cajón — un modal nuevo no puede olvidarse de este detalle porque no pasa
+  por acá a mano.
+
+Más chico, no un bug pero sí ruido: el toolbar mobile repetía el nombre de
+la vista (aparecía en el toolbar y de nuevo como `<h1>` de la vista, dos
+veces "Materias" en la misma pantalla) — se sacó del toolbar en mobile, ya
+que el `<h1>` de la vista alcanza.
+
+**Lo que se probó y ya andaba bien**, sin cambios: Calendario (ya había
+tenido su propia pasada de mobile antes), Horario (denso pero legible, sin
+overflow), los modales de evaluación/evento personal (sus campos ya eran de
+ancho completo), y las pantallas de auth/sesión vencida.
+
+**Lo que quedó igual a propósito** (denso pero no roto, no alcanzó la
+prioridad de esta pasada): la vista Tabla de Materias scrollea horizontal
+sin ninguna pista visual de que hay más columnas a la derecha más allá de la
+scrollbar nativa — funciona, pero no es obvio. Si se vuelve un problema real
+avisen y lo resuelvo con un fade en el borde.
+
+### Import/export JSON oculto del toolbar
+
+A pedido explícito, no por un problema de mobile: `#btn-exportar` y
+`#btn-importar` (y el `<input type="file">` que los acompaña) pasaron a
+`class="... hidden"` en `src/app.html`. El código en `runtime.js` (los
+listeners, `exportarJSON()`, etc.) sigue intacto — sacar el `hidden` de esos
+dos botones alcanza para reactivarlo cuando se pida de vuelta. No se tocó
+`importCollections()` (la migración de datos viejos de `localStorage`, ver
+sección de Supabase): es una función distinta, para un caso distinto, y
+sigue haciendo falta.
+
+### Cerrar sesión vuelve a la landing, no al login de la app
+
+`btn-logout` ahora navega a `index.html` después de `signOut()`, en vez de
+quedarse en el `auth-screen` de `Cursada.html`. Cerrar sesión a propósito es
+"salir del producto" — la landing es la puerta de entrada, no el formulario
+de login. La excepción es la pantalla de "tu sesión venció": ese botón sigue
+yendo al login de acá adentro, porque ahí es "reingresá para seguir donde
+estabas" (una sesión que se cortó sola), no una salida elegida — mandar a
+alguien a la landing en ese momento sería fricción de más. Asume que
+`index.html` y `Cursada.html` se sirven desde el mismo directorio (ver
+sección "Landing page" más arriba) — es el mismo supuesto que ya usan sus 4
+botones.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

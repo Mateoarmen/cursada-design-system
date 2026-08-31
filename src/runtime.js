@@ -1418,7 +1418,16 @@
   // ================================================================
   // MODALES
   // ================================================================
-  function openModal(id) { document.getElementById(id).classList.add('is-open'); }
+  // Un solo punto de apertura (mismo espíritu que closeModalEl más abajo,
+  // el punto único de cierre): así ningún modal nuevo puede olvidarse de
+  // cerrar el cajón mobile. Antes, abrir el modal de perfil o el de
+  // semestres desde adentro del cajón (ambos triggers viven ahí) dejaba el
+  // cajón abierto encima — el cajón tiene más z-index que un modal normal,
+  // así que quedaba tapando el modal en vez de al revés.
+  function openModal(id) {
+    document.getElementById(id).classList.add('is-open');
+    closeMobileNav();
+  }
   // Modales con un formulario real donde perder lo tipeado importa — se les
   // guarda una "foto" del formulario al abrir (snapshotModalForm) para poder
   // avisar si hay cambios sin guardar al intentar cerrar sin querer.
@@ -2698,10 +2707,17 @@
       if (!confirm('¿Cerrar sesión?')) return;
       // Marca este signOut() como deliberado — así el listener de SIGNED_OUT
       // sabe que no es un vencimiento de sesión inesperado (ver
-      // onAuthStateChange) y muestra el login normal, no el aviso de "tu
-      // sesión venció".
+      // onAuthStateChange) y no muestra el aviso de "tu sesión venció".
       CERRANDO_SESION_DELIBERADO = true;
       await sb().auth.signOut();
+      // Cerrar sesión a propósito vuelve a la landing (index.html), no al
+      // formulario de login dentro de la app — es "salir del producto", no
+      // "quedate acá para volver a entrar". Ruta relativa: los dos archivos
+      // se sirven siempre desde el mismo directorio (ver README, sección
+      // Landing page). El aviso de sesión vencida es la excepción: ese botón
+      // sigue yendo al login de acá adentro, porque ahí sí es "reingresá
+      // para seguir donde estabas", no un logout elegido.
+      location.href = 'index.html';
     });
     document.getElementById('input-avatar').addEventListener('change', async function (e) {
       var file = e.target.files[0];
