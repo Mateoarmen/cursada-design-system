@@ -374,6 +374,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 /* ---------- Modales (sheet estilo Apple) ---------- */
 .modal-backdrop{position:fixed;inset:0;background:var(--c-overlay);display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;z-index:100}
 .modal-backdrop.is-open{display:flex}
+/* "Completá tu perfil" obligatorio (cuentas de Google, ver runtime.js):
+   se muestra ANTES de revelar #app, como una pantalla más — fondo sólido en
+   vez de translúcido, mismo z-index que auth-screen/gate-screen, centrado
+   verticalmente en vez de anclado arriba (no hay nada largo que scrollear). */
+.modal-backdrop.is-gate{background:var(--c-bg);z-index:300;align-items:center}
+.modal-backdrop.is-gate .modal{margin-top:0}
 /* El modal en sí es el que scrollea (no un hijo flex/grid intermedio): header y
    footer quedan "pegados" arriba/abajo con position:sticky. Evita el clásico
    problema de flex/grid donde un hijo con overflow:auto no se constriñe al
@@ -3586,6 +3592,12 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     document.getElementById('btn-perfil-cancelar').textContent = completar ? 'Completar más tarde' : 'Cancelar';
     document.getElementById('btn-perfil-cerrar-x').classList.toggle('hidden', obligatorio);
 
+    // Modo obligatorio: se muestra como una pantalla más (fondo sólido,
+    // igual tratamiento que auth-screen), no como un modal flotando encima
+    // del dashboard — ver onSignedIn(), que llama a esto ANTES de revelar
+    // #app, así que ni siquiera hay "fondo" que tapar.
+    document.getElementById('modal-perfil').classList.toggle('is-gate', obligatorio);
+
     PERFIL_CAMPOS.forEach(function (n) { form[n].required = obligatorio; });
 
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
@@ -3599,17 +3611,34 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     if (!p) return true;
     return !p.facultad || !p.carrera || !p.telefono;
   }
+
+  // Cuentas de Google: se resuelve ANTES de mostrar la app (ver onSignedIn),
+  // como una pantalla más — no un modal encima del dashboard. Google no
+  // permite un formulario propio antes de crear la cuenta, así que estos
+  // datos nunca se pidieron todavía; se piden acá, ahora, de forma
+  // obligatoria, y recién cuando se guardan la app sigue su curso normal
+  // (revela #app y, si no hay materias, la pantalla de "crear tu primera
+  // materia"). Devuelve una Promise que se resuelve al guardar.
+  var PERFIL_GATE_RESOLVE = null;
+  function esperarCompletarPerfilObligatorio() {
+    return new Promise(function (resolve) {
+      PERFIL_GATE_RESOLVE = resolve;
+      openPerfilModal('completar-obligatorio');
+    });
+  }
+
   // Cuentas de email: no bloqueante, se puede posponer ("Completar más
-  // tarde") sin impedir usar el resto de la app — si siguen faltando datos,
-  // vuelve a aparecer en el próximo login, sin un flag de "no preguntar más"
-  // (a diferencia del aviso de importar datos locales, acá si se pospone es
-  // a propósito que se repita).
-  // Cuentas de Google: obligatorio — Google no permite un formulario propio
-  // antes de crear la cuenta, así que estos datos nunca se pidieron todavía;
-  // se piden acá, ahora, y no se puede seguir usando la app sin completarlos.
-  function maybeOfrecerCompletarPerfil() {
+  // tarde") sin impedir usar el resto de la app (se ve como un modal normal,
+  // encima del dashboard, porque para este caso sí corresponde) — si siguen
+  // faltando datos, vuelve a aparecer en el próximo login, sin un flag de
+  // "no preguntar más" (a diferencia del aviso de importar datos locales,
+  // acá si se pospone es a propósito que se repita). Las cuentas de Google
+  // no llegan hasta acá: su completado obligatorio ya se resolvió antes de
+  // revelar la app, ver esperarCompletarPerfilObligatorio().
+  function maybeOfrecerCompletarPerfilNoBloqueante() {
+    if (esCuentaGoogle()) return false;
     if (!perfilIncompleto(CURRENT_PROFILE)) return false;
-    openPerfilModal(esCuentaGoogle() ? 'completar-obligatorio' : 'completar');
+    openPerfilModal('completar');
     return true;
   }
 
@@ -3693,6 +3722,8 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, patch);
         PERFIL_MODAL_BLOQUEANTE = false; // ya se guardó — closeAllModals() de acá abajo puede cerrarlo
         closeAllModals();
+        document.getElementById('modal-perfil').classList.remove('is-gate');
+        if (PERFIL_GATE_RESOLVE) { var resolver = PERFIL_GATE_RESOLVE; PERFIL_GATE_RESOLVE = null; resolver(); }
         renderSidenavUser();
         renderRoute();
       } catch (err) {
@@ -3733,10 +3764,10 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     btnNo.onclick = function () {
       marcarImportLocalResuelto();
       closeAllModals();
-      // Misma prioridad que en onSignedIn(): completar perfil antes que
-      // onboarding — este callback se salteaba ese chequeo y saltaba
-      // directo a onboarding.
-      if (!maybeOfrecerCompletarPerfil() && !CACHE.materias.length) showOnboarding();
+      // Misma prioridad que en onSignedIn(): completar perfil (no
+      // bloqueante — las cuentas de Google ya lo resolvieron antes de
+      // llegar hasta acá, ver onSignedIn) antes que onboarding.
+      if (!maybeOfrecerCompletarPerfilNoBloqueante() && !CACHE.materias.length) showOnboarding();
     };
     openModal('modal-importar-local');
     return true;
@@ -3757,18 +3788,27 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       setGate('gate-error');
       return;
     }
+
+    // Cuentas de Google con el perfil sin completar: se piden esos datos
+    // ANTES de revelar #app — es una pantalla más (fondo sólido, mismo
+    // tratamiento que el login), no un modal encima del dashboard. Se
+    // espera acá a que la Promise se resuelva (al guardar) antes de seguir.
+    if (esCuentaGoogle() && perfilIncompleto(CURRENT_PROFILE)) {
+      await esperarCompletarPerfilObligatorio();
+    }
+
     setGate(null);
     renderSidenavUser();
     handleRoute();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
-    // Import de datos locales, "completá tu perfil" y onboarding son los
-    // avisos que pueden aparecer al iniciar sesión — nunca más de uno a la
-    // vez (si no, uno tapa al otro). Orden de prioridad: importar datos
-    // locales primero (hay datos reales de por medio); completar perfil
-    // después (un toque personal rápido, típicamente sólo tras un alta por
-    // Google); onboarding al final, sólo si seguís sin ninguna materia.
+    // Con el perfil de Google ya resuelto (si correspondía), quedan estos
+    // avisos posibles al entrar a la app — nunca más de uno a la vez (si
+    // no, uno tapa al otro). Orden de prioridad: importar datos locales
+    // primero (hay datos reales de por medio); completar perfil no
+    // bloqueante después (cuentas de email que dejaron datos sin llenar);
+    // onboarding al final, sólo si seguís sin ninguna materia.
     var mostroImportLocal = maybeOfrecerImportLocal();
-    var mostroCompletarPerfil = !mostroImportLocal && maybeOfrecerCompletarPerfil();
+    var mostroCompletarPerfil = !mostroImportLocal && maybeOfrecerCompletarPerfilNoBloqueante();
     if (!mostroImportLocal && !mostroCompletarPerfil && !CACHE.materias.length) showOnboarding();
   }
 

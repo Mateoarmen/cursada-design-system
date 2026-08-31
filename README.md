@@ -595,22 +595,35 @@ pregunta: **¿la cuenta se creó con Google?** (`CURRENT_USER.app_metadata.provi
   crear la cuenta, así que este es el único lugar donde se pueden pedir
   estos datos — acá sí son obligatorios, los 6 (nombre, apellido, edad,
   facultad, carrera, teléfono), no sólo los 3 que gatillan el aviso, porque
-  con Google no llegó ninguno. En este modo no hay botón de cancelar ni X
-  para cerrar, el click en el backdrop y Escape no cierran el modal, y los
-  6 campos tienen `required` — la única salida es completarlos y guardar.
-  Técnicamente el modal sigue siendo el mismo `.modal-backdrop.is-open` de
-  siempre (semi-transparente, cubre toda la pantalla): lo que lo hace
-  bloqueante es que `closeModalEl()` se niega a cerrarlo mientras un flag
-  (`PERFIL_MODAL_BLOQUEANTE`) esté activo — un solo punto de control en vez
-  de parchear cada camino de cierre (X, Cancelar, backdrop, Escape) por
+  con Google no llegó ninguno. No hay botón de cancelar ni X para cerrar, el
+  click en el backdrop y Escape no cierran el modal, y los 6 campos tienen
+  `required` — la única salida es completarlos y guardar. La cierre está
+  bloqueada porque `closeModalEl()` se niega a cerrar este modal mientras un
+  flag (`PERFIL_MODAL_BLOQUEANTE`) esté activo — un solo punto de control en
+  vez de parchear cada camino de cierre (X, Cancelar, backdrop, Escape) por
   separado.
-- **Prioridad con los otros avisos post-login**: si en el mismo login
-  también correspondería mostrar el aviso de "importar datos locales" o el
-  onboarding de bienvenida (los tres son excluyentes entre sí, para que uno
-  no tape visualmente al otro), el orden es: importar datos locales primero
-  (hay datos reales de por medio), completar perfil después (obligatorio o
-  no, según el caso), onboarding al final si seguís sin ninguna materia
-  cargada.
+  - **Aparece antes que nada, como una pantalla más — no como un modal
+    encima del dashboard.** `onSignedIn()` llama a
+    `esperarCompletarPerfilObligatorio()` (que devuelve una Promise, resuelta
+    recién cuando se guarda el formulario) **antes** de revelar `#app` — así
+    que mientras esto está pendiente, `#app` sigue oculto (igual que durante
+    la pantalla de login) y no hay ningún dashboard de fondo para tapar. Con
+    `#app` oculto, técnicamente ni haría falta ocultar el fondo del modal,
+    pero además se le agrega la clase `.is-gate`, que le cambia el fondo
+    translúcido habitual por uno sólido (mismo tratamiento que
+    `auth-screen`/`gate-screen`) y lo centra verticalmente — para que en
+    todo momento se vea y se sienta como una pantalla de la secuencia de
+    login, no como un diálogo. Recién cuando se guarda, `onSignedIn()`
+    continúa: revela `#app`, y si no tenés ninguna materia todavía, ahí sí
+    aparece la pantalla de bienvenida ("Crear mi primera materia") — nunca
+    antes de completar el perfil.
+- **Prioridad con los otros avisos post-login**: completar perfil
+  obligatorio (cuentas de Google) es lo primero de todo, antes incluso de
+  revelar la app. Una vez adentro, importar datos locales y completar
+  perfil no bloqueante (cuentas de email) y onboarding son excluyentes entre
+  sí (para que uno no tape visualmente al otro): importar datos locales
+  primero (hay datos reales de por medio), completar perfil no bloqueante
+  después, onboarding al final si seguís sin ninguna materia cargada.
 
 ### Migración de datos que ya tenías en `localStorage`
 

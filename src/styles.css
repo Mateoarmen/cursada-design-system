@@ -366,6 +366,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 /* ---------- Modales (sheet estilo Apple) ---------- */
 .modal-backdrop{position:fixed;inset:0;background:var(--c-overlay);display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;z-index:100}
 .modal-backdrop.is-open{display:flex}
+/* "Completá tu perfil" obligatorio (cuentas de Google, ver runtime.js):
+   se muestra ANTES de revelar #app, como una pantalla más — fondo sólido en
+   vez de translúcido, mismo z-index que auth-screen/gate-screen, centrado
+   verticalmente en vez de anclado arriba (no hay nada largo que scrollear). */
+.modal-backdrop.is-gate{background:var(--c-bg);z-index:300;align-items:center}
+.modal-backdrop.is-gate .modal{margin-top:0}
 /* El modal en sí es el que scrollea (no un hijo flex/grid intermedio): header y
    footer quedan "pegados" arriba/abajo con position:sticky. Evita el clásico
    problema de flex/grid donde un hijo con overflow:auto no se constriñe al
