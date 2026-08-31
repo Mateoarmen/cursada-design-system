@@ -43,6 +43,13 @@
 
   --r-control:10px; --r-card:20px; --r-chip:999px; --r-tile:12px; --r-modal:26px;
   --sidenav-w:236px;
+
+  /* Curvas de easing con más "punch" que las de CSS por default — las
+     nativas (ease/ease-out) son demasiado débiles y hacen que todo se
+     sienta un poco apagado. */
+  --ease-out:cubic-bezier(.23,1,.32,1);       /* algo que entra/aparece */
+  --ease-in-out:cubic-bezier(.77,0,.175,1);   /* algo que se mueve en pantalla */
+  --ease-drawer:cubic-bezier(.32,.72,0,1);    /* cajones/drawers estilo iOS */
 }
 
 html[data-theme="oscuro"]{
@@ -84,6 +91,22 @@ button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
    con overflow:hidden (.cal-cell, .hg-block) donde un anillo hacia afuera
    quedaría recortado. */
 [tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--c-accent);outline-offset:-2px}
+/* Feedback de "estoy escuchando" al presionar — se aplica a cualquier botón
+   y a las filas/tarjetas con role="button" (materia-card, prox-row, etc.),
+   universal en vez de por-componente para no dejar ninguna afuera. Sutil
+   (.97, no más) y rápido (120ms): esto se toca cientos de veces por sesión,
+   tiene que sentirse instantáneo, no "animado". */
+button,[role="button"]{transition:transform 120ms var(--ease-out)}
+button:active,[role="button"]:active{transform:scale(.97)}
+/* Cambio de estado (seleccionado/hover) en pills, chips, segmentos, swatches
+   y días de la franja horaria — se tocan seguido (filtros, franjas), así
+   que el toque es deliberadamente chico: rápido y sutil, no una animación
+   vistosa. Un salto de color sin transición se siente roto; una animación
+   larga se siente lenta en algo que se usa todo el tiempo. */
+.pill,.seg-item,.chip-materia,.tipo-item,.dia-mini,.swatch,.num-pill,.nav-item{
+  transition:background 120ms ease,color 120ms ease,filter 120ms ease,box-shadow 120ms ease;
+}
+.materia-card{transition:box-shadow 160ms ease}
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
@@ -197,8 +220,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .tone-dot{width:9px;height:9px;border-radius:50%;flex:none}
 
 /* ---------- switch ---------- */
-.switch{width:46px;height:28px;border-radius:999px;background:var(--c-muted4);display:flex;align-items:center;padding:2px;border:none;flex:none;transition:background .15s}
-.switch .knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
+.switch{width:46px;height:28px;border-radius:999px;background:var(--c-muted4);display:flex;align-items:center;padding:2px;border:none;flex:none;transition:background 150ms ease}
+.switch .knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform 150ms var(--ease-in-out)}
 .switch.is-on{background:var(--c-success)}
 .switch.is-on .knob{transform:translateX(18px)}
 .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -209,6 +232,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .lp-tg{
   position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--c-muted4);background:transparent;
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;pointer-events:none;
+  transition:background 120ms ease,border-color 120ms ease;
 }
 .lp-toggle:checked + .lp-tg{background:var(--c-success);border-color:var(--c-success)}
 .lp-toggle:disabled + .lp-tg{opacity:.5}
@@ -389,8 +413,23 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .hg-block .s{font-size:10px;margin-top:auto;opacity:.85}
 
 /* ---------- Modales (sheet estilo Apple) ---------- */
-.modal-backdrop{position:fixed;inset:0;background:var(--c-overlay);display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;overscroll-behavior:contain;z-index:100}
-.modal-backdrop.is-open{display:flex}
+/* Antes esto era display:none <-> flex — un salto instantáneo que se siente
+   roto (nada en el mundo real aparece de la nada). Ahora queda siempre en
+   flex y el estado cerrado se logra con opacity+visibility+pointer-events,
+   así opacity y el scale del .modal de acá abajo sí pueden animar. La
+   duración es asimétrica a propósito: entra en 220ms (con margen para que
+   se note el scale-in), sale en 150ms (cerrar tiene que sentirse inmediato,
+   nadie quiere esperar a un modal que se va). */
+.modal-backdrop{
+  position:fixed;inset:0;background:var(--c-overlay);display:flex;align-items:flex-start;justify-content:center;
+  padding:16px;overflow-y:auto;overscroll-behavior:contain;z-index:100;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity 150ms var(--ease-out),visibility 150ms;
+}
+.modal-backdrop.is-open{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transition:opacity 220ms var(--ease-out),visibility 220ms;
+}
 /* "Completá tu perfil" obligatorio (cuentas de Google, ver runtime.js):
    se muestra ANTES de revelar #app, como una pantalla más — fondo sólido en
    vez de translúcido, mismo z-index que auth-screen/gate-screen, centrado
@@ -402,7 +441,19 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
    problema de flex/grid donde un hijo con overflow:auto no se constriñe al
    espacio disponible del padre (min-height:auto por default) y termina
    empujando contenido fuera de vista sin scrollbar. */
-.modal{width:620px;max-width:100%;background:var(--c-surface);border-radius:var(--r-modal);box-shadow:var(--c-modal-shadow);overflow-y:auto;margin-top:32px;max-height:calc(100vh - 64px)}
+.modal{
+  width:620px;max-width:100%;background:var(--c-surface);border-radius:var(--r-modal);box-shadow:var(--c-modal-shadow);
+  overflow-y:auto;margin-top:32px;max-height:calc(100vh - 64px);
+  /* scale(.95), no 0 — y transform-origin queda en el centro por default a
+     propósito: a diferencia de un popover, un modal no "sale" de ningún
+     disparador puntual, aparece centrado en la pantalla. */
+  transform:scale(.95);
+  transition:transform 150ms var(--ease-out);
+}
+.modal-backdrop.is-open .modal{
+  transform:scale(1);
+  transition:transform 220ms var(--ease-out);
+}
 .modal.modal-sm{width:560px}
 .modal.modal-xs{width:480px}
 .modal-head{position:sticky;top:0;z-index:2;background:var(--c-surface);padding:22px 26px;border-bottom:1px solid var(--c-line-faint);display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -475,7 +526,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 
 .onboarding{position:fixed;inset:0;background:var(--c-bg);display:flex;z-index:200}
 .onboarding.hidden{display:none}
-.ob-left{flex:1.05;padding:64px 68px;display:flex;flex-direction:column}
+.ob-left{
+  flex:1.05;padding:64px 68px;display:flex;flex-direction:column;
+  opacity:1;transform:translateY(0);
+  transition:opacity 320ms var(--ease-out),transform 320ms var(--ease-out);
+  @starting-style{opacity:0;transform:translateY(10px)}
+}
 .ob-brand{display:flex;align-items:center;gap:11px}
 .ob-brand .mark{width:30px;height:30px;border-radius:10px;background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));display:flex;align-items:center;justify-content:center}
 .ob-brand .mark::after{content:'';width:14px;height:14px;border-radius:50%;border:2.6px solid #fff;border-top-color:transparent;transform:rotate(45deg)}
@@ -511,9 +567,18 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .hamburger-btn{display:flex}
   .app-toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .app-toolbar > .nav-item{display:none} /* "Cursada" wordmark button: redundant con el hamburger en mobile */
-  .sidenav{position:fixed;top:0;left:0;z-index:150;transform:translateX(-260px);transition:transform .18s;height:100vh}
+  /* transform, no left — un cambio de left dispara layout en cada frame,
+     translateX sólo compositing. --ease-drawer (la curva "estilo iOS" que
+     ya usa Vaul/Ionic) en vez de la ease default, que se siente plana para
+     un cajón que se desliza. */
+  .sidenav{position:fixed;top:0;left:0;z-index:150;transform:translateX(-260px);transition:transform 220ms var(--ease-drawer);height:100vh}
   .sidenav.is-open{transform:translateX(0)}
-  .sidenav-backdrop.is-open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:140}
+  .sidenav-backdrop{
+    display:block;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:140;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity 200ms var(--ease-out),visibility 200ms;
+  }
+  .sidenav-backdrop.is-open{opacity:1;visibility:visible;pointer-events:auto}
 }
 
 /* ---------- responsive ---------- */
@@ -541,7 +606,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 
 .auth-screen{position:fixed;inset:0;background:var(--c-bg);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-screen.hidden{display:none}
-.auth-card{width:380px;max-width:100%;background:var(--c-surface);border-radius:var(--r-modal);box-shadow:var(--c-modal-shadow);padding:32px 28px;display:flex;flex-direction:column;gap:16px}
+/* Entra una sola vez por sesión (login, o el gate de error/onboarding) — no
+   es algo que se vea seguido, así que hay margen para un toque más
+   perceptible que en el resto de la app. @starting-style anima el estado
+   "antes" apenas .hidden se saca (display:none -> flex) sin tocar JS; en un
+   navegador sin soporte simplemente aparece sin animar, no rompe nada. */
+.auth-card{
+  width:380px;max-width:100%;background:var(--c-surface);border-radius:var(--r-modal);box-shadow:var(--c-modal-shadow);padding:32px 28px;display:flex;flex-direction:column;gap:16px;
+  opacity:1;transform:translateY(0) scale(1);
+  transition:opacity 320ms var(--ease-out),transform 320ms var(--ease-out);
+  @starting-style{opacity:0;transform:translateY(10px) scale(.97)}
+}
 .auth-card .ob-brand{margin-bottom:2px}
 .auth-sub{font-size:13px;color:var(--c-ink2);line-height:1.5}
 .auth-card #form-auth{display:flex;flex-direction:column;gap:14px}
@@ -562,8 +637,25 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 #auth-form-panel{display:flex;flex-direction:column;gap:16px}
 #auth-form-panel.hidden{display:none}
 
-.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:400;background:var(--c-ink);color:var(--c-bg);font-size:13px;font-weight:600;padding:12px 18px;border-radius:12px;box-shadow:var(--c-modal-shadow);max-width:calc(100vw - 48px);text-align:center}
-.toast.hidden{display:none}
+/* Antes usaba la clase genérica .hidden (display:none !important), que no
+   deja animar nada — pasó a su propia clase .is-open con opacity+visibility,
+   así puede entrar deslizándose desde abajo en vez de aparecer de golpe.
+   Siempre sube desde el mismo lugar (spatial consistency, no un lugar
+   distinto cada vez) y entra más lento de lo que sale, como el resto de los
+   overlays de la app. */
+.toast{
+  position:fixed;left:50%;bottom:28px;z-index:400;background:var(--c-ink);color:var(--c-bg);
+  font-size:13px;font-weight:600;padding:12px 18px;border-radius:12px;box-shadow:var(--c-modal-shadow);
+  max-width:calc(100vw - 48px);text-align:center;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translate(-50%,8px);
+  transition:opacity 150ms var(--ease-out),transform 150ms var(--ease-out),visibility 150ms;
+}
+.toast.is-open{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transform:translate(-50%,0);
+  transition:opacity 220ms var(--ease-out),transform 220ms var(--ease-out),visibility 220ms;
+}
 html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);border:1px solid var(--c-line)}
 
 /* ---------- Perfil / usuario (side nav) ---------- */

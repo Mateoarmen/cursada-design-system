@@ -776,6 +776,65 @@ cambiarlo arriesgaba romper una decisión de copy ya tomada a propósito,
 por una ganancia que no aplica acá (no hay ni va a haber un segundo
 locale).
 
+## Animación
+
+Pasada de pulido siguiendo la filosofía de Emil Kowalski (curvas de easing
+con carácter, feedback de presión, nada de animar lo que se usa cientos de
+veces por día). Antes casi todo en la app era instantáneo — un salto de
+`display:none` a `flex`, un color que cambiaba de golpe — lo que en la
+mayoría de los casos está bien (una lista de materias no necesita
+animación), pero un puñado de lugares se sentían rotos en vez de rápidos.
+
+- **Modales**: antes `display:none` ↔ `flex`, instantáneo. Ahora quedan
+  siempre en `flex` (visibilidad real vía `opacity`+`visibility`+
+  `pointer-events`, no `display`) para poder animar `opacity` y un
+  `scale(.95→1)` en el `.modal`. Entran en 220ms, salen en 150ms — cerrar
+  tiene que sentirse inmediato, nadie quiere esperar a que un modal se
+  vaya. `transform-origin` se queda en el centro (default): a diferencia
+  de un popover, un modal no sale de ningún disparador puntual.
+- **Toast**: usaba la clase genérica `.hidden` (display:none), que bloquea
+  cualquier transición — pasó a su propia clase `.is-open` y ahora sube
+  deslizándose desde abajo (siempre desde el mismo lugar) en vez de
+  aparecer de golpe.
+- **Botones y filas/tarjetas clicables**: `transform:scale(.97)` al
+  presionar (`:active`), 120ms — aplicado de forma universal a
+  `button`/`[role="button"]` (cubre los ~15 tipos de botón de la app y las
+  filas custom de `makeRowClickable()`, ver la sección de accesibilidad)
+  en vez de repetirlo por componente.
+- **Pills, chips, segmentos, swatches, días de franja horaria**: se tocan
+  seguido (filtros, horarios) — el toque es a propósito chico y rápido
+  (120ms), no una animación vistosa; antes el cambio de color al
+  seleccionar era instantáneo y se sentía tosco.
+- **Cajón mobile**: pasó de animar `left` (dispara layout) a `transform`
+  (sólo compositor), y de una curva `ease` genérica a `--ease-drawer`
+  (`cubic-bezier(.32,.72,0,1)`, la curva "estilo iOS" que usan Vaul/Ionic)
+  — se siente mucho menos plana. El backdrop ahora funde en sincro en vez
+  de aparecer de golpe.
+- **Login/onboarding**: entrada sutil (`@starting-style`, fade + subir
+  10px) sólo ahí — son pantallas que se ven una vez por sesión, así que
+  hay margen para un toque más perceptible que en el resto de la app. Las
+  pantallas de carga (`gate-loading`/`gate-error`) quedaron **sin**
+  animación de entrada a propósito: son estados de carga, tienen que
+  aparecer lo más rápido posible, no competir con su propio spinner.
+- Curvas nuevas en `:root` de `src/styles.css`: `--ease-out`
+  (`cubic-bezier(.23,1,.32,1)`) para lo que entra/aparece, `--ease-in-out`
+  (`cubic-bezier(.77,0,.175,1)`) para lo que se mueve en pantalla (el knob
+  del switch), `--ease-drawer` para cajones — las curvas nativas de CSS
+  son demasiado débiles para sentirse intencionales.
+
+Todo lo de acá arriba ya pasa por el `@media(prefers-reduced-motion:reduce)`
+global que reduce duración de animaciones/transiciones a casi cero (ver
+sección de accesibilidad) — no hizo falta tocar nada aparte para respetarlo.
+
+**Lo que decidí no animar**: el cambio de vista (Inicio/Materias/Agenda/…)
+sigue siendo instantáneo (`.hidden` en cada `<section>`) — es de lo que más
+se toca en toda la sesión, y en Raycast/command palettes ese es
+exactamente el tipo de acción que no debería tener ninguna animación.
+Tampoco animé el anillo de nota (`conic-gradient`) llenándose de 0 al valor
+real: es un lindo detalle pero aparece en Materias/Inicio, vistas de uso
+muy frecuente, y `@property` para animar un `conic-gradient` agrega
+complejidad para un beneficio marginal ahí.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

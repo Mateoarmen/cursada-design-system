@@ -2190,9 +2190,9 @@
   function showToast(msg) {
     var t = document.getElementById('toast');
     t.textContent = msg;
-    t.classList.remove('hidden');
+    t.classList.add('is-open');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 4000);
+    toastTimer = setTimeout(function () { t.classList.remove('is-open'); }, 4000);
   }
 
   function bindAuthUI() {
