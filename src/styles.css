@@ -46,6 +46,7 @@
 }
 
 html[data-theme="oscuro"]{
+  color-scheme:dark;
   --c-bg:#1C1C1E; --c-surface:#2C2C2E; --c-sidenav:#1C1C1E; --c-surfaceAlt:rgba(255,255,255,.08);
   --c-ink:#F5F5F7; --c-ink2:rgba(235,235,245,.6); --c-ink3:rgba(235,235,245,.45);
   --c-line:rgba(255,255,255,.09); --c-line-faint:rgba(255,255,255,.08); --c-line-faint2:rgba(255,255,255,.06);
@@ -69,12 +70,34 @@ body{
 }
 a{color:var(--c-accent);text-decoration:none}
 a:hover{text-decoration:underline}
-button{font-family:inherit;cursor:pointer}
+button{font-family:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 input,select,textarea{font-family:inherit;color:inherit;background:var(--c-surface)}
 ::placeholder{color:var(--c-ink3)}
+/* Foco de teclado genérico para cualquier elemento clicable que no tenga ya
+   su propio estilo de foco más específico más abajo (botones simples, chips,
+   pills, y las filas/tarjetas que se manejan con teclado vía tabindex+role
+   en runtime.js) — :focus-visible, no :focus, para no mostrar el anillo en
+   un click de mouse. */
+button:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+/* offset negativo (hacia adentro) para las filas/tarjetas con role="button"
+   (ver makeRowClickable en runtime.js): varias viven dentro de contenedores
+   con overflow:hidden (.cal-cell, .hg-block) donde un anillo hacia afuera
+   quedaría recortado. */
+[tabindex]:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--c-accent);outline-offset:-2px}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+}
 
 .mono{font-variant-numeric:tabular-nums}
 .hidden{display:none !important}
+/* Varios títulos visuales (topbar de cada vista, encabezados de modal, panel-title,
+   nombre de materia/detalle) eran <span> sin jerarquía semántica — pasaron a
+   h1/h2/h3 reales para que un lector de pantalla pueda navegar por encabezados,
+   pero siguen 100% controlados por su clase existente (panel-title, .t, etc.),
+   no por el tag — este reset anula los estilos por default del navegador
+   (margin, font-weight, display) para que el cambio de tag no mueva nada. */
+h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inherit;letter-spacing:inherit;line-height:inherit;display:inline}
 
 /* ---------- layout ---------- */
 #app{display:flex;min-height:100vh}
@@ -113,6 +136,7 @@ input,select,textarea{font-family:inherit;color:inherit;background:var(--c-surfa
 }
 .nav-item .mark{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.22);flex:none}
 html[data-theme="oscuro"] .nav-item .mark{background:rgba(255,255,255,.25)}
+.nav-item:hover:not(.is-active){background:var(--c-surfaceAlt)}
 .nav-item.is-active{font-weight:600;color:#fff;background:var(--c-accent)}
 .nav-item.is-active .mark{background:rgba(255,255,255,.9)}
 .nav-item[data-nav="agenda"] .mark{border-radius:2px;transform:rotate(45deg)}
@@ -142,7 +166,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .topbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .search-fake{height:34px;display:flex;align-items:center;padding:0 13px;border-radius:10px;font-size:13px;color:var(--c-ink3);background:var(--c-surfaceAlt)}
 .search-input{height:34px;padding:0 13px;border:none;border-radius:10px;font-size:13px;color:var(--c-ink);background:var(--c-surfaceAlt);width:220px;max-width:100%}
-.search-input:focus{outline:none;box-shadow:var(--c-focus)}
+.search-input:focus-visible{outline:none;box-shadow:var(--c-focus)}
 .search-input::-webkit-search-cancel-button{cursor:pointer}
 
 .view{flex:1;min-height:0;padding:30px 34px;display:flex;flex-direction:column;gap:20px;max-width:1440px;width:100%;margin:0 auto}
@@ -165,6 +189,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .seg-item.is-on{background:var(--c-surface);font-weight:600;color:var(--c-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 
 .pill{height:32px;display:inline-flex;align-items:center;padding:0 15px;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt);border:none}
+.pill:hover:not(.is-on){filter:brightness(.96)}
 .pill.is-on{font-weight:600;color:#fff;background:var(--c-accent)}
 
 .chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:var(--r-chip);font-size:11px;font-weight:600;letter-spacing:-.005em;white-space:nowrap}
@@ -364,7 +389,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .hg-block .s{font-size:10px;margin-top:auto;opacity:.85}
 
 /* ---------- Modales (sheet estilo Apple) ---------- */
-.modal-backdrop{position:fixed;inset:0;background:var(--c-overlay);display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;z-index:100}
+.modal-backdrop{position:fixed;inset:0;background:var(--c-overlay);display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;overscroll-behavior:contain;z-index:100}
 .modal-backdrop.is-open{display:flex}
 /* "Completá tu perfil" obligatorio (cuentas de Google, ver runtime.js):
    se muestra ANTES de revelar #app, como una pantalla más — fondo sólido en
@@ -395,7 +420,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   height:42px;border:none;border-radius:12px;padding:0 13px;font-size:14px;background:var(--c-surfaceAlt);color:var(--c-ink);width:100%;
 }
 .field textarea{height:86px;padding:12px 13px;resize:vertical}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;box-shadow:var(--c-focus)}
+.field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:none;box-shadow:var(--c-focus)}
 
 .swatches{display:flex;gap:10px;flex-wrap:wrap}
 .swatch{width:34px;height:34px;border-radius:50%;border:2px solid transparent;flex:none;padding:0}
@@ -405,6 +430,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .horario-modal-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .dias-mini{display:flex;gap:6px}
 .dia-mini{width:34px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:none;background:var(--c-surfaceAlt);color:var(--c-ink3)}
+.dia-mini:hover:not(.is-on){filter:brightness(.96)}
 .dia-mini.is-on{background:var(--acc-azul-soft);color:var(--acc-azul-strong)}
 .add-link{font-size:13px;color:var(--c-accent);font-weight:600;background:none;border:none;padding:0;text-align:left;cursor:pointer}
 .remove-link{font-size:13px;color:var(--c-danger);font-weight:600;background:none;border:none;padding:0;cursor:pointer}
@@ -425,10 +451,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 
 .chips-materia{display:flex;flex-wrap:wrap;gap:8px}
 .chip-materia{height:36px;display:flex;align-items:center;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;background:var(--c-surfaceAlt);color:var(--c-ink2);border:none}
+.chip-materia:hover:not(.is-on){filter:brightness(.96)}
 .chip-materia.is-on{font-weight:600}
 
 .tipos-seg{display:flex;gap:8px;flex-wrap:wrap}
 .tipo-item{flex:1;min-width:84px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;font-size:13px;font-weight:500;background:var(--c-surfaceAlt);color:var(--c-ink2);border:none}
+.tipo-item:hover:not(.is-on){filter:brightness(.96)}
 .tipo-item.is-on{font-weight:600;background:var(--c-accent);color:#fff}
 
 .categoria-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -454,7 +482,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .ob-brand .name{font-family:var(--font-display);font-weight:600;font-size:21px;letter-spacing:-.02em}
 .ob-body{margin-top:auto;display:flex;flex-direction:column;gap:22px;max-width:520px}
 .ob-eyebrow{font-size:12px;letter-spacing:.08em;color:var(--c-ink3);text-transform:uppercase;font-weight:600}
-.ob-h1{font-family:var(--font-display);font-size:48px;font-weight:600;letter-spacing:-.03em;line-height:1.05}
+.ob-h1{font-family:var(--font-display);font-size:48px;font-weight:600;letter-spacing:-.03em;line-height:1.05;text-wrap:balance}
 .ob-p{font-size:16px;color:var(--c-ink2);line-height:1.6}
 .ob-steps{display:flex;flex-direction:column;gap:11px}
 .ob-step{display:flex;align-items:center;gap:12px}
@@ -483,8 +511,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .hamburger-btn{display:flex}
   .app-toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .app-toolbar > .nav-item{display:none} /* "Cursada" wordmark button: redundant con el hamburger en mobile */
-  .sidenav{position:fixed;top:0;left:-260px;z-index:150;transition:left .18s;height:100vh}
-  .sidenav.is-open{left:0}
+  .sidenav{position:fixed;top:0;left:0;z-index:150;transform:translateX(-260px);transition:transform .18s;height:100vh}
+  .sidenav.is-open{transform:translateX(0)}
   .sidenav-backdrop.is-open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:140}
 }
 

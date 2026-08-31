@@ -715,6 +715,67 @@ faltaría, como mínimo:
   fallar con el aviso de error genérico; no hay un flujo dedicado de
   "tu sesión venció, iniciá sesión de nuevo" con redirección automática.
 
+## Accesibilidad y guidelines de interfaz web
+
+Pasé `src/app.html`, `src/styles.css` y `src/runtime.js` por una revisión
+contra las [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines)
+y corregí todo lo que encontró. Lo más importante:
+
+- **Filas y tarjetas clicables navegables por teclado.** Materia-card,
+  prox-row, riesgo-row, nota-row, eval-row, agenda-row, la fila de la tabla
+  de materias, las celdas del calendario (y sus eventos anidados), las
+  tarjetas del panel lateral del calendario y los bloques de la grilla de
+  Horario eran `<div>`/`<tr>` con sólo `click` — nadie que navegara solo con
+  teclado podía abrirlos. Ahora todos pasan por `makeRowClickable()`
+  (`src/runtime.js`): `role="button"` + `tabindex="0"` + Enter/Espacio. No
+  se convirtieron a `<button>` reales porque varias contienen un checkbox
+  real adentro (eval-row, agenda-row) o son `<tr>`/celdas con más de un
+  elemento clicable anidado (cal-cell) — anidar contenido interactivo
+  dentro de un `<button>` es HTML inválido, así que el patrón ARIA de
+  "widget interactivo custom" es el correcto acá, no una conversión de tag.
+- **Jerarquía de encabezados real.** Los títulos de cada vista, de cada
+  modal, los panel-title y el nombre de la materia en Detalle y en cada
+  tarjeta eran `<span>` sin semántica — pasaron a `<h1>`–`<h3>` reales (un
+  reset en CSS los deja viéndose exactamente igual; el tag ya no controla
+  el estilo, la clase sí). Antes no había un solo heading en toda la app.
+- **Formularios**: cada `<label>` quedó asociado a su input via `for`/`id`
+  (antes ninguno lo estaba — tocar el texto de la etiqueta no enfocaba el
+  campo); se agregó `spellcheck="false"` a email/contraseña/código; los
+  grupos de controles custom (colores de materia, chips de tipo/materia,
+  franjas horarias, categoría del evento) quedaron con `role="group"` +
+  `aria-labelledby`.
+- **Foco de teclado**: `:focus` pasó a `:focus-visible` en los inputs (así
+  el anillo de foco no aparece con un click de mouse), y se agregó un
+  anillo genérico para botones y las filas/tarjetas custom que antes no
+  tenían ninguno.
+- **`prefers-reduced-motion`**: ahora se respeta globalmente (reduce
+  duración de animaciones/transiciones a casi cero) — antes el spinner de
+  carga y las transiciones de menú/switch corrían siempre.
+- **Filtros, búsqueda y vista quedan en la URL** (Materias, Agenda,
+  Calendario) — antes vivían sólo en memoria; el botón atrás y recargar la
+  página los perdían. Ahora `#materias?filtro=cursando&q=algebra` es un
+  link válido que reconstruye exactamente esa vista.
+- **Aviso de cambios sin guardar**: cerrar el modal de materia, evaluación,
+  evento personal o perfil con datos tipeados y sin guardar (X, Cancelar,
+  click afuera, Escape) ahora confirma antes de descartarlos — comparando
+  una "foto" del formulario tomada al abrir contra su estado actual.
+- Otros ajustes puntuales: `aria-live` en el toast y los mensajes de error,
+  `aria-label` en botones de sólo ícono, `color-scheme:dark` en el tema
+  oscuro, `overscroll-behavior:contain` en los modales, `touch-action` y
+  `-webkit-tap-highlight-color` en los botones, y la transición del menú
+  mobile pasó de animar `left` a `transform` (compositor, no layout).
+
+**Lo que decidí no tocar:** las fechas se siguen formateando a mano
+(`DIAS_LARGOS`/`MESES_LARGOS` en `src/runtime.js`) en vez de con
+`Intl.DateTimeFormat`. La guideline lo pide para evitar formatos
+incorrectos entre locales, pero esta app tiene un único locale de destino
+fijo por diseño (rioplatense/uruguayo — ver el resto de este README) con
+abreviaturas específicas ("set" para setiembre, por ejemplo) que
+`Intl.DateTimeFormat('es-UY', …)` no necesariamente reproduce igual;
+cambiarlo arriesgaba romper una decisión de copy ya tomada a propósito,
+por una ganancia que no aplica acá (no hay ni va a haber un segundo
+locale).
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

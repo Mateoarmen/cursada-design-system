@@ -90,6 +90,25 @@
     if (root.getAttribute && root.getAttribute('data-f') === field) return root;
     return root.querySelector('[data-f="' + field + '"]');
   }
+  // Vuelve accesible por teclado una fila/tarjeta clicable que no es
+  // literalmente un <button>/<a> — muchas de estas filas tienen adentro un
+  // checkbox real (eval-row, agenda-row) o son <tr>/celdas de grilla con
+  // varios sub-elementos también clicables (cal-cell), así que envolverlas
+  // en un <button> sería HTML inválido (no se puede anidar contenido
+  // interactivo). En su lugar: role="button" + tabindex + Enter/Espacio,
+  // el patrón estándar para widgets interactivos custom. `node.style.cursor`
+  // ya no hace falta setearlo aparte, esto lo cubre.
+  function makeRowClickable(node, handler, label) {
+    node.setAttribute('role', 'button');
+    node.setAttribute('tabindex', '0');
+    if (label) node.setAttribute('aria-label', label);
+    node.style.cursor = 'pointer';
+    node.addEventListener('click', handler);
+    node.addEventListener('keydown', function (ev) {
+      if (ev.target !== node) return; // no robarle Enter/Espacio a un checkbox/input interno
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); handler(ev); }
+    });
+  }
 
   // ---------- fecha ----------
   function parseISODate(iso) {
@@ -680,8 +699,7 @@
         qf(node, 'metaTxt').textContent = p.item.todoElDia ? 'Todo el día' : (p.item.hora || '');
         var b2 = qf(node, 'badge'); b2.setAttribute('style', badgeStyle('neutral')); b2.textContent = 'Personal';
       }
-      node.style.cursor = p.tipo === 'materia' ? 'pointer' : 'default';
-      if (p.tipo === 'materia') node.addEventListener('click', function () { openEvaluacionModal({ editId: p.item.id }); });
+      if (p.tipo === 'materia') makeRowClickable(node, function () { openEvaluacionModal({ editId: p.item.id }); }, 'Abrir ' + p.item.titulo);
       proxList.appendChild(node);
     });
 
@@ -704,8 +722,7 @@
         inner.appendChild(v1); inner.appendChild(v2);
         qf(node, 'nombre').textContent = m.nombre;
         qf(node, 'riesgoTxt').textContent = m.riesgoTxt;
-        node.style.cursor = 'pointer';
-        node.addEventListener('click', function () { location.hash = '#materia-' + m.id; });
+        makeRowClickable(node, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
         riesgoList.appendChild(node);
       });
     }
@@ -726,6 +743,7 @@
   // MATERIAS
   // ================================================================
   function renderMaterias() {
+    syncStateToURL();
     var materias = computeMateriasDelActivo();
     document.getElementById('materias-count').textContent = materias.length + (materias.length === 1 ? ' materia' : ' materias') + ' · ' + materias.reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0) + ' créditos';
 
@@ -786,7 +804,7 @@
         qf(row, 'creditos').textContent = String(m.creditos);
         qf(row, 'notaTxt').textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
         var b = qf(row, 'badge'); b.setAttribute('style', badgeStyle(ESTADO_TONE[m.estado])); b.textContent = m.badgeLabel;
-        row.addEventListener('click', function () { location.hash = '#materia-' + m.id; });
+        makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
         tbody.appendChild(row);
       });
     }
@@ -806,7 +824,7 @@
     qf(node, 'horario').textContent = m.horario;
     qf(node, 'escalaTxt').textContent = m.escalaTxt + ' · aprueba ' + m.aprobTxt;
     qf(node, 'toneDot').setAttribute('style', dotStyle(TONE[m.tone], '50%'));
-    node.addEventListener('click', function () { location.hash = '#materia-' + m.id; });
+    makeRowClickable(node, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
     return node;
   }
 
@@ -841,11 +859,10 @@
     m.notasEvals.forEach(function (a) {
       var node = tpl('nota-row');
       node.title = 'Editar esta evaluación';
-      node.style.cursor = 'pointer';
       qf(node, 'label').textContent = truncate(a.titulo, 28);
       qf(node, 'barFill').setAttribute('style', css({ width: ((a.nota / m.esc.total) * 100) + '%', height: '100%', borderRadius: '3px', background: m.strong }));
       qf(node, 'val').textContent = valU(a.nota, m.esc);
-      node.addEventListener('click', function () { openEvaluacionModal({ editId: a.id }); });
+      makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar nota de ' + a.titulo);
       notasList.appendChild(node);
     });
     if (!m.notasEvals.length) {
@@ -877,7 +894,6 @@
     var t = today();
     evals.forEach(function (a) {
       var node = tpl('eval-row');
-      node.style.cursor = 'pointer';
       node.title = 'Editar esta evaluación';
       var check = qf(node, 'check'); check.checked = !!a.hecho;
       check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(a.id, check.checked); });
@@ -887,7 +903,7 @@
       qf(node, 'metaTxt').textContent = a.tipo + ' · ' + formatFechaAgenda(a.fecha, a.hora) + (a.nota != null ? ' · ' + valU(a.nota, m.esc) : '');
       var info = agendaBadgeInfo(a, t);
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
-      node.addEventListener('click', function () { openEvaluacionModal({ editId: a.id }); });
+      makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar evaluación ' + a.titulo);
       evalList.appendChild(node);
     });
 
@@ -934,6 +950,7 @@
   }
 
   function renderAgenda() {
+    syncStateToURL();
     var t = today();
     var materiaSel = document.getElementById('agenda-filtro-materia');
     var prevVal = STATE.agendaFiltroMateria;
@@ -1022,11 +1039,10 @@
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
       var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
-      node.style.cursor = 'pointer';
-      node.addEventListener('click', function (ev) {
+      makeRowClickable(node, function (ev) {
         if (ev.target === check) return;
         if (item.kind === 'materia') openEvaluacionModal({ editId: item.id }); else openPersonalModal({ editId: item.id });
-      });
+      }, 'Editar ' + item.titulo);
       list.appendChild(node);
     });
     wrap.appendChild(head); wrap.appendChild(list);
@@ -1081,8 +1097,7 @@
           bar.style.color = PERSONAL_COLOR;
           bar.style.borderLeftColor = PERSONAL_COLOR;
           bar.textContent = ev.label;
-          bar.style.cursor = 'pointer';
-          bar.addEventListener('click', function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); });
+          makeRowClickable(bar, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
           eventosNode.appendChild(bar);
         } else {
           var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0';
@@ -1090,22 +1105,22 @@
           var lbl = el('span'); lbl.style.cssText = 'font-size:11px;color:var(--c-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
           lbl.textContent = ev.label + (opts.semana && ev.item && ev.item.hora ? ' · ' + ev.item.hora : '');
           row.appendChild(dot); row.appendChild(lbl);
-          row.style.cursor = 'pointer';
-          row.addEventListener('click', function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); });
+          makeRowClickable(row, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
           eventosNode.appendChild(row);
         }
       });
     }
-    node.addEventListener('click', function () {
+    makeRowClickable(node, function () {
       STATE.calSelected = iso;
       renderCalSide();
       document.querySelectorAll('.cal-cell.is-selected').forEach(function (c) { c.classList.remove('is-selected'); });
       node.classList.add('is-selected');
-    });
+    }, 'Ver ' + DIAS_LARGOS[d.getDay()] + ' ' + d.getDate());
     return node;
   }
 
   function renderCalendario() {
+    syncStateToURL();
     document.getElementById('cal-today-label').textContent = 'hoy · ' + DIAS_CORTOS[today().getDay()] + ' ' + today().getDate();
     document.querySelectorAll('#cal-view-toggle [data-cal-view]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-cal-view') === STATE.calViewMode); });
 
@@ -1186,8 +1201,7 @@
       qf(node, 'titulo').textContent = item.titulo;
       qf(node, 'lugar').textContent = item.lugar;
       if (item.refItem) {
-        node.style.cursor = 'pointer';
-        node.addEventListener('click', function () { item.personal ? openPersonalModal({ editId: item.refItem.id }) : openEvaluacionModal({ editId: item.refItem.id }); });
+        makeRowClickable(node, function () { item.personal ? openPersonalModal({ editId: item.refItem.id }) : openEvaluacionModal({ editId: item.refItem.id }); }, 'Editar ' + item.titulo);
       }
       list.appendChild(node);
     });
@@ -1247,7 +1261,7 @@
         qf(node, 'nombre').textContent = b.m.nombre;
         qf(node, 'hora').textContent = horaTexto(b.ini) + '–' + horaTexto(b.fin);
         qf(node, 'salon').textContent = (b.m.salon || '').replace('Edificio ', '');
-        node.addEventListener('click', function () { location.hash = '#materia-' + b.m.id; });
+        makeRowClickable(node, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
         grid.appendChild(node);
       });
     });
@@ -1277,14 +1291,52 @@
   // MODALES
   // ================================================================
   function openModal(id) { document.getElementById(id).classList.add('is-open'); }
+  // Modales con un formulario real donde perder lo tipeado importa — se les
+  // guarda una "foto" del formulario al abrir (snapshotModalForm) para poder
+  // avisar si hay cambios sin guardar al intentar cerrar sin querer.
+  var MODAL_FORMS = { 'modal-materia': 'form-materia', 'modal-evaluacion': 'form-evaluacion', 'modal-personal': 'form-personal', 'modal-perfil': 'form-perfil' };
+  // El modal de materia tiene selecciones (color, franjas horarias, sistema
+  // de calificación) que viven en STATE.editing, no en <input>/<select> con
+  // `name` — FormData no las ve, así que se agregan a mano a su snapshot.
+  var MODAL_EXTRA_STATE = {
+    'modal-materia': function () { return { colorId: STATE.editing.colorId, esc: STATE.editing.esc, horarioRows: STATE.editing.horarioRows }; },
+    'modal-evaluacion': function () { return { evalMateriaId: STATE.editing.evalMateriaId, evalTipo: STATE.editing.evalTipo, evalTipoCustom: STATE.editing.evalTipoCustom }; },
+    'modal-personal': function () { return { todoElDia: STATE.editing.todoElDia }; }
+  };
+  var MODAL_SNAPSHOTS = {};
+  function modalSnapshotValue(modalId) {
+    var formId = MODAL_FORMS[modalId];
+    var form = formId && document.getElementById(formId);
+    if (!form) return null;
+    var data = new FormData(form);
+    var obj = {};
+    data.forEach(function (v, k) { obj[k] = v; });
+    var extraFn = MODAL_EXTRA_STATE[modalId];
+    return JSON.stringify(obj) + (extraFn ? '|' + JSON.stringify(extraFn()) : '');
+  }
+  function snapshotModalForm(modalId) {
+    var v = modalSnapshotValue(modalId);
+    if (v != null) MODAL_SNAPSHOTS[modalId] = v;
+  }
+  function modalTieneCambiosSinGuardar(modalId) {
+    var v = modalSnapshotValue(modalId);
+    if (v == null || !(modalId in MODAL_SNAPSHOTS)) return false;
+    return v !== MODAL_SNAPSHOTS[modalId];
+  }
   // Único punto de control para todas las formas de cerrar un modal (botón
-  // X, "Cancelar", click en el backdrop, Escape, closeAllModals()) — así el
-  // modal de perfil puede negarse a cerrarse mientras está en modo
-  // obligatorio (cuentas de Google con datos sin completar, ver PERFIL) sin
-  // tener que tocar cada uno de esos caminos por separado.
+  // X, "Cancelar", click en el backdrop, Escape, closeAllModals()):
+  //  1) el modal de perfil puede negarse a cerrarse mientras está en modo
+  //     obligatorio (cuentas de Google con datos sin completar, ver PERFIL);
+  //  2) si el formulario tiene cambios sin guardar, confirma antes de
+  //     descartarlos — salvo que quien llama ya haya actualizado el snapshot
+  //     a propósito (ver los submit/eliminar handlers, que lo hacen justo
+  //     antes de cerrar tras guardar/borrar con éxito, para no preguntar
+  //     "¿descartar cambios?" sobre datos que ya se guardaron).
   var PERFIL_MODAL_BLOQUEANTE = false;
   function closeModalEl(elm) {
-    if (elm && elm.id === 'modal-perfil' && PERFIL_MODAL_BLOQUEANTE) return;
+    if (!elm) return;
+    if (elm.id === 'modal-perfil' && PERFIL_MODAL_BLOQUEANTE) return;
+    if (modalTieneCambiosSinGuardar(elm.id) && !confirm('¿Descartar los cambios sin guardar?')) return;
     elm.classList.remove('is-open');
   }
   function closeAllModals() { document.querySelectorAll('.modal-backdrop.is-open').forEach(closeModalEl); }
@@ -1333,6 +1385,7 @@
     renderModalMateriaHorarioRows();
     renderModalMateriaSistema();
     openModal('modal-materia');
+    snapshotModalForm('modal-materia');
   }
 
   function renderModalMateriaSwatches() {
@@ -1515,6 +1568,7 @@
       var ok = await saveMateriasRaw(arr);
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      snapshotModalForm('modal-materia'); // ya se guardó — no preguntar "¿descartar cambios?" al cerrar
       closeAllModals();
       renderRoute();
     });
@@ -1525,6 +1579,7 @@
       var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return m.id !== id; }));
       var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.materiaId !== id; }));
       if (!okMat || !okAg) avisarError();
+      snapshotModalForm('modal-materia');
       closeAllModals();
       location.hash = '#materias';
       renderRoute();
@@ -1564,6 +1619,7 @@
     renderModalEvalMaterias();
     renderModalEvalTipos();
     openModal('modal-evaluacion');
+    snapshotModalForm('modal-evaluacion');
   }
 
   function renderModalEvalMaterias() {
@@ -1625,6 +1681,7 @@
       var ok = await saveAgendaRaw(arr);
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      snapshotModalForm('modal-evaluacion');
       closeAllModals();
       renderRoute();
     });
@@ -1634,6 +1691,7 @@
       var id = STATE.editing.evaluacionId;
       var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
       if (!ok) avisarError();
+      snapshotModalForm('modal-evaluacion');
       closeAllModals();
       renderRoute();
     });
@@ -1652,6 +1710,7 @@
     form.hora.value = p ? (p.hora || '') : '';
     renderPersonalToggle();
     openModal('modal-personal');
+    snapshotModalForm('modal-personal');
   }
   function renderPersonalToggle() {
     var sw = document.getElementById('toggle-todo-el-dia');
@@ -1683,6 +1742,7 @@
       var ok = await savePersonalRaw(arr);
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      snapshotModalForm('modal-personal');
       closeAllModals();
       renderRoute();
     });
@@ -1692,6 +1752,7 @@
       var id = STATE.editing.personalId;
       var ok = await savePersonalRaw(loadPersonalRaw().filter(function (p) { return p.id !== id; }));
       if (!ok) avisarError();
+      snapshotModalForm('modal-personal');
       closeAllModals();
       renderRoute();
     });
@@ -1753,8 +1814,35 @@
     else if (STATE.route.view === 'calendario') renderCalendario();
     else if (STATE.route.view === 'horario') renderHorario();
   }
+  // Filtros/búsqueda/vista de Materias, Agenda y Calendario viven en la URL
+  // (query string después del hash de la vista, ej. "#materias?filtro=cursando&q=algebra")
+  // — así el botón atrás del navegador y compartir/recargar el link no pierden
+  // lo que estabas viendo. Se llama al final de cada render* correspondiente;
+  // usa replaceState (no pushState) para no ensuciar el historial en cada
+  // tecla escrita en un buscador, y sólo toca la URL si de verdad cambió.
+  function syncStateToURL() {
+    var base = (location.hash || '#inicio').split('?')[0];
+    var params = new URLSearchParams();
+    if (STATE.route.view === 'materias') {
+      if (STATE.materiasFiltro !== 'todas') params.set('filtro', STATE.materiasFiltro);
+      if (STATE.materiasQuery) params.set('q', STATE.materiasQuery);
+      if (STATE.materiasView !== 'tarjetas') params.set('vista', STATE.materiasView);
+    } else if (STATE.route.view === 'agenda') {
+      if (STATE.agendaFiltroTipo !== 'Todo') params.set('tipo', STATE.agendaFiltroTipo);
+      if (STATE.agendaFiltroMateria) params.set('materia', STATE.agendaFiltroMateria);
+      if (STATE.agendaFiltroEstado) params.set('estado', STATE.agendaFiltroEstado);
+      if (STATE.agendaQuery) params.set('q', STATE.agendaQuery);
+    } else if (STATE.route.view === 'calendario') {
+      if (STATE.calViewMode !== 'mes') params.set('vista', STATE.calViewMode);
+    }
+    var qs = params.toString();
+    var newHash = base + (qs ? '?' + qs : '');
+    if (newHash !== location.hash) history.replaceState(null, '', newHash);
+  }
   function handleRoute() {
-    var hash = location.hash || '#inicio';
+    var full = location.hash || '#inicio';
+    var hash = full.split('?')[0];
+    var params = new URLSearchParams(full.indexOf('?') >= 0 ? full.slice(full.indexOf('?') + 1) : '');
     if (hash === '#hoy') {
       STATE.calYear = today().getFullYear(); STATE.calMonth = today().getMonth();
       STATE.calWeekStart = mondayOf(today()); STATE.calSelected = todayISO();
@@ -1771,6 +1859,21 @@
       STATE.route = { view: hash.slice(1) };
     } else {
       STATE.route = { view: 'inicio' };
+    }
+    // Rehidrata filtros/búsqueda/vista desde la URL al entrar a la vista
+    // (deep link, recarga, o volver atrás) — para que renderRoute() ya
+    // renderice con el estado correcto de una.
+    if (STATE.route.view === 'materias') {
+      STATE.materiasFiltro = params.get('filtro') || 'todas';
+      STATE.materiasQuery = params.get('q') || '';
+      STATE.materiasView = params.get('vista') === 'tabla' ? 'tabla' : 'tarjetas';
+    } else if (STATE.route.view === 'agenda') {
+      STATE.agendaFiltroTipo = params.get('tipo') || 'Todo';
+      STATE.agendaFiltroMateria = params.get('materia') || '';
+      STATE.agendaFiltroEstado = params.get('estado') || '';
+      STATE.agendaQuery = params.get('q') || '';
+    } else if (STATE.route.view === 'calendario') {
+      STATE.calViewMode = params.get('vista') === 'semana' ? 'semana' : 'mes';
     }
     renderRoute();
   }
@@ -2003,7 +2106,7 @@
           if (!ok) { avisarError('No se pudo importar todo el archivo — revisá tu conexión e intentá de nuevo.'); return; }
           renderRoute();
         } catch (err) {
-          alert('No se pudo importar el archivo: formato inválido.');
+          avisarError('No se pudo importar el archivo: formato inválido.');
         }
       };
       reader.readAsText(file);
@@ -2257,6 +2360,7 @@
 
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
     openModal('modal-perfil');
+    snapshotModalForm('modal-perfil');
   }
 
   // Los únicos 3 campos que gatillan el aviso — nombre/apellido/edad/foto
@@ -2376,6 +2480,7 @@
         if (res.error) throw res.error;
         CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, patch);
         PERFIL_MODAL_BLOQUEANTE = false; // ya se guardó — closeAllModals() de acá abajo puede cerrarlo
+        snapshotModalForm('modal-perfil');
         closeAllModals();
         document.getElementById('modal-perfil').classList.remove('is-gate');
         if (PERFIL_GATE_RESOLVE) { var resolver = PERFIL_GATE_RESOLVE; PERFIL_GATE_RESOLVE = null; resolver(); }
