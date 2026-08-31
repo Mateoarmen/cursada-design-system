@@ -1321,6 +1321,72 @@ filtrado real que hoy funciona, así que esa línea no se copió: los
 horizontal, como el resto de `.filtros-row`), en vez de perder la función
 para "verse más prolijo".
 
+## Segunda pasada del handoff mobile: cosas que no andaban
+
+El usuario mandó una v2 del mismo handoff ("hice cambios porque algunas
+cosas no funcionaban") con fixes reales, no ajustes cosméticos. La más
+grave:
+
+- **En mobile no había forma de abrir el cajón de navegación.** El único ☰
+  vivía en `#btn-menu`, dentro de `.app-toolbar` — y `.app-toolbar{display:
+  none}` es la primera regla de la capa mobile (ver arriba). Resultado: el
+  cajón (semestres, tema, perfil, cerrar sesión) era inalcanzable en mobile
+  desde que se implementó esta capa. Se agregó un ☰ (`.topbar-menu`,
+  `data-menu`) como primer hijo de cada una de las 6 `.topbar` de la app,
+  delegado a un solo listener que llama al mismo `openMobileNav()` de
+  siempre — visible sólo en mobile (`@media(min-width:761px){.topbar
+  .topbar-menu{display:none}}`, porque `.icon-btn` es `display:flex` por
+  defecto en cualquier ancho).
+- **Filas con scroll horizontal que se comprimían en vez de scrollear**
+  (`.filtros-row`, `.materias-toolbar`, `.mini-days`): les faltaba
+  `flex:none` — sin eso, como son hijas de un contenedor flex, competían por
+  espacio con sus hermanos y se angostaban en vez de mantener su ancho de
+  contenido y scrollear.
+- **`.swipe-row` con fondo verde permanente**: mismo bug que ya había
+  encontrado y arreglado yo en la primera pasada (ver arriba), pero el
+  handoff ahora trae su propio fix, más simple — el verde vive en
+  `.swipe-action` (que ya se revela por `opacity`, no hace falta tocar el
+  fondo de `.swipe-row`) en vez de alternarlo con `.is-dragging`/`.is-armed`
+  como había hecho yo. Se adoptó la versión del handoff, es la misma idea
+  con menos código.
+- **Nombres de materia ilegibles en la grilla de Horario** (`.hg-block .n`
+  con `line-clamp:3` en una columna de ~40px, texto partido en sílabas raras
+  con `hyphens:auto`): pasa a una sola línea con ellipsis, y
+  `renderHorario()` muestra el código de la materia en vez del nombre
+  completo en mobile (`b.m.cod.split('-')[0]`) — el nombre completo sigue
+  disponible en el `title`/`aria-label` que ya pone `makeRowClickable`.
+
+Y una pantalla nueva:
+
+- **Perfil pasa a ser pantalla completa en mobile** (antes era el mismo
+  modal chico que en desktop, con los campos apretados). Identidad grande
+  arriba (`.perfil-hero`: avatar, nombre completo, email, "Cambiar foto"),
+  campos agrupados abajo (`.perfil-group`, "Datos personales" / "Estudio"),
+  estilo ajustes de iOS, con un botón de "Cerrar sesión" al final del
+  formulario — dispara el mismo `#btn-logout` de siempre (`.click()`), no
+  duplica su `confirm()`/`signOut()`. `#perfil-nombre-completo` usa
+  `nombreCompletoDeUsuario()`, una función nueva y chica (nombre + apellido,
+  o el email si no hay ninguno cargado) — no reusa el cálculo de
+  `sidenav-user-nombre`, que a propósito es sólo el nombre de pila (ahí el
+  espacio es chico; acá es el título grande de una pantalla propia). El
+  `id="perfil-email"` del header del modal no se podía reusar en el hero
+  (un id no puede repetirse en el DOM) — el hero tiene su propio
+  `#perfil-email-hero`, seteado en el mismo lugar. En desktop, `.perfil-hero`
+  vuelve a su fila original (avatar + botón, sin el nombre/email grande ni
+  "Cerrar sesión" — esa información ya está en el header del modal y en el
+  cajón).
+
+**Bug encontrado probando esto, no parte del handoff:** al abrir la pantalla
+de Perfil (o cualquier modal) en mobile, el tab bar y el FAB se veían
+flotando por encima del modal — `.tabbar`/`.fab`/`.quick-sheet`/`.row-menu`
+tenían z-index 120–122, más alto que el z-index 100 del modal. No se notaba
+en modales chicos con fondo opaco cerca del borde, pero en Perfil (ahora
+pantalla completa, con un pie de formulario pegado abajo) quedaba clarísimo:
+el FAB tapando el botón "Guardar". Se subió `.modal-backdrop` a z-index 160
+— por encima de todo el chrome fijo mobile y del cajón (150), por debajo de
+onboarding/gate/auth-screen/toast (200–400), que sí deben ganarle a un modal
+abierto.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

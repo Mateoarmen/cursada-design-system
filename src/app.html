@@ -173,6 +173,7 @@
     <!-- ============ INICIO ============ -->
     <section class="view-screen" id="inicio">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Inicio</h1></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
@@ -224,6 +225,7 @@
     <!-- ============ MATERIAS ============ -->
     <section class="view-screen hidden" id="materias">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Materias</h1><span class="meta mono" id="materias-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
@@ -272,6 +274,7 @@
     <!-- ============ DETALLE ============ -->
     <section class="view-screen hidden" id="detalle">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
         <div class="topbar-actions">
           <button class="btn" id="btn-detalle-editar">Editar materia</button>
@@ -321,6 +324,7 @@
     <!-- ============ AGENDA ============ -->
     <section class="view-screen hidden" id="agenda">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Agenda</h1><span class="meta mono" id="agenda-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
@@ -344,6 +348,7 @@
     <!-- ============ CALENDARIO ============ -->
     <section class="view-screen hidden" id="calendario">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <div style="display:flex;align-items:center;gap:14px">
           <h1 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:none" id="cal-month-label"></h1>
           <div class="cal-nav"><button id="cal-prev" aria-label="Mes/semana anterior">‹</button><button id="cal-next" aria-label="Mes/semana siguiente">›</button></div>
@@ -380,6 +385,7 @@
     <!-- ============ HORARIO ============ -->
     <section class="view-screen hidden" id="horario">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Horario semanal</h1><span class="meta mono" id="horario-meta"></span></span>
         <div class="topbar-actions">
           <span class="search-fake">Semestre 2 · 2026</span>
@@ -624,24 +630,30 @@
     <form id="form-perfil">
       <div class="modal-body pad-lg">
         <span class="auth-info hidden" id="modal-perfil-intro">Nos ayuda a personalizar tu experiencia — podés completarlo ahora o más tarde desde tu perfil.</span>
-        <div style="display:flex;align-items:center;gap:16px">
+        <div class="perfil-hero">
           <div class="av" id="modal-perfil-avatar"></div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <button type="button" class="btn" id="btn-perfil-foto">Cambiar foto</button>
-            <span style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
-          </div>
+          <div class="who"><b id="perfil-nombre-completo"></b><span id="perfil-email-hero"></span></div>
+          <button type="button" class="btn" id="btn-perfil-foto">Cambiar foto</button>
+          <span class="hint" style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
           <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
         </div>
-        <div class="field-row">
-          <div class="field"><label for="perfil-nombre">Nombre</label><input id="perfil-nombre" name="nombre" placeholder="Tu nombre"></div>
-          <div class="field"><label for="perfil-apellido">Apellido</label><input id="perfil-apellido" name="apellido" placeholder="Tu apellido"></div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Datos personales</span>
+          <div class="field-row">
+            <div class="field"><label for="perfil-nombre">Nombre</label><input id="perfil-nombre" name="nombre" placeholder="Tu nombre"></div>
+            <div class="field"><label for="perfil-apellido">Apellido</label><input id="perfil-apellido" name="apellido" placeholder="Tu apellido"></div>
+          </div>
+          <div class="field-row">
+            <div class="field" style="flex:none;width:100px"><label for="perfil-edad">Edad</label><input id="perfil-edad" name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
+            <div class="field"><label for="perfil-telefono">Teléfono</label><input id="perfil-telefono" name="telefono" type="tel" placeholder="Ej: 099 123 456"></div>
+          </div>
         </div>
-        <div class="field-row">
-          <div class="field" style="flex:none;width:100px"><label for="perfil-edad">Edad</label><input id="perfil-edad" name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
-          <div class="field"><label for="perfil-telefono">Teléfono</label><input id="perfil-telefono" name="telefono" type="tel" placeholder="Ej: 099 123 456"></div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Estudio</span>
+          <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
+          <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
         </div>
-        <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
-        <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+        <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
       </div>
       <div class="modal-foot" style="justify-content:flex-end">
         <button type="button" class="btn" id="btn-perfil-cancelar" data-close-modal>Cancelar</button>

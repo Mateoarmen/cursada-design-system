@@ -637,6 +637,14 @@
       elm.textContent = initialsDe(CURRENT_PROFILE && CURRENT_PROFILE.nombre, CURRENT_USER && CURRENT_USER.email);
     }
   }
+  // Nombre + apellido si hay alguno cargado, si no el email — para la
+  // pantalla de Perfil en mobile (#perfil-nombre-completo). Distinto de
+  // sidenav-user-nombre (sólo nombre) a propósito: ahí el espacio es chico,
+  // acá es el título grande de una pantalla propia.
+  function nombreCompletoDeUsuario(p) {
+    var full = (((p && p.nombre) || '') + ' ' + ((p && p.apellido) || '')).trim();
+    return full || (CURRENT_USER && CURRENT_USER.email) || '';
+  }
   function renderSidenavUser() {
     if (!CURRENT_USER) return;
     renderAvatarInto(document.getElementById('sidenav-user-avatar'), 34);
@@ -1531,7 +1539,10 @@
         var anchoPct = 100 / b.cols;
         node.style.width = 'calc(' + anchoPct + '% - 2px)';
         node.style.marginLeft = 'calc(' + (anchoPct * b.slot) + '% + 1px)';
-        qf(node, 'nombre').textContent = b.m.nombre;
+        // En mobile la columna es de ~40px: el nombre completo no entra
+        // ("Conta…"). El código se lee mucho mejor ahí — el nombre completo
+        // sigue disponible en el title/aria-label que pone makeRowClickable.
+        qf(node, 'nombre').textContent = esMobile() ? b.m.cod.split('-')[0] : b.m.nombre;
         qf(node, 'hora').textContent = horaTexto(b.ini) + '–' + horaTexto(b.fin);
         qf(node, 'salon').textContent = (b.m.salon || '').replace('Edificio ', '');
         makeRowClickable(node, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
@@ -2293,6 +2304,11 @@
 
   function bindGlobalUI() {
     document.getElementById('btn-menu').addEventListener('click', openMobileNav);
+    // Mobile: cada .topbar tiene su propio ☰ (ver .topbar-menu) porque
+    // .app-toolbar — donde vive #btn-menu — se oculta en mobile; sin esto no
+    // había forma de abrir el cajón desde ahí. Delegado porque son 6 botones
+    // repetidos, no un solo id.
+    document.addEventListener('click', function (e) { if (e.target.closest('[data-menu]')) openMobileNav(); });
     document.getElementById('sidenav-backdrop').addEventListener('click', closeMobileNav);
     document.querySelectorAll('[data-nav]').forEach(function (btn) {
       btn.addEventListener('click', function () { location.hash = '#' + btn.getAttribute('data-nav'); closeMobileNav(); });
@@ -2841,6 +2857,12 @@
     form.carrera.value = p.carrera || '';
     form.telefono.value = p.telefono || '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
+    // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
+    // propia con su propia identidad grande (.perfil-hero) — el subtítulo
+    // del modal-head se oculta ahí (ver CSS), así que hace falta un segundo
+    // elemento con el mismo texto, no reusar el mismo id dos veces en el DOM.
+    document.getElementById('perfil-email-hero').textContent = CURRENT_USER ? CURRENT_USER.email : '';
+    document.getElementById('perfil-nombre-completo').textContent = nombreCompletoDeUsuario(p);
 
     var obligatorio = modo === 'completar-obligatorio';
     var completar = obligatorio || modo === 'completar';
@@ -2949,6 +2971,13 @@
     document.getElementById('sidenav-user').addEventListener('click', function (ev) {
       if (ev.target.closest('#btn-logout')) return;
       openPerfilModal('editar');
+    });
+    // Mobile: "Cerrar sesión" vive también dentro de la pantalla de perfil,
+    // no sólo el ⏻ del cajón (ahí es donde la gente lo busca). Dispara el
+    // mismo #btn-logout en vez de duplicar el confirm()/signOut() — una
+    // sola fuente de verdad para cerrar sesión.
+    document.getElementById('btn-perfil-logout').addEventListener('click', function () {
+      document.getElementById('btn-logout').click();
     });
     document.getElementById('btn-logout').addEventListener('click', async function (ev) {
       ev.stopPropagation();

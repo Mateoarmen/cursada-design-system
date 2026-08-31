@@ -449,7 +449,15 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
    nadie quiere esperar a un modal que se va). */
 .modal-backdrop{
   position:fixed;inset:0;background:var(--c-overlay);display:flex;align-items:flex-start;justify-content:center;
-  padding:16px;overflow-y:auto;overscroll-behavior:contain;z-index:100;
+  padding:16px;overflow-y:auto;overscroll-behavior:contain;
+  /* Por encima del cajón (150) y de todo el chrome mobile fijo — tab bar
+     (120), FAB (121), quick-sheet/row-menu (122) — que si no, al abrir
+     cualquier modal, quedaban pintados encima de él en vez de tapados por
+     él (se nota clarísimo en Perfil, que ahora es pantalla completa: el FAB
+     y el tab bar se veían flotando sobre el pie del formulario). Por debajo
+     de onboarding/gate/auth-screen (200-300) y del toast (400), que sí
+     deben ganarle a un modal abierto. */
+  z-index:160;
   opacity:0;visibility:hidden;pointer-events:none;
   transition:opacity 150ms var(--ease-out),visibility 150ms;
 }
@@ -784,11 +792,29 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
    ========================================================================= */
 .tabbar,.fab,.quick-sheet,.row-menu,.weekstrip{display:none}
 
+/* Base (todo ancho) de .perfil-hero: reemplaza el style="display:flex;
+   align-items:center;gap:16px" inline que tenía antes esta fila (foto +
+   botón). En mobile, la regla de abajo la vuelve columna con !important —
+   gana ella, no depende de este orden. .who (nombre completo + email
+   grande) y el botón de logout son agregados sólo-mobile: en desktop esa
+   información ya está en el header del modal y en el cajón, así que se
+   ocultan ahí abajo. */
+.perfil-hero{display:flex;align-items:center;gap:16px}
+@media(min-width:761px){.perfil-hero .who,.perfil-logout{display:none}}
+
 @media(max-width:760px){
 
   /* ---------- chrome ---------- */
   .app-toolbar{display:none}
   .sidenav-tools{display:flex;flex-wrap:wrap;gap:8px;padding:0 8px}
+
+  /* ---------- puerta del cajón ---------- */
+  /* El ☰ original (#btn-menu) vive en .app-toolbar, que arriba se oculta en
+     mobile: sin esto no había forma de abrir el cajón desde acá — bug real,
+     no cosmético. Pasa a ser el primer elemento de cada .topbar. */
+  .topbar .topbar-menu{display:flex;flex:none;width:38px;height:38px;margin-left:-4px;font-size:16px}
+  .topbar .topbar-menu:active{background:var(--c-line-faint)}
+  .topbar.is-searching .topbar-menu{display:none}
 
   .topbar{
     position:sticky;top:0;z-index:30;
@@ -875,10 +901,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .acceso-btn{height:44px;font-size:14px}
   .seg-item{height:36px;padding:0 16px}
   .cal-nav button{width:40px;height:40px}
-  .filtros-row,.materias-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+  .filtros-row,.materias-toolbar{flex:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
     -webkit-overflow-scrolling:touch;padding-bottom:2px}
   .filtros-row::-webkit-scrollbar,.materias-toolbar::-webkit-scrollbar{display:none}
   .filtros-row > *,.materias-toolbar > *{flex:none}
+  .pill,.chip-materia,.agenda-group-head .t,.agenda-group-head .n{white-space:nowrap}
 
   /* ---------- Inicio ---------- */
   .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}
@@ -934,7 +961,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .eval-body{flex:1 1 170px}
   .eval-row > .badge{margin-left:34px}
   .mini-horario{padding:16px;border-radius:18px}
-  .mini-days{overflow-x:auto;scrollbar-width:none;gap:8px}
+  .mini-days{flex:none;overflow-x:auto;scrollbar-width:none;gap:8px}
   .mini-days::-webkit-scrollbar{display:none}
   .mini-day{flex:none;width:74px}
   .mini-day .box{height:48px!important;font-size:10.5px!important}
@@ -946,15 +973,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .agenda-fecha{margin-left:34px;font-size:12.5px}
   .agenda-row > .badge{margin-left:auto}
 
-  /* Swipe para marcar entregado. El fondo verde vive detrás de la fila (no
-     un ::after sobre ella) para que el check se vea aparecer desde el
-     borde. Sólo se activa durante el gesto (.is-dragging/.is-armed): en
-     reposo el fondo es el mismo --c-surface que la fila, si no el borde de
-     1px entre filas (ver debajo) dejaba asomar una línea verde siempre. */
+  /* Swipe para marcar entregado. El verde vive en .swipe-action (fondo
+     propio), no en .swipe-row: la primera versión lo ponía en .swipe-row de
+     forma permanente y el borde de 1px entre filas (ver debajo) dejaba
+     asomar una línea verde siempre, no sólo durante el gesto. */
   .swipe-row{position:relative;overflow:hidden;background:var(--c-surface)}
-  .swipe-row.is-dragging,.swipe-row.is-armed{background:var(--c-success)}
   .swipe-row + .swipe-row{border-top:1px solid var(--c-line-faint)}
-  .swipe-action{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;
+  .swipe-action{position:absolute;inset:0;background:var(--c-success);
+    display:flex;align-items:center;justify-content:flex-end;
     padding-right:20px;color:#fff;font-size:14px;font-weight:600;letter-spacing:-.01em;
     opacity:calc(var(--sx,0) / 72);pointer-events:none}
   .swipe-row > .agenda-row,.swipe-row > .eval-row{
@@ -1011,8 +1037,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .hg-cell{border-radius:4px}
   .hg-block{padding:4px 5px;border-radius:7px;gap:0;margin:.5px;border-left-width:2.5px}
   .hg-block .n{font-size:9.5px;line-height:1.12;letter-spacing:-.01em;
-    display:-webkit-box!important;-webkit-line-clamp:3;-webkit-box-orient:vertical;
-    overflow:hidden;overflow-wrap:anywhere;hyphens:auto}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hg-block .h,.hg-block .s{display:none}
   #horario .view{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 
@@ -1088,6 +1113,47 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .empty-actions{width:100%}
   .empty-actions .btn{width:100%;justify-content:center}
 
+  /* ---------- Perfil: pantalla propia ---------- */
+  /* En desktop el perfil es un modal chico de formulario. En mobile merece
+     una pantalla: identidad arriba (grande, sin dudar de en qué cuenta
+     estás) y el formulario abajo agrupado, estilo ajustes de iOS. Mismo
+     #modal-perfil. */
+  /* El cuerpo scrollea y el pie queda fijo: si no, "Cerrar sesión" y los
+     últimos campos quedan fuera de pantalla en un 844px real. */
+  #modal-perfil .modal{display:flex;flex-direction:column}
+  #modal-perfil .modal form{display:flex;flex-direction:column;flex:1;min-height:0}
+  #modal-perfil .modal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #modal-perfil .modal-foot{flex:none}
+
+  #modal-perfil .modal-body{gap:22px}
+  .perfil-hero{display:flex!important;flex-direction:column;align-items:center;gap:11px;padding:6px 0 2px}
+  .perfil-hero .av{width:88px;height:88px;border-radius:50%;font-size:29px;font-weight:600;
+    background:linear-gradient(180deg,#D9D9DE,#C4C4CB);color:#3A3A3C;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;flex:none}
+  .perfil-hero .av img{width:100%;height:100%;object-fit:cover;display:block}
+  .perfil-hero .who{display:flex;flex-direction:column;gap:4px;text-align:center;
+    align-self:stretch;min-width:0}
+  .perfil-hero .who b{font-family:var(--font-display);font-size:21px;letter-spacing:-.022em;
+    line-height:1.2;display:block}
+  .perfil-hero .who span{display:block;line-height:1.35;font-size:13px;color:var(--c-ink3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .perfil-hero .btn{height:36px;padding:0 15px;font-size:13px}
+  /* La leyenda del recorte no aporta en una pantalla: el botón ya lo dice. */
+  .perfil-hero .hint{display:none}
+  .perfil-group{display:flex;flex-direction:column;gap:14px}
+  .perfil-group-lbl{font-size:11.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--c-ink3)}
+  /* Cerrar sesión vive acá además del ⏻ del cajón: es donde la gente lo busca. */
+  .perfil-logout{width:100%;justify-content:center;height:48px;color:var(--c-danger);
+    border-color:var(--c-line)}
+  /* El email ya está en el hero, no lo repetimos en el header. */
+  #modal-perfil .modal-head .titles{flex:1;min-width:0}
+  #modal-perfil .modal-head .titles .s{display:none}
+  /* La fila del cajón es un enlace a esa pantalla: se ve tocable. */
+  .sidenav-user .who::after{content:'Ver perfil';font-size:11px;font-weight:600;
+    color:var(--c-accent);margin-top:2px}
+  .sidenav-user:active{background:var(--c-line-faint)}
+
   /* ---------- cajón ---------- */
   /* El breakpoint de 900px cierra el cajón con translateX(-260px), pensado
      para su ancho de siempre (260px). Acá lo ensanchamos a 288px — sin
@@ -1107,3 +1173,8 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .sidenav.is-open ~ .main .tabbar,.sidenav.is-open ~ .main .fab{opacity:0;pointer-events:none;
     transition:opacity 150ms var(--ease-out)}
 }
+
+/* .topbar-menu sólo existe para mobile (el ☰ de cada .topbar, ver arriba):
+   en desktop el ☰ real sigue siendo #btn-menu dentro de .app-toolbar. Sin
+   este .icon-btn base se ve igual en cualquier ancho (display:flex). */
+@media(min-width:761px){.topbar .topbar-menu{display:none}}

@@ -457,7 +457,15 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
    nadie quiere esperar a un modal que se va). */
 .modal-backdrop{
   position:fixed;inset:0;background:var(--c-overlay);display:flex;align-items:flex-start;justify-content:center;
-  padding:16px;overflow-y:auto;overscroll-behavior:contain;z-index:100;
+  padding:16px;overflow-y:auto;overscroll-behavior:contain;
+  /* Por encima del cajón (150) y de todo el chrome mobile fijo — tab bar
+     (120), FAB (121), quick-sheet/row-menu (122) — que si no, al abrir
+     cualquier modal, quedaban pintados encima de él en vez de tapados por
+     él (se nota clarísimo en Perfil, que ahora es pantalla completa: el FAB
+     y el tab bar se veían flotando sobre el pie del formulario). Por debajo
+     de onboarding/gate/auth-screen (200-300) y del toast (400), que sí
+     deben ganarle a un modal abierto. */
+  z-index:160;
   opacity:0;visibility:hidden;pointer-events:none;
   transition:opacity 150ms var(--ease-out),visibility 150ms;
 }
@@ -792,11 +800,29 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
    ========================================================================= */
 .tabbar,.fab,.quick-sheet,.row-menu,.weekstrip{display:none}
 
+/* Base (todo ancho) de .perfil-hero: reemplaza el style="display:flex;
+   align-items:center;gap:16px" inline que tenía antes esta fila (foto +
+   botón). En mobile, la regla de abajo la vuelve columna con !important —
+   gana ella, no depende de este orden. .who (nombre completo + email
+   grande) y el botón de logout son agregados sólo-mobile: en desktop esa
+   información ya está en el header del modal y en el cajón, así que se
+   ocultan ahí abajo. */
+.perfil-hero{display:flex;align-items:center;gap:16px}
+@media(min-width:761px){.perfil-hero .who,.perfil-logout{display:none}}
+
 @media(max-width:760px){
 
   /* ---------- chrome ---------- */
   .app-toolbar{display:none}
   .sidenav-tools{display:flex;flex-wrap:wrap;gap:8px;padding:0 8px}
+
+  /* ---------- puerta del cajón ---------- */
+  /* El ☰ original (#btn-menu) vive en .app-toolbar, que arriba se oculta en
+     mobile: sin esto no había forma de abrir el cajón desde acá — bug real,
+     no cosmético. Pasa a ser el primer elemento de cada .topbar. */
+  .topbar .topbar-menu{display:flex;flex:none;width:38px;height:38px;margin-left:-4px;font-size:16px}
+  .topbar .topbar-menu:active{background:var(--c-line-faint)}
+  .topbar.is-searching .topbar-menu{display:none}
 
   .topbar{
     position:sticky;top:0;z-index:30;
@@ -883,10 +909,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .acceso-btn{height:44px;font-size:14px}
   .seg-item{height:36px;padding:0 16px}
   .cal-nav button{width:40px;height:40px}
-  .filtros-row,.materias-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+  .filtros-row,.materias-toolbar{flex:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
     -webkit-overflow-scrolling:touch;padding-bottom:2px}
   .filtros-row::-webkit-scrollbar,.materias-toolbar::-webkit-scrollbar{display:none}
   .filtros-row > *,.materias-toolbar > *{flex:none}
+  .pill,.chip-materia,.agenda-group-head .t,.agenda-group-head .n{white-space:nowrap}
 
   /* ---------- Inicio ---------- */
   .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}
@@ -942,7 +969,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .eval-body{flex:1 1 170px}
   .eval-row > .badge{margin-left:34px}
   .mini-horario{padding:16px;border-radius:18px}
-  .mini-days{overflow-x:auto;scrollbar-width:none;gap:8px}
+  .mini-days{flex:none;overflow-x:auto;scrollbar-width:none;gap:8px}
   .mini-days::-webkit-scrollbar{display:none}
   .mini-day{flex:none;width:74px}
   .mini-day .box{height:48px!important;font-size:10.5px!important}
@@ -954,15 +981,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .agenda-fecha{margin-left:34px;font-size:12.5px}
   .agenda-row > .badge{margin-left:auto}
 
-  /* Swipe para marcar entregado. El fondo verde vive detrás de la fila (no
-     un ::after sobre ella) para que el check se vea aparecer desde el
-     borde. Sólo se activa durante el gesto (.is-dragging/.is-armed): en
-     reposo el fondo es el mismo --c-surface que la fila, si no el borde de
-     1px entre filas (ver debajo) dejaba asomar una línea verde siempre. */
+  /* Swipe para marcar entregado. El verde vive en .swipe-action (fondo
+     propio), no en .swipe-row: la primera versión lo ponía en .swipe-row de
+     forma permanente y el borde de 1px entre filas (ver debajo) dejaba
+     asomar una línea verde siempre, no sólo durante el gesto. */
   .swipe-row{position:relative;overflow:hidden;background:var(--c-surface)}
-  .swipe-row.is-dragging,.swipe-row.is-armed{background:var(--c-success)}
   .swipe-row + .swipe-row{border-top:1px solid var(--c-line-faint)}
-  .swipe-action{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;
+  .swipe-action{position:absolute;inset:0;background:var(--c-success);
+    display:flex;align-items:center;justify-content:flex-end;
     padding-right:20px;color:#fff;font-size:14px;font-weight:600;letter-spacing:-.01em;
     opacity:calc(var(--sx,0) / 72);pointer-events:none}
   .swipe-row > .agenda-row,.swipe-row > .eval-row{
@@ -1019,8 +1045,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .hg-cell{border-radius:4px}
   .hg-block{padding:4px 5px;border-radius:7px;gap:0;margin:.5px;border-left-width:2.5px}
   .hg-block .n{font-size:9.5px;line-height:1.12;letter-spacing:-.01em;
-    display:-webkit-box!important;-webkit-line-clamp:3;-webkit-box-orient:vertical;
-    overflow:hidden;overflow-wrap:anywhere;hyphens:auto}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hg-block .h,.hg-block .s{display:none}
   #horario .view{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 
@@ -1096,6 +1121,47 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .empty-actions{width:100%}
   .empty-actions .btn{width:100%;justify-content:center}
 
+  /* ---------- Perfil: pantalla propia ---------- */
+  /* En desktop el perfil es un modal chico de formulario. En mobile merece
+     una pantalla: identidad arriba (grande, sin dudar de en qué cuenta
+     estás) y el formulario abajo agrupado, estilo ajustes de iOS. Mismo
+     #modal-perfil. */
+  /* El cuerpo scrollea y el pie queda fijo: si no, "Cerrar sesión" y los
+     últimos campos quedan fuera de pantalla en un 844px real. */
+  #modal-perfil .modal{display:flex;flex-direction:column}
+  #modal-perfil .modal form{display:flex;flex-direction:column;flex:1;min-height:0}
+  #modal-perfil .modal-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #modal-perfil .modal-foot{flex:none}
+
+  #modal-perfil .modal-body{gap:22px}
+  .perfil-hero{display:flex!important;flex-direction:column;align-items:center;gap:11px;padding:6px 0 2px}
+  .perfil-hero .av{width:88px;height:88px;border-radius:50%;font-size:29px;font-weight:600;
+    background:linear-gradient(180deg,#D9D9DE,#C4C4CB);color:#3A3A3C;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;flex:none}
+  .perfil-hero .av img{width:100%;height:100%;object-fit:cover;display:block}
+  .perfil-hero .who{display:flex;flex-direction:column;gap:4px;text-align:center;
+    align-self:stretch;min-width:0}
+  .perfil-hero .who b{font-family:var(--font-display);font-size:21px;letter-spacing:-.022em;
+    line-height:1.2;display:block}
+  .perfil-hero .who span{display:block;line-height:1.35;font-size:13px;color:var(--c-ink3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .perfil-hero .btn{height:36px;padding:0 15px;font-size:13px}
+  /* La leyenda del recorte no aporta en una pantalla: el botón ya lo dice. */
+  .perfil-hero .hint{display:none}
+  .perfil-group{display:flex;flex-direction:column;gap:14px}
+  .perfil-group-lbl{font-size:11.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--c-ink3)}
+  /* Cerrar sesión vive acá además del ⏻ del cajón: es donde la gente lo busca. */
+  .perfil-logout{width:100%;justify-content:center;height:48px;color:var(--c-danger);
+    border-color:var(--c-line)}
+  /* El email ya está en el hero, no lo repetimos en el header. */
+  #modal-perfil .modal-head .titles{flex:1;min-width:0}
+  #modal-perfil .modal-head .titles .s{display:none}
+  /* La fila del cajón es un enlace a esa pantalla: se ve tocable. */
+  .sidenav-user .who::after{content:'Ver perfil';font-size:11px;font-weight:600;
+    color:var(--c-accent);margin-top:2px}
+  .sidenav-user:active{background:var(--c-line-faint)}
+
   /* ---------- cajón ---------- */
   /* El breakpoint de 900px cierra el cajón con translateX(-260px), pensado
      para su ancho de siempre (260px). Acá lo ensanchamos a 288px — sin
@@ -1115,6 +1181,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .sidenav.is-open ~ .main .tabbar,.sidenav.is-open ~ .main .fab{opacity:0;pointer-events:none;
     transition:opacity 150ms var(--ease-out)}
 }
+
+/* .topbar-menu sólo existe para mobile (el ☰ de cada .topbar, ver arriba):
+   en desktop el ☰ real sigue siendo #btn-menu dentro de .app-toolbar. Sin
+   este .icon-btn base se ve igual en cualquier ancho (display:flex). */
+@media(min-width:761px){.topbar .topbar-menu{display:none}}
 
 </style>
 </head>
@@ -1294,6 +1365,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <!-- ============ INICIO ============ -->
     <section class="view-screen" id="inicio">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Inicio</h1></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
@@ -1345,6 +1417,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <!-- ============ MATERIAS ============ -->
     <section class="view-screen hidden" id="materias">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Materias</h1><span class="meta mono" id="materias-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
@@ -1393,6 +1466,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <!-- ============ DETALLE ============ -->
     <section class="view-screen hidden" id="detalle">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
         <div class="topbar-actions">
           <button class="btn" id="btn-detalle-editar">Editar materia</button>
@@ -1442,6 +1516,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <!-- ============ AGENDA ============ -->
     <section class="view-screen hidden" id="agenda">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Agenda</h1><span class="meta mono" id="agenda-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar">⌕</button>
@@ -1465,6 +1540,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <!-- ============ CALENDARIO ============ -->
     <section class="view-screen hidden" id="calendario">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <div style="display:flex;align-items:center;gap:14px">
           <h1 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:none" id="cal-month-label"></h1>
           <div class="cal-nav"><button id="cal-prev" aria-label="Mes/semana anterior">‹</button><button id="cal-next" aria-label="Mes/semana siguiente">›</button></div>
@@ -1501,6 +1577,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <!-- ============ HORARIO ============ -->
     <section class="view-screen hidden" id="horario">
       <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
         <span class="topbar-title"><h1 class="t">Horario semanal</h1><span class="meta mono" id="horario-meta"></span></span>
         <div class="topbar-actions">
           <span class="search-fake">Semestre 2 · 2026</span>
@@ -1745,24 +1822,30 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <form id="form-perfil">
       <div class="modal-body pad-lg">
         <span class="auth-info hidden" id="modal-perfil-intro">Nos ayuda a personalizar tu experiencia — podés completarlo ahora o más tarde desde tu perfil.</span>
-        <div style="display:flex;align-items:center;gap:16px">
+        <div class="perfil-hero">
           <div class="av" id="modal-perfil-avatar"></div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <button type="button" class="btn" id="btn-perfil-foto">Cambiar foto</button>
-            <span style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
-          </div>
+          <div class="who"><b id="perfil-nombre-completo"></b><span id="perfil-email-hero"></span></div>
+          <button type="button" class="btn" id="btn-perfil-foto">Cambiar foto</button>
+          <span class="hint" style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
           <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
         </div>
-        <div class="field-row">
-          <div class="field"><label for="perfil-nombre">Nombre</label><input id="perfil-nombre" name="nombre" placeholder="Tu nombre"></div>
-          <div class="field"><label for="perfil-apellido">Apellido</label><input id="perfil-apellido" name="apellido" placeholder="Tu apellido"></div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Datos personales</span>
+          <div class="field-row">
+            <div class="field"><label for="perfil-nombre">Nombre</label><input id="perfil-nombre" name="nombre" placeholder="Tu nombre"></div>
+            <div class="field"><label for="perfil-apellido">Apellido</label><input id="perfil-apellido" name="apellido" placeholder="Tu apellido"></div>
+          </div>
+          <div class="field-row">
+            <div class="field" style="flex:none;width:100px"><label for="perfil-edad">Edad</label><input id="perfil-edad" name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
+            <div class="field"><label for="perfil-telefono">Teléfono</label><input id="perfil-telefono" name="telefono" type="tel" placeholder="Ej: 099 123 456"></div>
+          </div>
         </div>
-        <div class="field-row">
-          <div class="field" style="flex:none;width:100px"><label for="perfil-edad">Edad</label><input id="perfil-edad" name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
-          <div class="field"><label for="perfil-telefono">Teléfono</label><input id="perfil-telefono" name="telefono" type="tel" placeholder="Ej: 099 123 456"></div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Estudio</span>
+          <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
+          <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
         </div>
-        <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
-        <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+        <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
       </div>
       <div class="modal-foot" style="justify-content:flex-end">
         <button type="button" class="btn" id="btn-perfil-cancelar" data-close-modal>Cancelar</button>
@@ -2675,6 +2758,14 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       elm.textContent = initialsDe(CURRENT_PROFILE && CURRENT_PROFILE.nombre, CURRENT_USER && CURRENT_USER.email);
     }
   }
+  // Nombre + apellido si hay alguno cargado, si no el email — para la
+  // pantalla de Perfil en mobile (#perfil-nombre-completo). Distinto de
+  // sidenav-user-nombre (sólo nombre) a propósito: ahí el espacio es chico,
+  // acá es el título grande de una pantalla propia.
+  function nombreCompletoDeUsuario(p) {
+    var full = (((p && p.nombre) || '') + ' ' + ((p && p.apellido) || '')).trim();
+    return full || (CURRENT_USER && CURRENT_USER.email) || '';
+  }
   function renderSidenavUser() {
     if (!CURRENT_USER) return;
     renderAvatarInto(document.getElementById('sidenav-user-avatar'), 34);
@@ -3569,7 +3660,10 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         var anchoPct = 100 / b.cols;
         node.style.width = 'calc(' + anchoPct + '% - 2px)';
         node.style.marginLeft = 'calc(' + (anchoPct * b.slot) + '% + 1px)';
-        qf(node, 'nombre').textContent = b.m.nombre;
+        // En mobile la columna es de ~40px: el nombre completo no entra
+        // ("Conta…"). El código se lee mucho mejor ahí — el nombre completo
+        // sigue disponible en el title/aria-label que pone makeRowClickable.
+        qf(node, 'nombre').textContent = esMobile() ? b.m.cod.split('-')[0] : b.m.nombre;
         qf(node, 'hora').textContent = horaTexto(b.ini) + '–' + horaTexto(b.fin);
         qf(node, 'salon').textContent = (b.m.salon || '').replace('Edificio ', '');
         makeRowClickable(node, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
@@ -4331,6 +4425,11 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
 
   function bindGlobalUI() {
     document.getElementById('btn-menu').addEventListener('click', openMobileNav);
+    // Mobile: cada .topbar tiene su propio ☰ (ver .topbar-menu) porque
+    // .app-toolbar — donde vive #btn-menu — se oculta en mobile; sin esto no
+    // había forma de abrir el cajón desde ahí. Delegado porque son 6 botones
+    // repetidos, no un solo id.
+    document.addEventListener('click', function (e) { if (e.target.closest('[data-menu]')) openMobileNav(); });
     document.getElementById('sidenav-backdrop').addEventListener('click', closeMobileNav);
     document.querySelectorAll('[data-nav]').forEach(function (btn) {
       btn.addEventListener('click', function () { location.hash = '#' + btn.getAttribute('data-nav'); closeMobileNav(); });
@@ -4879,6 +4978,12 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     form.carrera.value = p.carrera || '';
     form.telefono.value = p.telefono || '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
+    // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
+    // propia con su propia identidad grande (.perfil-hero) — el subtítulo
+    // del modal-head se oculta ahí (ver CSS), así que hace falta un segundo
+    // elemento con el mismo texto, no reusar el mismo id dos veces en el DOM.
+    document.getElementById('perfil-email-hero').textContent = CURRENT_USER ? CURRENT_USER.email : '';
+    document.getElementById('perfil-nombre-completo').textContent = nombreCompletoDeUsuario(p);
 
     var obligatorio = modo === 'completar-obligatorio';
     var completar = obligatorio || modo === 'completar';
@@ -4987,6 +5092,13 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     document.getElementById('sidenav-user').addEventListener('click', function (ev) {
       if (ev.target.closest('#btn-logout')) return;
       openPerfilModal('editar');
+    });
+    // Mobile: "Cerrar sesión" vive también dentro de la pantalla de perfil,
+    // no sólo el ⏻ del cajón (ahí es donde la gente lo busca). Dispara el
+    // mismo #btn-logout en vez de duplicar el confirm()/signOut() — una
+    // sola fuente de verdad para cerrar sesión.
+    document.getElementById('btn-perfil-logout').addEventListener('click', function () {
+      document.getElementById('btn-logout').click();
     });
     document.getElementById('btn-logout').addEventListener('click', async function (ev) {
       ev.stopPropagation();
