@@ -199,6 +199,19 @@ tomé para resolver esas brechas:
   tarde, ese bloque suelto puede quedar más angosto de lo estrictamente
   necesario; preferí esa simplicidad a un algoritmo de columnas por
   clúster.
+- **Horario en pasos de media hora**: el horario semanal de cada materia
+  admite bloques que empiezan o terminan en :30 (18:30–19:30), no sólo en
+  punto — se guardan como hora decimal (`18.5` = 18:30) en `bloques`. La
+  grilla de Horario tiene una fila cada 30 minutos (antes, una por hora),
+  con la etiqueta de hora sólo en las filas en punto para no saturarla
+  visualmente. Los `<input type="time">` del formulario tienen
+  `step="1800"` para que el selector nativo del navegador también salte de
+  a 30 minutos. Se corrigió junto con un bug real de Safari: `<input
+  type="time">` no siempre dispara el evento `input` de forma confiable ahí
+  mientras se escribe segmento por segmento, así que un horario tipeado
+  podía quedar sin guardarse en el estado del formulario y volver a su
+  valor anterior apenas se re-renderizaba la fila (por ejemplo, al tocar un
+  día) — ahora también se escucha `change` como respaldo.
 
 ## Semestres
 

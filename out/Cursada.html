@@ -1254,9 +1254,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 <template data-template="horario-modal-row">
   <div class="horario-modal-row">
     <div class="dias-mini" data-f="dias"></div>
-    <input type="time" class="mono" data-f="inicio" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
+    <input type="time" step="1800" class="mono" data-f="inicio" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
     <span style="color:var(--c-ink3);font-size:13px">a</span>
-    <input type="time" class="mono" data-f="fin" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
+    <input type="time" step="1800" class="mono" data-f="fin" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
     <button type="button" class="remove-link" data-f="remove">Quitar</button>
   </div>
 </template>
@@ -1436,6 +1436,14 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
   }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  // Los bloques de horario se guardan como hora decimal (18.5 = 18:30) — la
+  // grilla y los presets de horario trabajan en pasos de media hora, no hace
+  // falta más precisión que esa para un horario de clases.
+  function horaTexto(decimal) {
+    var h = Math.floor(decimal);
+    var m = Math.round((decimal - h) * 60);
+    return pad2(h) + ':' + pad2(m);
+  }
   function truncate(s, n) { return (s && s.length > n) ? s.slice(0, n - 1) + '…' : (s || ''); }
   function css(obj) {
     return Object.keys(obj).map(function (k) {
@@ -1535,7 +1543,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       var labels = dias.map(function (d) { return DIAS_BLOQUE[d - 1]; });
       var diasTxt = labels.length <= 1 ? labels[0] : (labels.length === 2 ? labels[0] + ' y ' + labels[1] : labels.slice(0, -1).join(', ') + ' y ' + labels[labels.length - 1]);
       var kv = key.split('-'), ini = +kv[0], fin = +kv[1];
-      return diasTxt + ' · ' + pad2(ini) + ':00–' + pad2(fin) + ':00';
+      return diasTxt + ' · ' + horaTexto(ini) + '–' + horaTexto(fin);
     });
     return parts.join(', ');
   }
@@ -2267,7 +2275,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       var b = byDia[i + 1];
       var box = qf(node, 'box');
       if (b) {
-        box.textContent = pad2(b.ini) + ':00–' + pad2(b.fin) + ':00' + (m.salon ? ' · ' + m.salon.replace('Edificio ', '') : '');
+        box.textContent = horaTexto(b.ini) + '–' + horaTexto(b.fin) + (m.salon ? ' · ' + m.salon.replace('Edificio ', '') : '');
         box.setAttribute('style', css({ height: '54px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: '11px', fontWeight: 600, textAlign: 'center', padding: '0 8px', background: m.soft, color: m.strong, border: '1px solid ' + rgba(m.strong, .28) }));
       } else {
         box.textContent = '';
@@ -2525,7 +2533,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var dow = designDia(d);
     computeMateriasDelActivo().forEach(function (m) {
       (m.bloques || []).forEach(function (b) {
-        if (b.dia === dow) claseEntries.push({ chipColor: m.colorId, materiaTxt: m.cod, hora: pad2(b.ini) + ':00 – ' + pad2(b.fin) + ':00', titulo: 'Clase de ' + m.nombre, lugar: m.salon || 'Sin salón asignado', strong: m.strong, sortHora: b.ini });
+        if (b.dia === dow) claseEntries.push({ chipColor: m.colorId, materiaTxt: m.cod, hora: horaTexto(b.ini) + ' – ' + horaTexto(b.fin), titulo: 'Clase de ' + m.nombre, lugar: m.salon || 'Sin salón asignado', strong: m.strong, sortHora: b.ini });
       });
     });
     var evData = eventosDeDia(iso).map(function (ev) {
@@ -2565,9 +2573,12 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // ================================================================
   function renderHorario() {
     var dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'].concat(STATE.mostrarSabado ? ['Sáb'] : []);
-    var horas = []; for (var h = 8; h <= 21; h++) horas.push(h);
+    // Filas de media hora (8:00, 8:30, 9:00, …, 21:30) — así una materia
+    // puede empezar o terminar en :30, no sólo en punto. La etiqueta de
+    // hora sólo se muestra en las filas en punto para no saturar la grilla.
+    var horas = []; for (var h = 8; h < 22; h += .5) horas.push(h);
     var cols = dias.length;
-    document.getElementById('horario-meta').textContent = (horas.length) + ' horas de grilla · 8:00 a 22:00' + (STATE.mostrarSabado ? '' : ' · sábado oculto');
+    document.getElementById('horario-meta').textContent = '8:00 a 22:00' + (STATE.mostrarSabado ? '' : ' · sábado oculto');
     var grid = document.getElementById('horario-grid');
     clear(grid);
     grid.style.gridTemplateColumns = '58px repeat(' + cols + ',1fr)';
@@ -2579,7 +2590,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       grid.appendChild(lbl);
     });
     horas.forEach(function (hh, r) {
-      var lbl = el('div', 'hg-hour-label'); lbl.style.gridColumn = 1; lbl.style.gridRow = r + 2; lbl.textContent = pad2(hh) + ':00';
+      var lbl = el('div', 'hg-hour-label'); lbl.style.gridColumn = 1; lbl.style.gridRow = r + 2; lbl.textContent = (hh % 1 === 0) ? pad2(hh) + ':00' : '';
       grid.appendChild(lbl);
       for (var c = 0; c < cols; c++) {
         var cell = el('div', 'hg-cell'); cell.style.gridColumn = c + 2; cell.style.gridRow = r + 2;
@@ -2600,14 +2611,15 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       asignarColumnas(porDia[dia]).forEach(function (b) {
         var node = tpl('horario-block');
         node.style.gridColumn = Number(dia) + 1;
-        node.style.gridRow = (b.ini - 8 + 2) + ' / span ' + (b.fin - b.ini);
+        // *2: la grilla ahora tiene una fila cada media hora, no cada hora.
+        node.style.gridRow = ((b.ini - 8) * 2 + 2) + ' / span ' + ((b.fin - b.ini) * 2);
         node.style.background = b.m.soft; node.style.color = b.m.strong;
         node.style.borderColor = rgba(b.m.strong, .35); node.style.borderLeftColor = b.m.strong;
         var anchoPct = 100 / b.cols;
         node.style.width = 'calc(' + anchoPct + '% - 2px)';
         node.style.marginLeft = 'calc(' + (anchoPct * b.slot) + '% + 1px)';
         qf(node, 'nombre').textContent = b.m.nombre;
-        qf(node, 'hora').textContent = pad2(b.ini) + ':00–' + pad2(b.fin) + ':00';
+        qf(node, 'hora').textContent = horaTexto(b.ini) + '–' + horaTexto(b.fin);
         qf(node, 'salon').textContent = (b.m.salon || '').replace('Edificio ', '');
         node.addEventListener('click', function () { location.hash = '#materia-' + b.m.id; });
         grid.appendChild(node);
@@ -2665,7 +2677,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var groups = {}, order = [];
     (bloques || []).forEach(function (b) {
       var key = b.ini + '-' + b.fin;
-      if (!groups[key]) { groups[key] = { dias: {}, inicio: pad2(b.ini) + ':00', fin: pad2(b.fin) + ':00' }; order.push(key); }
+      if (!groups[key]) { groups[key] = { dias: {}, inicio: horaTexto(b.ini), fin: horaTexto(b.fin) }; order.push(key); }
       groups[key].dias[b.dia] = true;
     });
     return order.map(function (k) { return groups[k]; });
@@ -2724,10 +2736,17 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         btn.addEventListener('click', function () { row.dias[dia] = !row.dias[dia]; renderModalMateriaHorarioRows(); });
         diasWrap.appendChild(btn);
       });
+      // 'input' y 'change' a la vez: Safari no siempre dispara 'input' de
+      // forma confiable en <input type="time"> mientras se escribe segmento
+      // por segmento (hora, minutos) — sin 'change' como respaldo, un valor
+      // tipeado podía quedar sin guardar en `row` y volvía al valor viejo
+      // apenas se re-renderizaba la fila (p. ej. al tocar un día).
       var inicio = qf(node, 'inicio'); inicio.value = row.inicio || '';
       inicio.addEventListener('input', function () { row.inicio = inicio.value; });
+      inicio.addEventListener('change', function () { row.inicio = inicio.value; });
       var fin = qf(node, 'fin'); fin.value = row.fin || '';
       fin.addEventListener('input', function () { row.fin = fin.value; });
+      fin.addEventListener('change', function () { row.fin = fin.value; });
       var remove = qf(node, 'remove');
       remove.addEventListener('click', function () { STATE.editing.horarioRows.splice(idx, 1); if (!STATE.editing.horarioRows.length) STATE.editing.horarioRows.push({ dias: {}, inicio: '', fin: '' }); renderModalMateriaHorarioRows(); });
       wrap.appendChild(node);
@@ -2806,7 +2825,17 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     return wrap;
   }
 
-  function parseHour(hhmm) { if (!hhmm) return null; return parseInt(hhmm.split(':')[0], 10); }
+  // Devuelve la hora como decimal (18:30 -> 18.5), redondeado al medio-hora
+  // más cercano — la grilla y el resto del sistema de horario trabajan en
+  // pasos de 30 minutos.
+  function parseHoraDecimal(hhmm) {
+    if (!hhmm) return null;
+    var partes = hhmm.split(':');
+    var h = parseInt(partes[0], 10);
+    var m = partes[1] ? parseInt(partes[1], 10) : 0;
+    if (isNaN(h) || isNaN(m)) return null;
+    return Math.round((h * 60 + m) / 30) / 2;
+  }
 
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('form-materia').addEventListener('submit', async function (ev) {
@@ -2814,7 +2843,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       var form = ev.target;
       var bloques = [];
       STATE.editing.horarioRows.forEach(function (row) {
-        var ini = parseHour(row.inicio), fin = parseHour(row.fin);
+        var ini = parseHoraDecimal(row.inicio), fin = parseHoraDecimal(row.fin);
         if (ini == null || fin == null || fin <= ini) return;
         Object.keys(row.dias).forEach(function (dia) { if (row.dias[dia]) bloques.push({ dia: Number(dia), ini: ini, fin: fin }); });
       });
