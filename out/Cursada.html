@@ -1088,7 +1088,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   <div class="modal modal-xs">
     <div class="modal-head">
       <div class="titles"><span class="t" id="modal-perfil-titulo">Tu perfil</span><span class="s" id="perfil-email"></span></div>
-      <button class="modal-close" data-close-modal>×</button>
+      <button class="modal-close" id="btn-perfil-cerrar-x" data-close-modal>×</button>
     </div>
     <form id="form-perfil">
       <div class="modal-body pad-lg">
@@ -2633,7 +2633,16 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // MODALES
   // ================================================================
   function openModal(id) { document.getElementById(id).classList.add('is-open'); }
-  function closeModalEl(elm) { elm.classList.remove('is-open'); }
+  // Único punto de control para todas las formas de cerrar un modal (botón
+  // X, "Cancelar", click en el backdrop, Escape, closeAllModals()) — así el
+  // modal de perfil puede negarse a cerrarse mientras está en modo
+  // obligatorio (cuentas de Google con datos sin completar, ver PERFIL) sin
+  // tener que tocar cada uno de esos caminos por separado.
+  var PERFIL_MODAL_BLOQUEANTE = false;
+  function closeModalEl(elm) {
+    if (elm && elm.id === 'modal-perfil' && PERFIL_MODAL_BLOQUEANTE) return;
+    elm.classList.remove('is-open');
+  }
   function closeAllModals() { document.querySelectorAll('.modal-backdrop.is-open').forEach(closeModalEl); }
   // Estado ocupado de un botón mientras espera una llamada a Supabase — hay
   // red de por medio ahora, así que un guardado puede tardar un instante.
@@ -3537,11 +3546,19 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // ================================================================
   // PERFIL
   // ================================================================
+  var PERFIL_CAMPOS = ['nombre', 'apellido', 'edad', 'facultad', 'carrera', 'telefono'];
+  function esCuentaGoogle() {
+    return !!(CURRENT_USER && CURRENT_USER.app_metadata && CURRENT_USER.app_metadata.provider === 'google');
+  }
+
   // modo: 'editar' (default, desde el side nav) | 'completar' (aviso
-  // automático post-login cuando faltan datos — ver maybeOfrecerCompletarPerfil).
-  // Es el mismo modal y el mismo formulario en los dos casos, sólo cambia el
-  // título, un texto de contexto y la etiqueta del botón de cancelar — no
-  // hay dos formularios de perfil en el código.
+  // post-login no bloqueante, cuentas de email que dejaron datos sin llenar)
+  // | 'completar-obligatorio' (cuentas de Google recién creadas — Google no
+  // deja interponer un formulario propio antes del alta, así que el único
+  // lugar posible para pedir estos datos es acá, y por eso son obligatorios;
+  // ver README). Es el mismo modal y el mismo formulario en los tres casos,
+  // sólo cambia el título, el texto de contexto, si se puede posponer y si
+  // los campos son obligatorios — no hay tres formularios de perfil.
   function openPerfilModal(modo) {
     var p = CURRENT_PROFILE || {};
     var form = document.getElementById('form-perfil');
@@ -3552,28 +3569,47 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     form.carrera.value = p.carrera || '';
     form.telefono.value = p.telefono || '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
-    var completar = modo === 'completar';
-    document.getElementById('modal-perfil-titulo').textContent = completar ? 'Completá tu perfil' : 'Tu perfil';
+
+    var obligatorio = modo === 'completar-obligatorio';
+    var completar = obligatorio || modo === 'completar';
+    PERFIL_MODAL_BLOQUEANTE = obligatorio;
+
+    document.getElementById('modal-perfil-titulo').textContent = obligatorio ? 'Completá tu perfil para continuar' : (completar ? 'Completá tu perfil' : 'Tu perfil');
     document.getElementById('modal-perfil-intro').classList.toggle('hidden', !completar);
+    if (obligatorio) document.getElementById('modal-perfil-intro').textContent = 'Con Google no pudimos pedirte estos datos antes de crear tu cuenta — completalos para poder seguir usando Cursada.';
+    else if (completar) document.getElementById('modal-perfil-intro').textContent = 'Nos ayuda a personalizar tu experiencia — podés completarlo ahora o más tarde desde tu perfil.';
+
+    // Sin forma de posponer ni de cerrar sin guardar en modo obligatorio —
+    // ni botón de cancelar ni la X (closeModalEl también lo bloquea por las
+    // dudas, p. ej. click en el backdrop o Escape).
+    document.getElementById('btn-perfil-cancelar').classList.toggle('hidden', obligatorio);
     document.getElementById('btn-perfil-cancelar').textContent = completar ? 'Completar más tarde' : 'Cancelar';
+    document.getElementById('btn-perfil-cerrar-x').classList.toggle('hidden', obligatorio);
+
+    PERFIL_CAMPOS.forEach(function (n) { form[n].required = obligatorio; });
+
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
     openModal('modal-perfil');
   }
 
   // Los únicos 3 campos que gatillan el aviso — nombre/apellido/edad/foto
-  // pueden quedar sin completar sin que la app insista (ver README).
+  // pueden quedar sin completar sin que la app insista, salvo en el modo
+  // obligatorio de cuentas de Google (ver README), donde se piden los 6.
   function perfilIncompleto(p) {
     if (!p) return true;
     return !p.facultad || !p.carrera || !p.telefono;
   }
-  // No bloqueante: sólo abre el modal (que se puede cerrar sin guardar nada,
-  // "Completar más tarde") — no impide usar el resto de la app. Si siguen
-  // faltando datos, vuelve a aparecer en el próximo login, sin un flag de
-  // "no preguntar más" (a diferencia del aviso de importar datos locales,
-  // acá si se pospone es a propósito que se repita, ver README).
+  // Cuentas de email: no bloqueante, se puede posponer ("Completar más
+  // tarde") sin impedir usar el resto de la app — si siguen faltando datos,
+  // vuelve a aparecer en el próximo login, sin un flag de "no preguntar más"
+  // (a diferencia del aviso de importar datos locales, acá si se pospone es
+  // a propósito que se repita).
+  // Cuentas de Google: obligatorio — Google no permite un formulario propio
+  // antes de crear la cuenta, así que estos datos nunca se pidieron todavía;
+  // se piden acá, ahora, y no se puede seguir usando la app sin completarlos.
   function maybeOfrecerCompletarPerfil() {
     if (!perfilIncompleto(CURRENT_PROFILE)) return false;
-    openPerfilModal('completar');
+    openPerfilModal(esCuentaGoogle() ? 'completar-obligatorio' : 'completar');
     return true;
   }
 
@@ -3655,6 +3691,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         var res = await sb().from('profiles').upsert(patch);
         if (res.error) throw res.error;
         CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, patch);
+        PERFIL_MODAL_BLOQUEANTE = false; // ya se guardó — closeAllModals() de acá abajo puede cerrarlo
         closeAllModals();
         renderSidenavUser();
         renderRoute();

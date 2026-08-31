@@ -574,30 +574,43 @@ existen (registro por email) y ofrecer una forma de completarlos cuando no
 Después de cada login exitoso (de cualquier tipo — email, Google, o una
 sesión que ya tenías guardada), la app revisa tu fila de `profiles`. Si
 **`facultad`, `carrera` o `telefono`** están vacíos, se abre el mismo modal
-de perfil, pero en modo "Completá tu perfil": título distinto, un texto de
-contexto explicando por qué se pregunta, y el botón de cancelar dice
-"Completar más tarde" en vez de "Cancelar" — mismo formulario, mismo botón
-de guardar, mismo código de guardado que la edición manual del perfil desde
-el side nav; no hay dos formularios de perfil en la base de código, sólo un
-`modo` que cambia el copy alrededor. Elegí sólo esos 3 campos como
-disparadores (no `nombre`/`apellido`/`edad`/foto) siguiendo exactamente el
-pedido — son los que ningún proveedor de login externo va a completar
-nunca solo, a diferencia de nombre/foto que Google sí podría traer.
+de perfil que usa la edición manual desde el side nav — no hay dos
+formularios de perfil en el código, sólo un `modo` que cambia el título, el
+texto de contexto, y si se puede posponer o no. Ese `modo` sale de una sola
+pregunta: **¿la cuenta se creó con Google?** (`CURRENT_USER.app_metadata.provider
+=== 'google'`).
 
-- **No es bloqueante**: se puede cerrar sin completar nada y seguir usando
-  el resto de la app con normalidad.
-- **Vuelve a aparecer en el próximo login** mientras sigan faltando esos
-  datos — a propósito, sin un flag de "no preguntar más" (a diferencia del
-  aviso de importar datos locales, que si se descarta no vuelve a
-  preguntar en ese navegador). Acá el pedido explícito era lo contrario:
-  insistir suavemente en cada login hasta completarlo, sin bloquear nada.
+- **Cuenta de email** → modo *no bloqueante* ("Completá tu perfil"): se
+  puede cerrar con "Completar más tarde" sin completar nada y seguir usando
+  el resto de la app con normalidad. Vuelve a aparecer en el próximo login
+  mientras sigan faltando esos datos — a propósito, sin un flag de "no
+  preguntar más" (a diferencia del aviso de importar datos locales, que si
+  se descarta no vuelve a preguntar en ese navegador): acá el pedido era
+  insistir suavemente en cada login hasta completarlo, sin bloquear nada. El
+  disparador son sólo esos 3 campos (no nombre/apellido/edad/foto), porque
+  ya tuvieron su oportunidad de cargarse en el formulario de registro por
+  email y quedaron opcionales ahí a propósito.
+- **Cuenta de Google** → modo *obligatorio* ("Completá tu perfil para
+  continuar"): Google no deja interponer un formulario propio antes de
+  crear la cuenta, así que este es el único lugar donde se pueden pedir
+  estos datos — acá sí son obligatorios, los 6 (nombre, apellido, edad,
+  facultad, carrera, teléfono), no sólo los 3 que gatillan el aviso, porque
+  con Google no llegó ninguno. En este modo no hay botón de cancelar ni X
+  para cerrar, el click en el backdrop y Escape no cierran el modal, y los
+  6 campos tienen `required` — la única salida es completarlos y guardar.
+  Técnicamente el modal sigue siendo el mismo `.modal-backdrop.is-open` de
+  siempre (semi-transparente, cubre toda la pantalla): lo que lo hace
+  bloqueante es que `closeModalEl()` se niega a cerrarlo mientras un flag
+  (`PERFIL_MODAL_BLOQUEANTE`) esté activo — un solo punto de control en vez
+  de parchear cada camino de cierre (X, Cancelar, backdrop, Escape) por
+  separado.
 - **Prioridad con los otros avisos post-login**: si en el mismo login
   también correspondería mostrar el aviso de "importar datos locales" o el
   onboarding de bienvenida (los tres son excluyentes entre sí, para que uno
   no tape visualmente al otro), el orden es: importar datos locales primero
-  (hay datos reales de por medio), completar perfil después (es rápido y
-  suele darse justo en el momento en que más tiene sentido, un alta por
-  Google), onboarding al final si seguís sin ninguna materia cargada.
+  (hay datos reales de por medio), completar perfil después (obligatorio o
+  no, según el caso), onboarding al final si seguís sin ninguna materia
+  cargada.
 
 ### Migración de datos que ya tenías en `localStorage`
 
