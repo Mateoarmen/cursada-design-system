@@ -167,6 +167,13 @@ html[data-theme="oscuro"] .nav-item .mark{background:rgba(255,255,255,.25)}
 .sidenav-legend .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-ink3);font-weight:600}
 .legend-row{display:flex;align-items:center;gap:9px}
 .legend-row .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.legend-row.is-toggle{cursor:pointer;border-radius:7px;padding:4px 6px;margin:0 -6px;transition:background 120ms var(--ease-out),opacity 120ms var(--ease-out)}
+.legend-row.is-toggle:hover{background:var(--c-surfaceAlt)}
+.legend-row.is-toggle.is-off{opacity:.45}
+/* Punto vacío (no sólo atenuado) cuando está apagada: el hueco se lee como
+   un checkbox destildado a simple vista, más claro que sólo bajar opacidad. */
+.legend-row.is-toggle.is-off .dot{background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--c-ink3)}
+#sidenav-legend-list{max-height:220px;overflow-y:auto}
 .sidenav-user{margin-top:auto;display:flex;align-items:center;gap:11px;padding:10px;border-radius:14px;background:var(--c-surfaceAlt)}
 .sidenav-user .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(180deg,#D9D9DE,#C4C4CB);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#5B5B60}
 .sidenav-user .who{display:flex;flex-direction:column}

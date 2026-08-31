@@ -528,6 +528,9 @@
     calWeekStart: mondayOf(today()),
     calSelected: todayISO(),
     mostrarPersonales: true,
+    mostrarClases: true,
+    mostrarEvaluaciones: true,
+    materiasOcultasCal: {},
     mostrarSabado: true,
     editing: {}
   };
@@ -537,10 +540,16 @@
   // ================================================================
   var VIEW_LABELS = { inicio: 'Inicio', materias: 'Materias', detalle: 'Materias', agenda: 'Agenda', calendario: 'Calendario', horario: 'Horario' };
 
-  function buildLeyendaItem(label, color) {
+  function buildLeyendaItem(label, color, opts) {
+    opts = opts || {};
     var node = tpl('leyenda-item');
     qf(node, 'dot').setAttribute('style', dotStyle(color));
     qf(node, 'label').textContent = label;
+    if (opts.onToggle) {
+      node.classList.add('is-toggle');
+      node.classList.toggle('is-off', !opts.active);
+      makeRowClickable(node, function () { opts.onToggle(); }, (opts.active ? 'Ocultar' : 'Mostrar') + ' ' + label + ' en el calendario');
+    }
     return node;
   }
 
@@ -599,9 +608,20 @@
     clear(list);
     if (STATE.route.view === 'calendario') {
       legend.classList.remove('hidden');
+      // Clickeable acá (a diferencia de Horario, más abajo): en Calendario la
+      // leyenda no es sólo referencia visual, es el filtro por materia — click
+      // prende/apaga esa materia en la grilla y en el panel del día.
       document.getElementById('sidenav-legend-lbl').textContent = 'Referencias';
-      var ms = computeMaterias();
-      ms.slice(0, 6).forEach(function (m) { list.appendChild(buildLeyendaItem(truncate(m.nombre, 22), m.strong)); });
+      computeMaterias().forEach(function (m) {
+        var active = !STATE.materiasOcultasCal[m.id];
+        list.appendChild(buildLeyendaItem(truncate(m.nombre, 22), m.strong, {
+          active: active,
+          onToggle: function () {
+            if (active) STATE.materiasOcultasCal[m.id] = true; else delete STATE.materiasOcultasCal[m.id];
+            renderRoute();
+          }
+        }));
+      });
       if (STATE.mostrarPersonales) list.appendChild(buildLeyendaItem('Personal', PERSONAL_COLOR));
     } else if (STATE.route.view === 'horario') {
       legend.classList.remove('hidden');
@@ -611,6 +631,8 @@
       legend.classList.add('hidden');
     }
     document.getElementById('toggle-sabado-row').classList.toggle('hidden', STATE.route.view !== 'horario');
+    document.getElementById('toggle-clases-row').classList.toggle('hidden', STATE.route.view !== 'calendario');
+    document.getElementById('toggle-evaluaciones-row').classList.toggle('hidden', STATE.route.view !== 'calendario');
   }
 
   // ================================================================
@@ -1058,23 +1080,45 @@
     return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
   }
 
-  function clasesDeDia(dow) {
+  // Fuente única de "qué clases hay el día `dow`", ya filtrada por los
+  // toggles del Calendario (Ver clases / materia oculta desde la leyenda).
+  // Cada vista (grilla compacta, panel del día) arma su propio formato de
+  // salida a partir de estos pares {materia, bloque} — así el filtro no se
+  // duplica en dos lugares.
+  function clasesDeDiaRaw(dow) {
+    if (!STATE.mostrarClases) return [];
+    var out = [];
     // Usa el semestre activo: es el patrón semanal "de ahora", no una
     // reconstrucción histórica exacta por fecha (ver README, sección
     // Semestres) — el Calendario puede navegar a meses de semestres viejos
     // sin que estos bloques cambien de fuente.
-    var out = [];
     computeMateriasDelActivo().forEach(function (m) {
-      (m.bloques || []).forEach(function (b) {
-        if (b.dia === dow) out.push({ kind: 'clase', materia: m, color: m.strong, label: m.cod || truncate(m.nombre, 12), horaLabel: horaTexto(b.ini), sortMin: Math.round(b.ini * 60) });
-      });
+      if (STATE.materiasOcultasCal[m.id]) return;
+      (m.bloques || []).forEach(function (b) { if (b.dia === dow) out.push({ materia: m, bloque: b }); });
     });
     return out;
   }
 
+  function clasesDeDia(dow) {
+    return clasesDeDiaRaw(dow).map(function (x) {
+      // Antes mostraba el código (p. ej. "AM2") en la celda: no aporta nada
+      // que el punto de color (ya mapeado 1:1 en "Referencias") no diga, y
+      // para quien no se sabe los códigos de memoria es puro ruido — el
+      // nombre de la materia es lo que de verdad identifica la clase.
+      return { kind: 'clase', materia: x.materia, color: x.materia.strong, label: truncate(x.materia.nombre, 16), horaLabel: horaTexto(x.bloque.ini), sortMin: Math.round(x.bloque.ini * 60) };
+    });
+  }
+
   function eventosDeDia(iso) {
     var out = [];
-    loadAgendaRaw().forEach(function (a) { if (a.fecha === iso) { var m = computeMateriaById(a.materiaId); out.push({ kind: 'materia', item: a, color: m ? m.strong : PERSONAL_COLOR, label: a.titulo, allDay: false, materia: m }); } });
+    if (STATE.mostrarEvaluaciones) {
+      loadAgendaRaw().forEach(function (a) {
+        if (a.fecha !== iso) return;
+        if (a.materiaId && STATE.materiasOcultasCal[a.materiaId]) return;
+        var m = computeMateriaById(a.materiaId);
+        out.push({ kind: 'materia', item: a, color: m ? m.strong : PERSONAL_COLOR, label: a.titulo, allDay: false, materia: m });
+      });
+    }
     if (STATE.mostrarPersonales) loadPersonalRaw().forEach(function (p) { if (p.fecha === iso) out.push({ kind: 'personal', item: p, color: PERSONAL_COLOR, label: p.titulo, allDay: !!p.todoElDia }); });
     return out;
   }
@@ -1111,7 +1155,12 @@
       var allDayBars = [];
       eventosDeDia(iso).forEach(function (ev) {
         if (ev.allDay) { allDayBars.push(ev); return; }
-        items.push({ kind: ev.kind, item: ev.item, materia: ev.materia, color: ev.color, label: ev.label, horaLabel: ev.item && ev.item.hora ? ev.item.hora : '', sortMin: horaAMinutos(ev.item && ev.item.hora) });
+        // Evaluación con materia: "Materia: título" — el título solo no dice
+        // de qué materia es (a diferencia de la clase, acá no hay color de
+        // leyenda que lo reemplace, cada evaluación es un evento puntual).
+        // Personal no tiene materia: el título alcanza.
+        var label = (ev.kind === 'materia' && ev.materia) ? (truncate(ev.materia.nombre, 14) + ': ' + ev.label) : ev.label;
+        items.push({ kind: ev.kind, item: ev.item, materia: ev.materia, color: ev.color, label: label, horaLabel: ev.item && ev.item.hora ? ev.item.hora : '', sortMin: horaAMinutos(ev.item && ev.item.hora) });
       });
       items.sort(function (a, b) { return a.sortMin - b.sortMin; });
 
@@ -1204,12 +1253,10 @@
     var d = parseISODate(iso);
     document.getElementById('cal-side-title').textContent = DIAS_LARGOS[d.getDay()] + ' ' + d.getDate();
     var t = today();
-    var claseEntries = [];
     var dow = designDia(d);
-    computeMateriasDelActivo().forEach(function (m) {
-      (m.bloques || []).forEach(function (b) {
-        if (b.dia === dow) claseEntries.push({ chipColor: m.colorId, materiaTxt: m.cod, hora: horaTexto(b.ini) + ' – ' + horaTexto(b.fin), titulo: 'Clase de ' + m.nombre, lugar: m.salon || 'Sin salón asignado', strong: m.strong, sortHora: b.ini });
-      });
+    var claseEntries = clasesDeDiaRaw(dow).map(function (x) {
+      var m = x.materia, b = x.bloque;
+      return { chipColor: m.colorId, materiaTxt: m.cod, hora: horaTexto(b.ini) + ' – ' + horaTexto(b.fin), titulo: 'Clase de ' + m.nombre, lugar: m.salon || 'Sin salón asignado', strong: m.strong, sortHora: b.ini };
     });
     var evData = eventosDeDia(iso).map(function (ev) {
       if (ev.kind === 'materia') {
@@ -2111,6 +2158,16 @@
     document.getElementById('toggle-personales').addEventListener('click', function () {
       STATE.mostrarPersonales = !STATE.mostrarPersonales;
       this.classList.toggle('is-on', STATE.mostrarPersonales);
+      renderRoute();
+    });
+    document.getElementById('toggle-clases').addEventListener('click', function () {
+      STATE.mostrarClases = !STATE.mostrarClases;
+      this.classList.toggle('is-on', STATE.mostrarClases);
+      renderRoute();
+    });
+    document.getElementById('toggle-evaluaciones').addEventListener('click', function () {
+      STATE.mostrarEvaluaciones = !STATE.mostrarEvaluaciones;
+      this.classList.toggle('is-on', STATE.mostrarEvaluaciones);
       renderRoute();
     });
     document.getElementById('toggle-sabado').addEventListener('click', function () {

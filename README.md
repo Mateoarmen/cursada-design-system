@@ -897,6 +897,38 @@ Probado en el harness mock (`build_test.py`) con datos de prueba realistas
 375×812 (mobile) y desktop — sin errores de consola, sin overlaps, sin
 texto cortado a mitad de palabra.
 
+### Filtros y etiquetas (segunda pasada)
+
+Después de la primera pasada, feedback directo: el código de materia ("AM2")
+en el punto de una clase no sirve para nada en esta vista, y hacía falta
+poder elegir qué se ve en el calendario (sólo clases, clases + evaluaciones,
+o una materia puntual) en vez de todo siempre.
+
+- **Filtros de tipo**: además del switch "Ver personales" que ya existía,
+  se suman "Ver clases" y "Ver evaluaciones" en el sidenav de Calendario
+  (`STATE.mostrarClases` / `STATE.mostrarEvaluaciones`) — tres switches
+  independientes en vez de un enum fijo de combinaciones, así que "sólo
+  clases" es simplemente apagar los otros dos.
+- **Filtro por materia**: la leyenda "Referencias" (antes sólo decorativa,
+  y limitada a 6 materias) pasó a ser el filtro — cada fila es clickeable,
+  apaga/prende esa materia en la grilla y en el panel del día. Apagada, el
+  punto de color queda hueco (`box-shadow` en vez de `background`, se lee
+  como un checkbox destildado) en vez de sólo bajar la opacidad, que es
+  menos obvio. Saqué el límite de 6: ahora es un filtro real, no tenía
+  sentido esconder materias de la lista que las controla. `clasesDeDiaRaw(dow)`
+  centraliza el filtrado (clases ocultas + materia oculta) una sola vez;
+  tanto la grilla como `renderCalSide()` (que antes duplicaba esa lógica)
+  arman su propio formato a partir de esa misma fuente.
+- **Etiquetas, de código a información real**: una clase ya no muestra el
+  código de la materia — muestra su nombre (la identidad ya la da el color
+  + la leyenda; el código no era información nueva, era ruido). Una
+  evaluación con materia ahora muestra "Materia: título" en vez de sólo el
+  título pelado ("Análisis Mat. II: Primer parcial" en vez de "Primer
+  parcial" a secas) — a diferencia de una clase, cada evaluación es un
+  evento puntual y el color solo no alcanza para saber de qué materia es.
+  Personal sigue mostrando sólo el título: no tiene materia, no hay nada
+  que prefijar.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que
