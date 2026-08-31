@@ -790,7 +790,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       Quedan visibles (ya envuelven razonablemente bien en una fila propia
       con el flex-wrap que el header ya tenía).
    ========================================================================= */
-.tabbar,.fab,.quick-sheet,.row-menu,.weekstrip{display:none}
+.tabbar,.fab,.quick-sheet,.row-menu,.weekstrip,.swipe-action{display:none}
 
 /* Base (todo ancho) de .perfil-hero: reemplaza el style="display:flex;
    align-items:center;gap:16px" inline que tenía antes esta fila (foto +

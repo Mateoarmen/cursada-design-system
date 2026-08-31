@@ -1387,6 +1387,16 @@ el FAB tapando el botón "Guardar". Se subió `.modal-backdrop` a z-index 160
 onboarding/gate/auth-screen/toast (200–400), que sí deben ganarle a un modal
 abierto.
 
+**Otro bug encontrado después de entregar esta pasada** (reportado por el
+usuario: "se rompió la vista de agenda, aparece el visto ahí en desktop"):
+`.swipe-action` (el "✓ Listo" que se revela al arrastrar una fila) sólo
+tenía `position:absolute` dentro de `@media(max-width:760px)` — en
+cualquier ancho mayor quedaba como un `<div>` de flujo normal, con su texto
+"✓ Listo" visible arriba de cada fila de Agenda. Mismo tipo de gap que el
+de `.tabbar`/`.fab`/etc. (ver "Gap #1" en la pasada anterior), esta vez sin
+haberlo notado: se sumó `.swipe-action` al mismo `display:none` de base que
+ya ocultaba a esos otros elementos fuera de mobile.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que
