@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es-UY">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cursada — Tu semestre, bajo control</title>
+<meta name="description" content="Materias, notas, parciales y entregas en un solo lugar. Cursada te dice cuánto te falta para aprobar.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMkM3QkZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBBNjNGMCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTgiIGZpbGw9InVybCgjZykiLz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjYiIHN0cm9rZS1kYXNoYXJyYXk9IjY2IDIyIiB0cmFuc2Zvcm09InJvdGF0ZSg0NSAzMiAzMikiLz4KPC9zdmc+Cg==">
+</head>
+<body>
+<a class="lp-skip" href="#top">Saltar al contenido</a>
+
+<div style="font-family:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;color:#12161C;background:#FFFFFF;overflow-x:hidden">
+
+  <header class="lp-header" data-header id="header">
+    <div class="lp-header-inner" style="max-width:1240px;height:100%;margin:0 auto;display:flex;align-items:center;gap:32px">
+      <a href="#top" style="display:flex;align-items:center;gap:9px;color:#12161C;text-decoration:none;flex:none">
+        <span class="lp-mark lp-mark-hdr" style="width:26px;height:26px;border-radius:9px;background:linear-gradient(180deg,#2C7BFF,#0847B4);display:flex;align-items:center;justify-content:center"></span>
+        <span style="font-size:19px;font-weight:600;letter-spacing:-.02em">cursada</span>
+      </a>
+      <nav aria-label="Secciones" class="lp-header-nav" style="align-items:center;gap:22px;flex:1;min-width:0">
+        <a href="#funciones" class="lp-navlink" style="height:44px;display:flex;align-items:center;font-size:14px;font-weight:500;color:#55565B;text-decoration:none">Funciones</a>
+        <a href="#nota" class="lp-navlink" style="height:44px;display:flex;align-items:center;font-size:14px;font-weight:500;color:#55565B;text-decoration:none">Cómo calcula tu nota</a>
+        <a href="#preguntas" class="lp-navlink" style="height:44px;display:flex;align-items:center;font-size:14px;font-weight:500;color:#55565B;text-decoration:none">Preguntas</a>
+      </nav>
+      <div style="display:flex;align-items:center;gap:10px;flex:none;margin-left:auto">
+        <a href="#crear" class="lp-signin lp-header-signin" style="height:38px;align-items:center;padding:0 14px;border-radius:10px;font-size:14px;font-weight:500;color:#12161C;text-decoration:none;white-space:nowrap">Iniciar sesión</a>
+        <a href="#crear" class="lp-cta-sm" style="height:36px;display:flex;align-items:center;padding:0 18px;border-radius:10px;background:#0A63F0;color:#FFFFFF;font-size:14px;font-weight:600;letter-spacing:-.01em;text-decoration:none;white-space:nowrap">Crear mi cuenta</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+  <section id="top" style="max-width:1240px;margin:0 auto;padding:96px 32px 88px;display:flex;flex-wrap:wrap;align-items:center;gap:56px">
+    <div class="lp-reveal" style="flex:1 1 420px;min-width:320px;display:flex;flex-direction:column;gap:26px">
+      <h1 style="margin:0;font-size:64px;font-weight:600;letter-spacing:-.035em;line-height:1.02;text-wrap:balance">Tu semestre,<br>bajo control.</h1>
+      <p style="margin:0;font-size:19px;line-height:1.5;color:#55565B;max-width:38ch;text-wrap:pretty">Materias, notas, parciales y entregas en un solo lugar. Cursada te dice cuánto te falta para aprobar.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px">
+        <a href="#crear" class="lp-cta-lg" style="height:50px;display:flex;align-items:center;padding:0 26px;border-radius:12px;background:#0A63F0;color:#FFFFFF;font-size:16px;font-weight:600;letter-spacing:-.01em;text-decoration:none;white-space:nowrap;box-shadow:0 8px 24px rgba(10,99,240,.24)">Crear mi cuenta</a>
+        <a href="#nota" class="lp-secondary" style="height:50px;display:flex;align-items:center;padding:0 24px;border-radius:12px;background:rgba(18,22,28,.055);color:#12161C;font-size:16px;font-weight:500;text-decoration:none;white-space:nowrap">Cómo calcula tu nota</a>
+      </div>
+    </div>
+
+    <div class="lp-reveal" role="img" aria-label="Vista de inicio de Cursada con el promedio del semestre y los vencimientos de los próximos siete días" style="flex:1 1 560px;min-width:340px;display:flex;justify-content:flex-end">
+      <div style="width:100%;max-width:660px;border-radius:20px;overflow:hidden;background:#EDEDF0;border:1px solid rgba(18,22,28,.09);box-shadow:0 1px 1px rgba(18,22,28,.04),0 8px 20px rgba(18,22,28,.06),0 32px 64px rgba(18,22,28,.14);display:flex">
+        <div style="width:152px;flex:none;background:#FBFBFD;border-right:1px solid rgba(18,22,28,.07);padding:14px 9px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:7px;padding:0 6px">
+            <span class="lp-mark lp-mark-hero" style="width:18px;height:18px;border-radius:6px;background:linear-gradient(180deg,#2C7BFF,#0847B4);display:flex;align-items:center;justify-content:center"></span>
+            <span style="font-size:13px;font-weight:600;letter-spacing:-.02em">cursada</span>
+          </div>
+          <div style="height:26px;border-radius:8px;background:rgba(18,22,28,.05);display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:600;color:#55565B">2026 Segundo semestre</div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:center;height:25px;padding:0 8px;border-radius:7px;font-size:10px;background:#0A63F0;color:#fff;font-weight:600">Inicio</div>
+            <div style="display:flex;align-items:center;height:25px;padding:0 8px;border-radius:7px;font-size:10px;color:#12161C;font-weight:500">Materias</div>
+            <div style="display:flex;align-items:center;height:25px;padding:0 8px;border-radius:7px;font-size:10px;color:#12161C;font-weight:500">Agenda</div>
+            <div style="display:flex;align-items:center;height:25px;padding:0 8px;border-radius:7px;font-size:10px;color:#12161C;font-weight:500">Calendario</div>
+            <div style="display:flex;align-items:center;height:25px;padding:0 8px;border-radius:7px;font-size:10px;color:#12161C;font-weight:500">Horario</div>
+          </div>
+          <div style="margin-top:auto;display:flex;align-items:center;gap:7px;padding:6px;border-radius:9px;background:rgba(18,22,28,.04)">
+            <span style="width:22px;height:22px;border-radius:50%;background:#0A63F0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600">JM</span>
+            <span style="font-size:10px;font-weight:600">Joaquín M.</span>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+          <div style="height:40px;flex:none;border-bottom:1px solid rgba(18,22,28,.07);display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:rgba(237,237,240,.7)">
+            <span style="font-size:11px;font-weight:600">Inicio</span>
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="height:22px;width:104px;border-radius:7px;background:rgba(18,22,28,.055);display:flex;align-items:center;padding:0 8px;font-size:10px;color:#6E6E73">Buscar</span>
+              <span style="height:22px;border-radius:7px;background:#0A63F0;color:#fff;display:flex;align-items:center;padding:0 9px;font-size:10px;font-weight:600">Nueva evaluación</span>
+            </div>
+          </div>
+          <div style="flex:1;padding:16px 14px;display:flex;flex-direction:column;gap:13px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-size:19px;font-weight:600;letter-spacing:-.025em;line-height:1.05">Hola, Joaquín</span>
+              <span style="font-size:10px;color:#6E6E73">Martes 1 de setiembre, semana 9</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);background:#FFFFFF;border-radius:14px;box-shadow:0 1px 3px rgba(18,22,28,.07)">
+              <div style="padding:11px 12px;display:flex;flex-direction:column;gap:5px;border-right:1px solid rgba(18,22,28,.07)">
+                <span style="font-size:9px;color:#6E6E73;line-height:1.3">Promedio</span>
+                <span id="kpiPromedio" style="font-size:20px;font-weight:600;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;color:#12161C">8,1</span>
+              </div>
+              <div style="padding:11px 12px;display:flex;flex-direction:column;gap:5px;border-right:1px solid rgba(18,22,28,.07)">
+                <span style="font-size:9px;color:#6E6E73;line-height:1.3">Al día</span>
+                <span style="font-size:20px;font-weight:600;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;color:#12161C">5 de 7</span>
+              </div>
+              <div style="padding:11px 12px;display:flex;flex-direction:column;gap:5px">
+                <span style="font-size:9px;color:#6E6E73;line-height:1.3">Vencen esta semana</span>
+                <span style="font-size:20px;font-weight:600;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;color:#C9271F">3</span>
+              </div>
+            </div>
+            <div style="flex:1;background:#FFFFFF;border-radius:14px;box-shadow:0 1px 3px rgba(18,22,28,.07);padding:13px 15px;display:flex;flex-direction:column;gap:1px">
+              <span style="font-size:12px;font-weight:600;letter-spacing:-.01em;padding-bottom:8px">Próximos 7 días</span>
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(18,22,28,.06)">
+                <div style="width:22px;flex:none;display:flex;flex-direction:column">
+                  <span style="font-size:12px;font-weight:600;letter-spacing:-.02em;line-height:1.1">02</span>
+                  <span style="font-size:8px;color:#6E6E73">set</span>
+                </div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Parcial 2, unidades 4 a 6</span>
+                  <span style="font-size:9px;color:#6E6E73">Contabilidad II</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;height:18px;padding:0 8px;border-radius:999px;font-size:9px;font-weight:600;color:#C9271F;background:rgba(201,39,31,.1);white-space:nowrap;flex:none">Mañana</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(18,22,28,.06)">
+                <div style="width:22px;flex:none;display:flex;flex-direction:column">
+                  <span style="font-size:12px;font-weight:600;letter-spacing:-.02em;line-height:1.1">04</span>
+                  <span style="font-size:8px;color:#6E6E73">set</span>
+                </div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Entrega del caso Nestlé</span>
+                  <span style="font-size:9px;color:#6E6E73">Marketing</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;height:18px;padding:0 8px;border-radius:999px;font-size:9px;font-weight:600;color:#0847B4;background:rgba(10,99,240,.1);white-space:nowrap;flex:none">En 3 días</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(18,22,28,.06)">
+                <div style="width:22px;flex:none;display:flex;flex-direction:column">
+                  <span style="font-size:12px;font-weight:600;letter-spacing:-.02em;line-height:1.1">05</span>
+                  <span style="font-size:8px;color:#6E6E73">set</span>
+                </div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Turno con el odontólogo</span>
+                  <span style="font-size:9px;color:#6E6E73">Personal</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;height:18px;padding:0 8px;border-radius:999px;font-size:9px;font-weight:600;color:#55565B;background:rgba(18,22,28,.06);white-space:nowrap;flex:none">Personal</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+                <div style="width:22px;flex:none;display:flex;flex-direction:column">
+                  <span style="font-size:12px;font-weight:600;letter-spacing:-.02em;line-height:1.1">08</span>
+                  <span style="font-size:8px;color:#6E6E73">set</span>
+                </div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                  <span style="font-size:10px;font-weight:600;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Defensa del trabajo grupal</span>
+                  <span style="font-size:9px;color:#6E6E73">Derecho Comercial</span>
+                </div>
+                <span style="display:inline-flex;align-items:center;height:18px;padding:0 8px;border-radius:999px;font-size:9px;font-weight:600;color:#55565B;background:rgba(18,22,28,.06);white-space:nowrap;flex:none">En 7 días</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="nota" style="background:#EDEDF0;border-top:1px solid rgba(18,22,28,.06);border-bottom:1px solid rgba(18,22,28,.06)">
+    <div style="max-width:1240px;margin:0 auto;padding:104px 32px;display:flex;flex-direction:column;align-items:center;gap:44px">
+      <div class="lp-reveal" style="display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center">
+        <h2 style="margin:0;font-size:46px;font-weight:600;letter-spacing:-.03em;line-height:1.08;max-width:22ch;text-wrap:balance">La cuenta que hacés al margen del cuaderno</h2>
+        <p style="margin:0;font-size:18px;line-height:1.55;color:#55565B;max-width:56ch;text-wrap:pretty">Cargás cada nota cuando la recibis y Cursada te dice lo único que importa: cuánto necesitás para aprobar.</p>
+      </div>
+
+      <div class="lp-reveal" style="width:100%;max-width:900px;background:#FFFFFF;border-radius:20px;box-shadow:0 12px 40px rgba(18,22,28,.1);padding:32px;display:flex;flex-wrap:wrap;gap:36px">
+        <div style="flex:1 1 300px;min-width:280px;display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:14px;font-weight:600">Escala de la materia</span>
+            <div role="tablist" aria-label="Escala de la materia" style="display:flex;background:rgba(18,22,28,.055);border-radius:10px;padding:3px;gap:3px">
+              <button type="button" role="tab" class="lp-tab is-on" data-esc="Nota 0 a 12" aria-selected="true">Nota 0 a 12</button>
+              <button type="button" role="tab" class="lp-tab" data-esc="Puntaje" aria-selected="false">Puntaje</button>
+              <button type="button" role="tab" class="lp-tab" data-esc="Porcentaje" aria-selected="false">Porcentaje</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="flex:1;font-size:14px">Parcial 1</span>
+                <span id="notaVal0" class="lp-num" style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#12161C">9</span>
+              </div>
+              <div style="width:90%;max-width:100%;height:3px;border-radius:999px;background:#0A63F0"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="flex:1;font-size:14px">Trabajo domiciliario</span>
+                <span id="notaVal1" class="lp-num" style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#12161C">8</span>
+              </div>
+              <div style="width:80%;max-width:100%;height:3px;border-radius:999px;background:#0A63F0"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="flex:1;font-size:14px">Parcial 2, todavía sin rendir</span>
+                <span id="notaVal2" class="lp-num" style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:#6E6E73">sin nota</span>
+              </div>
+              <div style="width:100%;max-width:100%;height:3px;border-radius:999px;background:rgba(18,22,28,.14)"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1 1 280px;min-width:260px;display:flex;flex-direction:column;gap:16px;justify-content:center;padding-left:32px;border-left:1px solid rgba(18,22,28,.08)">
+          <span style="font-size:14px;color:#55565B">Para exonerar Contabilidad II te alcanza con</span>
+          <span id="demoObjetivo" aria-live="polite" class="lp-num" style="font-size:76px;font-weight:600;letter-spacing:-.045em;line-height:.9;color:#0A63F0;font-variant-numeric:tabular-nums;will-change:filter,opacity">7</span>
+          <span class="lp-num" style="font-size:15px;line-height:1.5;color:#55565B;text-wrap:pretty">en el parcial que viene. La cursada se aprueba con <span id="demoAprueba">6</span> y hoy vas en <span id="demoActual">8,5</span>.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="funciones" style="max-width:1240px;margin:0 auto;padding:104px 32px;display:flex;flex-direction:column;gap:40px">
+    <div class="lp-reveal" style="display:flex;flex-direction:column;gap:16px;max-width:34ch">
+      <h2 style="margin:0;font-size:46px;font-weight:600;letter-spacing:-.03em;line-height:1.08;text-wrap:balance">Todo el semestre, en cinco vistas</h2>
+      <p style="margin:0;font-size:18px;line-height:1.55;color:#55565B;text-wrap:pretty">Nada que configurar durante media hora antes de que te sirva.</p>
+    </div>
+
+    <div class="lp-reveal lp-funcs-grid" style="display:grid;gap:20px">
+      <div class="lp-funcs-4" style="min-height:300px;border-radius:20px;overflow:hidden;background:#12161C;color:#FFFFFF;display:flex;flex-direction:column;justify-content:flex-end;position:relative">
+        <img src="https://picsum.photos/seed/cursada-escritorio-apuntes-facultad/1200/760" alt="" loading="lazy" decoding="async" width="1200" height="760" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55">
+        <div style="position:relative;padding:32px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,rgba(18,22,28,0),rgba(18,22,28,.82))">
+          <h3 style="margin:0;font-size:26px;font-weight:600;letter-spacing:-.02em">Agenda y calendario juntos</h3>
+          <p style="margin:0;font-size:15px;line-height:1.5;color:rgba(255,255,255,.84);max-width:44ch;text-wrap:pretty">Parciales, entregas y lo personal en la misma vista, agrupados por vencidas, esta semana y próximamente.</p>
+        </div>
+      </div>
+
+      <div class="lp-funcs-2" style="min-height:300px;border-radius:20px;background:rgba(10,99,240,.08);padding:28px;display:flex;flex-direction:column;gap:16px">
+        <h3 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em">Tres escalas de nota</h3>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#3C4550;text-wrap:pretty">Cada facultad puntúa distinto. Elegís por materia entre 0 a 12, puntaje o porcentaje.</p>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+          <div style="height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-radius:10px;background:#FFFFFF;font-size:13px;font-weight:500">
+            <span>Nota 0 a 12</span>
+            <span style="font-size:13px;font-weight:600;color:#0A63F0;font-variant-numeric:tabular-nums">8,4</span>
+          </div>
+          <div style="height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-radius:10px;background:#FFFFFF;font-size:13px;font-weight:500">
+            <span>Puntaje</span>
+            <span style="font-size:13px;font-weight:600;color:#0A63F0;font-variant-numeric:tabular-nums">84</span>
+          </div>
+          <div style="height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-radius:10px;background:#FFFFFF;font-size:13px;font-weight:500">
+            <span>Porcentaje</span>
+            <span style="font-size:13px;font-weight:600;color:#0A63F0;font-variant-numeric:tabular-nums">84 %</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lp-funcs-2" style="min-height:264px;border-radius:20px;background:#EDEDF0;padding:28px;display:flex;flex-direction:column;gap:14px">
+        <h3 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em">Horario semanal real</h3>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#55565B;text-wrap:pretty">Se arma solo desde tus materias. Si dos se pisan, las ves lado a lado.</p>
+        <div style="margin-top:auto;display:flex;gap:6px;height:88px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:#6E6E73;text-align:center">L</span>
+            <div style="flex:1;border-radius:8px;background:rgba(18,22,28,.05);padding:3px;display:flex;flex-direction:column;gap:3px">
+              <div style="margin-top:45%;height:34%;border-radius:5px;background:#0A63F0"></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:#6E6E73;text-align:center">M</span>
+            <div style="flex:1;border-radius:8px;background:rgba(18,22,28,.05);padding:3px;display:flex;flex-direction:column;gap:3px">
+              <div style="margin-top:6%;height:26%;border-radius:5px;background:rgba(10,99,240,.3)"></div>
+              <div style="margin-top:20%;height:24%;border-radius:5px;background:rgba(10,99,240,.3)"></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:#6E6E73;text-align:center">M</span>
+            <div style="flex:1;border-radius:8px;background:rgba(18,22,28,.05);padding:3px;display:flex;flex-direction:column;gap:3px">
+              <div style="margin-top:45%;height:34%;border-radius:5px;background:#0A63F0"></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:#6E6E73;text-align:center">J</span>
+            <div style="flex:1;border-radius:8px;background:rgba(18,22,28,.05);padding:3px;display:flex;flex-direction:column;gap:3px">
+              <div style="margin-top:58%;height:30%;border-radius:5px;background:rgba(10,99,240,.3)"></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:#6E6E73;text-align:center">V</span>
+            <div style="flex:1;border-radius:8px;background:rgba(18,22,28,.05);padding:3px;display:flex;flex-direction:column;gap:3px">
+              <div style="margin-top:30%;height:46%;border-radius:5px;background:rgba(10,99,240,.3)"></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <span style="font-size:10px;color:#6E6E73;text-align:center">S</span>
+            <div style="flex:1;border-radius:8px;background:rgba(18,22,28,.05);padding:3px;display:flex;flex-direction:column;gap:3px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lp-funcs-2" style="min-height:264px;border-radius:20px;background:#EDEDF0;padding:28px;display:flex;flex-direction:column;gap:14px">
+        <h3 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em">Te avisa antes, no después</h3>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#55565B;text-wrap:pretty">Una materia entra en riesgo cuando el margen se achica, no cuando ya perdiste la cursada.</p>
+        <div style="margin-top:auto;background:#FFFFFF;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="flex:1;font-size:14px;font-weight:600">Estadística</span>
+            <span id="riesgoNota" style="font-size:19px;font-weight:600;letter-spacing:-.02em;color:#C9271F;font-variant-numeric:tabular-nums">4,8</span>
+          </div>
+          <div style="width:40%;height:3px;border-radius:999px;background:#C9271F"></div>
+          <span style="font-size:13px;color:#55565B;line-height:1.45">Necesitás <span id="riesgoObjetivo">7</span> en el final para aprobar.</span>
+        </div>
+      </div>
+
+      <div class="lp-funcs-2" style="min-height:264px;border-radius:20px;background:#12161C;color:#FFFFFF;padding:28px;display:flex;flex-direction:column;gap:14px">
+        <h3 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em">Un semestre no borra al anterior</h3>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:rgba(255,255,255,.76);text-wrap:pretty">Cambiás de semestre y las materias cambian con vos. El historial de notas queda entero.</p>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-radius:9px;background:#0A63F0;color:#fff">
+            <span style="flex:1;font-size:13px;font-weight:500">2026 Segundo semestre</span>
+            <span style="font-size:12px;opacity:.6">7 materias</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-radius:9px;background:rgba(255,255,255,.07)">
+            <span style="flex:1;font-size:13px;font-weight:500">2026 Primer semestre</span>
+            <span style="font-size:12px;opacity:.6">6 materias</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-radius:9px;background:rgba(255,255,255,.07)">
+            <span style="flex:1;font-size:13px;font-weight:500">2025 Segundo semestre</span>
+            <span style="font-size:12px;opacity:.6">6 materias</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:#EDEDF0;border-top:1px solid rgba(18,22,28,.06);border-bottom:1px solid rgba(18,22,28,.06)">
+    <div style="max-width:1240px;margin:0 auto;padding:96px 32px;display:flex;flex-wrap:wrap;gap:56px;align-items:center">
+      <div class="lp-reveal" style="flex:1 1 420px;min-width:300px;display:flex;flex-direction:column;gap:18px">
+        <h2 style="margin:0;font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1.08;max-width:20ch;text-wrap:balance">Tu cuenta, en cualquier dispositivo</h2>
+        <p style="margin:0;font-size:18px;line-height:1.55;color:#55565B;max-width:46ch;text-wrap:pretty">Cargás una nota en la facultad desde el teléfono y ya está en la computadora cuando llegás a casa. Entrás con email o con Google.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;padding-top:6px">
+          <div style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:#FFFFFF;font-size:13px;font-weight:500;color:#12161C">Entrás con Google o email</div>
+          <div style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:#FFFFFF;font-size:13px;font-weight:500;color:#12161C">Tus datos seguros</div>
+          <div style="height:34px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:#FFFFFF;font-size:13px;font-weight:500;color:#12161C">Claro y oscuro</div>
+        </div>
+      </div>
+
+      <div class="lp-reveal" role="img" aria-label="Pantalla de creación de cuenta en Cursada, con acceso por Google o email" style="flex:1 1 380px;min-width:300px;display:flex;justify-content:center">
+        <div style="width:340px;max-width:100%;background:#FFFFFF;border-radius:20px;box-shadow:0 16px 44px rgba(18,22,28,.13);overflow:hidden">
+          <div style="padding:28px 26px 24px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span class="lp-mark lp-mark-acct" style="width:24px;height:24px;border-radius:8px;background:linear-gradient(180deg,#2C7BFF,#0847B4);display:flex;align-items:center;justify-content:center"></span>
+              <span style="font-size:17px;font-weight:600;letter-spacing:-.02em">cursada</span>
+            </div>
+            <div style="height:44px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:10px;border:1px solid rgba(18,22,28,.14);font-size:14px;font-weight:500">
+              <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62z"></path><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.94v2.33A9 9 0 0 0 9 18z"></path><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.94A9 9 0 0 0 0 9c0 1.45.35 2.83.94 4.03z"></path><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .94 4.97l3.01 2.33C4.66 5.17 6.65 3.58 9 3.58z"></path></svg>
+              <span>Continuar con Google</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="flex:1;height:1px;background:rgba(18,22,28,.1)"></span>
+              <span style="font-size:12px;color:#6E6E73">o con tu email</span>
+              <span style="flex:1;height:1px;background:rgba(18,22,28,.1)"></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:13px;font-weight:500;color:#3C4550">Email</span>
+              <div style="height:42px;border-radius:10px;border:1px solid rgba(18,22,28,.14);display:flex;align-items:center;padding:0 13px;font-size:14px;color:#6E6E73">joaquin@ort.edu.uy</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:13px;font-weight:500;color:#3C4550">Contraseña</span>
+              <div style="height:42px;border-radius:10px;border:1.5px solid #0A63F0;box-shadow:0 0 0 3px rgba(10,99,240,.2);display:flex;align-items:center;padding:0 13px;font-size:14px;letter-spacing:.22em;color:#3C4550">••••••••</div>
+            </div>
+            <div style="height:44px;border-radius:10px;background:#0A63F0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Crear mi cuenta</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1240px;margin:0 auto;padding:104px 32px;display:flex;flex-direction:column;gap:48px">
+    <h2 class="lp-reveal" style="margin:0;font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1.08;max-width:26ch;text-wrap:balance">Lo que dicen los que ya cerraron un semestre con esto</h2>
+    <div class="lp-reveal" style="display:flex;flex-wrap:wrap;gap:56px">
+      <div style="flex:1 1 380px;min-width:300px;display:flex;flex-direction:column;gap:22px">
+        <p style="margin:0;font-size:24px;font-weight:500;line-height:1.4;letter-spacing:-.015em;text-wrap:pretty">Dejé de anotar las notas en el bloc de notas del teléfono. Ahora sé de una qué materia me está por complicar.</p>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:42px;height:42px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;background:#0A63F0">VC</span>
+          <div style="display:flex;flex-direction:column">
+            <span style="font-size:14px;font-weight:600">Valentina Cabrera</span>
+            <span style="font-size:13px;color:#6E6E73">Contador Público, cuarto semestre</span>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1 1 380px;min-width:300px;display:flex;flex-direction:column;gap:22px">
+        <p style="margin:0;font-size:24px;font-weight:500;line-height:1.4;letter-spacing:-.015em;text-wrap:pretty">Lo mejor es lo del parcial que falta. Antes hacía la cuenta a mano y siempre me daba distinto.</p>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:42px;height:42px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;background:#4340CC">NB</span>
+          <div style="display:flex;flex-direction:column">
+            <span style="font-size:14px;font-weight:600">Nicolás Bentancor</span>
+            <span style="font-size:13px;color:#6E6E73">Ingeniería en Sistemas, sexto semestre</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="preguntas" style="background:#EDEDF0;border-top:1px solid rgba(18,22,28,.06)">
+    <div style="max-width:900px;margin:0 auto;padding:96px 32px;display:flex;flex-direction:column;gap:36px">
+      <h2 class="lp-reveal" style="margin:0;font-size:44px;font-weight:600;letter-spacing:-.03em;line-height:1.08;text-wrap:balance">Preguntas</h2>
+      <div class="lp-reveal" style="background:#FFFFFF;border-radius:20px;padding:8px 26px">
+        <div class="lp-faq" style="border-bottom:1px solid rgba(18,22,28,.08)">
+          <button type="button" class="lp-faq-q" aria-expanded="false" style="width:100%;display:flex;align-items:center;gap:16px;padding:20px 0;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <span style="flex:1;font-size:17px;font-weight:600;letter-spacing:-.01em">¿Sirve si mi facultad no usa la escala de 0 a 12?</span>
+            <span aria-hidden="true" class="lp-faq-plus" style="width:26px;height:26px;flex:none;border-radius:50%;background:rgba(18,22,28,.055);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:#55565B">+</span>
+          </button>
+          <div class="lp-faq-body" style="display:grid;grid-template-rows:0fr;opacity:0">
+            <div style="overflow:hidden">
+              <p style="margin:0;padding-bottom:20px;font-size:15px;line-height:1.6;color:#55565B;max-width:62ch;text-wrap:pretty">Sí. Cada materia elige su propia escala entre 0 a 12, puntaje sobre un total que definís vos, o porcentaje. Podés tener materias con escalas distintas en el mismo semestre.</p>
+            </div>
+          </div>
+        </div>
+        <div class="lp-faq" style="border-bottom:1px solid rgba(18,22,28,.08)">
+          <button type="button" class="lp-faq-q" aria-expanded="false" style="width:100%;display:flex;align-items:center;gap:16px;padding:20px 0;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <span style="flex:1;font-size:17px;font-weight:600;letter-spacing:-.01em">¿Tengo que cargar todo de nuevo cada semestre?</span>
+            <span aria-hidden="true" class="lp-faq-plus" style="width:26px;height:26px;flex:none;border-radius:50%;background:rgba(18,22,28,.055);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:#55565B">+</span>
+          </button>
+          <div class="lp-faq-body" style="display:grid;grid-template-rows:0fr;opacity:0">
+            <div style="overflow:hidden">
+              <p style="margin:0;padding-bottom:20px;font-size:15px;line-height:1.6;color:#55565B;max-width:62ch;text-wrap:pretty">No. Creás un semestre nuevo y arrancás limpio, pero los anteriores quedan enteros. Volvés a cualquiera cuando quieras para mirar o corregir una nota vieja.</p>
+            </div>
+          </div>
+        </div>
+        <div class="lp-faq" style="border-bottom:1px solid rgba(18,22,28,.08)">
+          <button type="button" class="lp-faq-q" aria-expanded="false" style="width:100%;display:flex;align-items:center;gap:16px;padding:20px 0;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <span style="flex:1;font-size:17px;font-weight:600;letter-spacing:-.01em">¿Mis datos quedan en un solo dispositivo?</span>
+            <span aria-hidden="true" class="lp-faq-plus" style="width:26px;height:26px;flex:none;border-radius:50%;background:rgba(18,22,28,.055);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:#55565B">+</span>
+          </button>
+          <div class="lp-faq-body" style="display:grid;grid-template-rows:0fr;opacity:0">
+            <div style="overflow:hidden">
+              <p style="margin:0;padding-bottom:20px;font-size:15px;line-height:1.6;color:#55565B;max-width:62ch;text-wrap:pretty">No. Están en tu cuenta, así que entrás desde el teléfono, la notebook o la computadora de la facultad y ves lo mismo. También podés exportar todo a un archivo JSON.</p>
+            </div>
+          </div>
+        </div>
+        <div class="lp-faq">
+          <button type="button" class="lp-faq-q" aria-expanded="false" style="width:100%;display:flex;align-items:center;gap:16px;padding:20px 0;background:none;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <span style="flex:1;font-size:17px;font-weight:600;letter-spacing:-.01em">¿Cuánto cuesta?</span>
+            <span aria-hidden="true" class="lp-faq-plus" style="width:26px;height:26px;flex:none;border-radius:50%;background:rgba(18,22,28,.055);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:#55565B">+</span>
+          </button>
+          <div class="lp-faq-body" style="display:grid;grid-template-rows:0fr;opacity:0">
+            <div style="overflow:hidden">
+              <p style="margin:0;padding-bottom:20px;font-size:15px;line-height:1.6;color:#55565B;max-width:62ch;text-wrap:pretty">Nada. Cursada nació como un proyecto propio para no perder el hilo del semestre y sigue siendo gratis para estudiantes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="crear" style="background:#12161C;color:#FFFFFF">
+    <div style="max-width:1240px;margin:0 auto;padding:112px 32px;display:flex;flex-direction:column;align-items:center;gap:28px;text-align:center">
+      <h2 class="lp-reveal" style="margin:0;font-size:54px;font-weight:600;letter-spacing:-.035em;line-height:1.04;max-width:20ch;text-wrap:balance">Arrancá el semestre sabiendo dónde estás parado</h2>
+      <p style="margin:0;font-size:18px;line-height:1.55;color:rgba(255,255,255,.74);max-width:50ch;text-wrap:pretty">Creás la cuenta, cargás tu primera materia y en cinco minutos tenés el semestre entero adelante.</p>
+      <a href="#top" class="lp-cta-white" style="height:52px;display:flex;align-items:center;padding:0 30px;border-radius:12px;background:#FFFFFF;color:#12161C;font-size:16px;font-weight:600;letter-spacing:-.01em;text-decoration:none">Crear mi cuenta</a>
+    </div>
+  </section>
+
+  </main>
+
+  <footer style="background:#12161C;color:rgba(255,255,255,.6);border-top:1px solid rgba(255,255,255,.1)">
+    <div style="max-width:1240px;margin:0 auto;padding:32px;display:flex;flex-wrap:wrap;align-items:center;gap:20px">
+      <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:200px">
+        <span class="lp-mark lp-mark-foot" style="width:22px;height:22px;border-radius:7px;background:linear-gradient(180deg,#2C7BFF,#0847B4);display:flex;align-items:center;justify-content:center"></span>
+        <span style="font-size:15px;font-weight:600;color:#FFFFFF;letter-spacing:-.02em">cursada</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:22px">
+        <a href="#funciones" class="lp-footlink" style="font-size:14px;color:rgba(255,255,255,.72);text-decoration:none">Funciones</a>
+        <a href="#nota" class="lp-footlink" style="font-size:14px;color:rgba(255,255,255,.72);text-decoration:none">Cómo calcula tu nota</a>
+        <a href="#preguntas" class="lp-footlink" style="font-size:14px;color:rgba(255,255,255,.72);text-decoration:none">Preguntas</a>
+      </div>
+      <span style="font-size:13px;color:rgba(255,255,255,.58)">Hecho en Montevideo</span>
+    </div>
+  </footer>
+
+</div>
+
+<style>
+  body{margin:0;background:#FFFFFF;-webkit-font-smoothing:antialiased}
+  *{box-sizing:border-box}
+  a{color:#0A63F0;text-decoration:none}
+  a:hover{color:#0847B4;text-decoration:underline}
+  ::selection{background:rgba(10,99,240,.16)}
+  :focus-visible{outline:2px solid #0A63F0;outline-offset:3px;border-radius:8px}
+  :focus:not(:focus-visible){outline:none}
+
+  .lp-skip{position:absolute;left:-9999px;top:0;z-index:60;height:44px;display:flex;align-items:center;padding:0 18px;background:#0A63F0;color:#FFFFFF;font-size:14px;font-weight:600;border-radius:0 0 12px 0;text-decoration:none}
+  .lp-skip:focus{left:0}
+
+  .lp-header{position:sticky;top:0;z-index:40;height:68px;background:rgba(255,255,255,.82);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(18,22,28,0);transition:border-color 220ms ease,box-shadow 220ms ease}
+
+  .lp-mark{position:relative}
+  .lp-mark::after{content:'';position:absolute;left:50%;top:50%;border-radius:50%;border-style:solid;border-color:#fff;border-top-color:transparent;transform:translate(-50%,-50%) rotate(45deg)}
+  .lp-mark-hdr::after{width:12px;height:12px;border-width:2.3px}
+  .lp-mark-hero::after{width:8px;height:8px;border-width:1.7px}
+  .lp-mark-acct::after{width:11px;height:11px;border-width:2.1px}
+  .lp-mark-foot::after{width:10px;height:10px;border-width:2px}
+
+  .lp-navlink{transition:color 140ms ease}
+  .lp-navlink:hover{color:#12161C;text-decoration:none}
+
+  .lp-signin{transition:background 140ms ease,transform 120ms cubic-bezier(.23,1,.32,1)}
+  .lp-signin:hover{background:rgba(18,22,28,.05);text-decoration:none;color:#12161C}
+  .lp-signin:active{transform:scale(.97)}
+
+  .lp-cta-sm{transition:transform 120ms cubic-bezier(.23,1,.32,1),background 120ms ease}
+  .lp-cta-sm:hover{background:#0847B4;text-decoration:none;color:#FFFFFF}
+  .lp-cta-sm:active{transform:scale(.97)}
+
+  .lp-cta-lg{transition:transform 140ms cubic-bezier(.23,1,.32,1),background 140ms ease}
+  .lp-cta-lg:hover{background:#0847B4;color:#FFFFFF;text-decoration:none;transform:translateY(-1px)}
+  .lp-cta-lg:active{transform:scale(.98)}
+
+  .lp-secondary{transition:background 140ms ease}
+  .lp-secondary:hover{background:rgba(18,22,28,.09);color:#12161C;text-decoration:none}
+
+  .lp-cta-white{transition:transform 140ms cubic-bezier(.23,1,.32,1)}
+  .lp-cta-white:hover{color:#12161C;text-decoration:none;transform:translateY(-1px)}
+  .lp-cta-white:active{transform:scale(.98)}
+
+  .lp-footlink{transition:color 140ms ease}
+  .lp-footlink:hover{color:#FFFFFF;text-decoration:none}
+
+  .lp-tab{flex:1;height:36px;display:flex;align-items:center;justify-content:center;border:0;border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;color:#55565B;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 160ms ease,color 160ms ease,box-shadow 160ms ease,transform 120ms cubic-bezier(.23,1,.32,1)}
+  .lp-tab.is-on{background:#FFFFFF;box-shadow:0 1px 2px rgba(18,22,28,.14),0 1px 1px rgba(18,22,28,.06);color:#12161C;font-weight:600}
+  .lp-tab:active{transform:scale(.97)}
+
+  .lp-faq-q[aria-expanded="true"] .lp-faq-plus{transform:rotate(45deg)}
+  .lp-faq-plus{transition:transform 240ms cubic-bezier(.23,1,.32,1),background 160ms ease}
+  .lp-faq-body{transition:grid-template-rows 280ms cubic-bezier(.23,1,.32,1),opacity 220ms ease}
+
+  /* La grilla de "Funciones" (6 columnas fijas, spans 4/2/2/2/2) no traía
+     ningún @media en el .dc.html original — a los ~1240px de diseño se ve
+     bien, pero sin breakpoint las tarjetas de 2/6 columnas quedan de ~60px
+     de ancho en un celular y se amontonan unas sobre otras. El resto de las
+     secciones usa flex-wrap con min-width y absorbe angosto sin ayuda; esta
+     grilla es la única que lo necesitaba, así que es el único breakpoint
+     que agregué más allá de lo que traía el diseño. */
+  .lp-funcs-grid{grid-template-columns:repeat(6,1fr)}
+  .lp-funcs-4{grid-column:span 4}
+  .lp-funcs-2{grid-column:span 2}
+  @media (max-width:820px){
+    .lp-funcs-grid{grid-template-columns:1fr}
+    .lp-funcs-4,.lp-funcs-2{grid-column:span 1}
+  }
+
+  /* Mismo motivo que la grilla de arriba: el header (logo + 3 links + 2
+     botones, todo en una fila) tampoco traía breakpoint — a 375px el nav
+     del medio se pisaba con los botones. Se esconde el nav (Funciones/Cómo
+     calcula/Preguntas siguen alcanzables scrolleando, y se repiten en el
+     footer) y "Iniciar sesión" (queda sólo el CTA principal), no se agregó
+     un menú hamburguesa nuevo — el diseño no especificaba ninguno y hubiera
+     sido inventar UI que no estaba pedida. */
+  .lp-header-inner{padding:0 32px}
+  /* display:flex de estos dos vive acá (no en el style= inline, como el
+     resto de sus propiedades) para que el media query de abajo pueda
+     pisarlo con display:none — un inline style le gana a cualquier regla
+     de hoja de estilo, así que si display siguiera inline el breakpoint
+     nunca podría ocultarlos (mismo motivo por el que grid-template-columns
+     de .lp-funcs-grid tampoco quedó en el style= inline, más arriba). */
+  .lp-header-nav,.lp-header-signin{display:flex}
+  @media (max-width:700px){
+    .lp-header-inner{padding:0 20px}
+    .lp-header-nav,.lp-header-signin{display:none}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  function fmt(esc, n12, pje) {
+    if (esc === 'Nota 0 a 12') return String(n12).replace('.', ',');
+    if (esc === 'Porcentaje') return pje + ' %';
+    return String(pje);
+  }
+
+  var NOTAS = [
+    { n12: 9, pje: 90, hay: true },
+    { n12: 8, pje: 80, hay: true },
+    { n12: null, pje: null, hay: false }
+  ];
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function pulse() {
+    if (reduce) return;
+    document.querySelectorAll('.lp-num').forEach(function (el) {
+      if (!el.animate) return;
+      el.animate(
+        [{ filter: 'blur(3px)', opacity: .55 }, { filter: 'blur(0px)', opacity: 1 }],
+        { duration: 220, easing: 'cubic-bezier(.23,1,.32,1)' }
+      );
+    });
+  }
+
+  function setEscala(esc) {
+    document.querySelectorAll('.lp-tab').forEach(function (b) {
+      var on = b.getAttribute('data-esc') === esc;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    NOTAS.forEach(function (n, i) {
+      var el = document.getElementById('notaVal' + i);
+      el.textContent = n.hay ? fmt(esc, n.n12, n.pje) : 'sin nota';
+    });
+    document.getElementById('demoObjetivo').textContent = fmt(esc, 7, 70);
+    document.getElementById('demoAprueba').textContent = fmt(esc, 6, 60);
+    document.getElementById('demoActual').textContent = fmt(esc, 8.5, 85);
+    document.getElementById('kpiPromedio').textContent = fmt(esc, 8.1, 81);
+    document.getElementById('riesgoNota').textContent = fmt(esc, 4.8, 48);
+    document.getElementById('riesgoObjetivo').textContent = fmt(esc, 7, 70);
+    pulse();
+  }
+
+  document.querySelectorAll('.lp-tab').forEach(function (b) {
+    b.addEventListener('click', function () { setEscala(b.getAttribute('data-esc')); });
+  });
+
+  var faqs = Array.from(document.querySelectorAll('.lp-faq'));
+  function setFaq(openIndex) {
+    faqs.forEach(function (item, i) {
+      var isOpen = i === openIndex;
+      var btn = item.querySelector('.lp-faq-q');
+      var body = item.querySelector('.lp-faq-body');
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      body.style.gridTemplateRows = isOpen ? '1fr' : '0fr';
+      body.style.opacity = isOpen ? '1' : '0';
+      body.style.transitionDelay = isOpen ? '60ms' : '0ms';
+    });
+  }
+  var faqOpen = -1;
+  faqs.forEach(function (item, i) {
+    item.querySelector('.lp-faq-q').addEventListener('click', function () {
+      faqOpen = faqOpen === i ? -1 : i;
+      setFaq(faqOpen);
+    });
+  });
+
+  var header = document.getElementById('header');
+  if (header) {
+    var onScroll = function () {
+      var y = window.scrollY > 8;
+      header.style.borderBottomColor = y ? 'rgba(18,22,28,.08)' : 'rgba(18,22,28,0)';
+      header.style.boxShadow = y ? '0 1px 12px rgba(18,22,28,.05)' : 'none';
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  var nodos = Array.from(document.querySelectorAll('.lp-reveal'));
+  if (!reduce && 'IntersectionObserver' in window && nodos.length) {
+    var obs = new IntersectionObserver(function (entries) {
+      var n = 0;
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.style.transitionDelay = Math.min(n++, 3) * 60 + 'ms';
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'none';
+        obs.unobserve(e.target);
+      });
+    }, { threshold: .15, rootMargin: '0px 0px -8% 0px' });
+
+    nodos.forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight * .92) return; // ya visible al cargar, no se esconde
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(16px)';
+      el.style.transition = 'opacity 480ms cubic-bezier(.23,1,.32,1), transform 480ms cubic-bezier(.23,1,.32,1)';
+      obs.observe(el);
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

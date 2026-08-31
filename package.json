@@ -5,7 +5,9 @@
   "description": "Cursada — gestión académica personal, entregable HTML/CSS/JS autónomo generado desde el handoff de Claude Design.",
   "type": "module",
   "scripts": {
-    "build:app": "node build/build-app.mjs"
+    "build:app": "node build/build-app.mjs",
+    "build:landing": "node build/build-landing.mjs",
+    "build": "npm run build:app && npm run build:landing"
   },
   "engines": {
     "node": ">=18"

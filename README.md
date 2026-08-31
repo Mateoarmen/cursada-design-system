@@ -1021,6 +1021,113 @@ o una materia puntual) en vez de todo siempre.
   Personal sigue mostrando sólo el título: no tiene materia, no hay nada
   que prefijar.
 
+## Landing page (`Cursada Landing.dc.html`)
+
+Página pública de marketing — la primera pantalla que ve alguien que todavía
+no tiene cuenta, separada de la app autenticada. Nació como un handoff de
+Claude Design (un `.zip` exportado desde claude.ai/design con el mockup en
+`Cursada Landing.dc.html` + su runtime `support.js`), no como un pedido de
+diseño desde cero acá.
+
+### Qué es un handoff de Claude Design, y qué se hizo con él
+
+El `.dc.html` no es HTML de producción: es un prototipo que corre dentro del
+runtime propio de la herramienta de diseño (`support.js`, un motor tipo React
+con su propia sintaxis — `<x-dc>`, `<sc-for list="{{ x }}">`, `{{ interpolación }}`,
+atributos `style-hover=`/`style-active=`/`style-after=` que la herramienta
+traduce a estados reales). Nada de eso se copió tal cual: **se recreó el
+resultado visual en HTML/CSS/JS estático de verdad** (`src/landing.html`),
+sin runtime ni dependencias — exactamente lo que pide el propio README del
+handoff ("recreate pixel-perfectly… don't copy the prototype's internal
+structure"). Cada pieza dinámica del mockup se resolvió así:
+
+- Los `<sc-for>` sobre listas fijas (nav, KPIs del mini-dashboard, próximos
+  vencimientos, horario semanal, semestres, testimonios, preguntas) se
+  "desenrollaron" a mano en HTML plano — son datos de ejemplo fijos en el
+  propio mockup, no había ningún estado real que preservar en un loop.
+  Sólo dos widgets son genuinamente interactivos y sí se reimplementaron con
+  JS de verdad: el selector de escala (Nota 0 a 12 / Puntaje / Porcentaje)
+  y el acordeón de Preguntas — misma lógica que el `state`/`setState` del
+  prototipo, en `document.querySelectorAll`/`addEventListener` planos.
+- El selector de escala es un solo estado global que recalcula **todos**
+  los números derivados a la vez (las 3 notas de ejemplo, el número grande
+  "para exonerar…", la frase de aprobación, el promedio del mini-dashboard
+  del hero, y la estadística de riesgo de la grilla de Funciones) — se
+  replicó ese acoplamiento tal cual, aunque las últimas dos viven en otra
+  sección de la página, porque así estaba en el prototipo. Sólo los números
+  del panel interactivo (los que tenían `data-num` en el mockup) llevan la
+  transición de blur al cambiar; los otros dos actualizan el texto sin
+  animación, mismo comportamiento que el original.
+- `style-hover`/`style-active`/`style-after` se tradujeron a clases CSS
+  reales (`.lp-cta-lg:hover`, `.lp-tab:active`, `.lp-mark::after`, etc.) en
+  un único `<style>` embebido — el resto de las propiedades (posición,
+  tamaño, color base) se dejó como `style=""` inline, calcado del valor
+  exacto del prototipo, para minimizar el riesgo de perder fidelidad visual
+  en una transcripción tan grande.
+- El scroll-reveal (`IntersectionObserver`, fade + `translateY(16px)`,
+  stagger de hasta 3×60ms) y el shadow del header al scrollear se portaron
+  casi literal desde el `componentDidMount()`/`componentDidUpdate()` del
+  prototipo a JS plano al final de `src/landing.html`.
+- `<sc-if value="{{ mostrarPreguntas }}">` (un prop para poder ocultar la
+  sección completa desde el panel de la herramienta de diseño) se resolvió
+  a "siempre visible" — es un flag de autoría del mockup, no algo que el
+  sitio público necesite alternar en tiempo de ejecución.
+
+### Dos huecos de responsive que traía el propio diseño
+
+El `.dc.html` no tenía **ningún** `@media` (aparte de
+`prefers-reduced-motion`) — se ve bien a los ~1240px en que se diseñó, pero
+nadie lo había probado angosto. Probándolo en 375px aparecieron dos roturas
+reales (no cosméticas, contenido literalmente superpuesto e ilegible), que
+arreglé agregando el único responsive que el archivo no traía:
+
+- **La grilla de "Funciones"** (`grid-template-columns:repeat(6,1fr)`, sin
+  breakpoint) dejaba tarjetas de ~60px de ancho en un celular, todas
+  amontonadas. Ahora colapsa a una columna por debajo de 820px
+  (`.lp-funcs-grid`/`.lp-funcs-4`/`.lp-funcs-2`).
+- **El header** (logo + 3 links + 2 botones en una sola fila, sin
+  breakpoint) se pisaba por completo a 375px. Por debajo de 700px se
+  esconden el nav del medio y "Iniciar sesión" (Funciones/Cómo calcula tu
+  nota/Preguntas siguen alcanzables scrolleando, y se repiten en el footer;
+  "Crear mi cuenta" es el único CTA que queda, y ya alcanza para todo lo que
+  hace esta página). No se armó un menú hamburguesa — el diseño no
+  especificaba ninguno y hubiera sido inventar UI no pedida en vez de tapar
+  el hueco real.
+
+En ambos casos hizo falta mover la propiedad en cuestión
+(`grid-template-columns`, `display`) del `style=""` inline a una clase CSS,
+porque un inline style le gana a cualquier regla de media query salvo con
+`!important` — se optó por lo primero, es más limpio.
+
+El resto de las secciones (hero, "cómo calcula tu nota", cuenta, testimonios,
+preguntas, footer) ya usaban `flex-wrap:wrap` con `min-width` en el propio
+diseño y absorben el angosto sin ayuda — probado sin overflow horizontal en
+375px salvo un recorte menor y contenido del mockup del hero (tiene
+`min-width:340px` y el `overflow-x:hidden` del propio diseño ya lo esperaba;
+no es scroll de página, es sólo un recorte visual del decorado).
+
+### Build y build:landing
+
+A diferencia de `build-app.mjs`, no hay nada que concatenar: `src/landing.html`
+ya trae su propio `<style>` y `<script>` embebidos (una sola página
+autocontenida, sin Supabase ni dependencias de otros módulos de `src/`), así
+que `build/build-landing.mjs` sólo la envuelve con el doctype/head/favicon de
+marca (mismo isotipo que `build-app.mjs`) y la escribe en `out/landing.html`.
+`npm run build` corre los dos builds (`build:app` y `build:landing`) en
+secuencia.
+
+### Lo que no se tocó
+
+- La foto de la tarjeta "Agenda y calendario juntos" sigue siendo el
+  placeholder de picsum.photos del prototipo
+  (`picsum.photos/seed/cursada-escritorio-apuntes-facultad/…`) — no había
+  ninguna foto real provista en el handoff, y no es algo que se pueda
+  resolver generando contenido; hace falta una foto real (o un pedido
+  explícito de generarla) para reemplazarla.
+- El copy, los testimonios y los datos de ejemplo (Joaquín, Valentina,
+  Nicolás, las 4 preguntas) son los que ya traía el mockup — no se
+  inventó ni se editó texto nuevo.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que
