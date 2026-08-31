@@ -265,6 +265,7 @@
         return true;
       } catch (e) {
         console.warn('Cursada: error guardando ' + table, e);
+        if (esErrorSesionVencida(e)) mostrarSesionVencida();
         return false;
       }
     };
@@ -304,6 +305,7 @@
       return true;
     } catch (e) {
       console.warn('Cursada: error guardando semestres', e);
+      if (esErrorSesionVencida(e)) mostrarSesionVencida();
       return false;
     }
   }
@@ -369,7 +371,52 @@
     CACHE.personal = results[4].data.map(rowToPersonal);
   }
 
+  // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
+  // otro (red caída, RLS, etc.) — best-effort: la forma exacta del objeto de
+  // error varía según si lo devuelve auth-js (falla al refrescar el token,
+  // `.status` 401, mensajes tipo "Invalid Refresh Token" / "session missing")
+  // o PostgREST en una consulta a una tabla con el JWT ya vencido (`.code`
+  // "PGRST301" = "JWT expired"). No se pudo probar contra un token realmente
+  // vencido en este entorno (tarda ~1h en vencer solo) — si en producción
+  // aparece un caso que esta regex no agarra, sumarlo acá es el único
+  // cambio que hace falta (avisarError()/mostrarSesionVencida() ya quedan
+  // conectados a esta función, no a cada call site).
+  function esErrorSesionVencida(e) {
+    if (!e) return false;
+    if (e.status === 401) return true;
+    if (e.code === 'PGRST301') return true;
+    var msg = (e.message || '') + '';
+    return /jwt expired|invalid refresh token|refresh_token_not_found|session_not_found|session.*missing|invalid jwt/i.test(msg);
+  }
+
+  // Punto único al que confluyen los dos caminos por los que puede aparecer
+  // una sesión vencida en medio del uso: (a) un guardado falla con un error
+  // de este tipo (ver makeSaver/saveSemestresRaw) y (b) Supabase dispara
+  // SIGNED_OUT solo, sin que medie un logout deliberado (ver
+  // onAuthStateChange), porque no pudo refrescar el token. Los dos casos
+  // necesitan la misma pantalla, y sólo una vez — el guard de abajo evita
+  // mostrarla dos veces si, por ejemplo, un guardado falla y además dispara
+  // el SIGNED_OUT automático casi al mismo tiempo.
+  var SESION_VENCIDA_MOSTRADA = false;
+  function mostrarSesionVencida() {
+    if (SESION_VENCIDA_MOSTRADA) return;
+    SESION_VENCIDA_MOSTRADA = true;
+    CURRENT_USER = null; CURRENT_PROFILE = null;
+    CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
+    // Se cierra cualquier modal abierto directamente (sin pasar por
+    // closeModalEl(), que preguntaría "¿descartar cambios?" — decisión
+    // documentada en el README: un aviso claro sin intentar preservar el
+    // formulario. Preservarlo de verdad implicaría reconstruir, para cada
+    // uno de los 4 modales, estado que vive fuera de <form> — colores y
+    // franjas horarias de materia, tipo de evaluación, escala de nota — algo
+    // bastante más grande que este pedido para un caso poco frecuente).
+    document.querySelectorAll('.modal-backdrop.is-open').forEach(function (m) { m.classList.remove('is-open'); });
+    PERFIL_MODAL_BLOQUEANTE = false;
+    setGate('gate-sesion-vencida');
+  }
+
   function avisarError(msg) {
+    if (SESION_VENCIDA_MOSTRADA) return; // ya se está mostrando esa pantalla — no duplicar con el alert() genérico
     alert(msg || 'No se pudo guardar. Revisá tu conexión a internet e intentá de nuevo.');
   }
 
@@ -2220,12 +2267,25 @@
   // ================================================================
   var AUTH_MODE = 'signin'; // 'signin' | 'signup'
   var JUST_SIGNED_UP = false; // true entre un signUp() con sesión inmediata y el próximo onSignedIn()
+  // true entre el evento PASSWORD_RECOVERY y que se guarde la contraseña
+  // nueva (o se abandone la pantalla) — mientras tanto hay una sesión
+  // temporal activa que NO debe arrancar la app normal (ver onAuthStateChange
+  // más abajo).
+  var EN_RECUPERACION_PASSWORD = false;
+  // true sólo durante el signOut() que dispara el propio botón "Cerrar
+  // sesión" (o el botón de la pantalla de sesión vencida) — así el listener
+  // de SIGNED_OUT puede distinguir "elegiste cerrar sesión" de "Supabase te
+  // cerró la sesión sola" (token/refresh token inválido) y mostrar la
+  // pantalla correcta en cada caso.
+  var CERRANDO_SESION_DELIBERADO = false;
 
   // Controla qué pantalla de nivel superior se ve: 'gate-loading' (cargando
-  // sesión o datos), 'auth-screen' (sin sesión), 'gate-error' (falló la carga
-  // de datos) — o null para mostrar #app (ya con sesión y datos listos).
+  // sesión o datos), 'auth-screen' (sin sesión, incluye recuperar
+  // contraseña), 'gate-error' (falló la carga de datos), 'gate-sesion-vencida'
+  // (la sesión venció en medio del uso) — o null para mostrar #app (ya con
+  // sesión y datos listos).
   function setGate(id) {
-    ['gate-loading', 'auth-screen', 'gate-error'].forEach(function (x) {
+    ['gate-loading', 'auth-screen', 'gate-error', 'gate-sesion-vencida'].forEach(function (x) {
       document.getElementById(x).classList.toggle('hidden', x !== id);
     });
     document.getElementById('app').classList.toggle('hidden', !!id);
@@ -2241,6 +2301,14 @@
     if (/invalid.*email/i.test(msg)) return 'Ese email no parece válido.';
     if (/rate limit/i.test(msg)) return 'Demasiados intentos — esperá un minuto y probá de nuevo.';
     if (/provider is not enabled/i.test(msg)) return 'El login con Google todavía no está habilitado en el proyecto.';
+    // Va ANTES que el chequeo de access_denied de acá abajo: Supabase manda
+    // `error=access_denied` como código genérico tanto para "cancelaste el
+    // consentimiento de Google" como para "este link de mail venció o ya se
+    // usó" (confirmación de cuenta o recuperación de contraseña) —
+    // `error_code=otp_expired` (o esta frase en `error_description`) es la
+    // señal específica que desambigua, así que tiene que ganarle a la
+    // genérica si las dos aparecen en el mismo mensaje.
+    if (/otp_expired|email link is invalid or has expired/i.test(msg)) return 'Ese link venció o ya se usó — pedí uno nuevo desde "¿Olvidaste tu contraseña?".';
     if (/access_denied/i.test(msg)) return 'Cancelaste el inicio de sesión con Google.';
     return msg || 'No se pudo completar la operación. Revisá tu conexión a internet.';
   }
@@ -2250,11 +2318,24 @@
     document.querySelectorAll('#auth-mode-toggle [data-auth-mode]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-auth-mode') === mode); });
     document.getElementById('auth-submit').textContent = mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión';
     document.getElementById('auth-signup-fields').classList.toggle('hidden', mode !== 'signup');
+    // No tiene sentido "¿olvidaste tu contraseña?" en el formulario de
+    // registro (todavía no existe una).
+    document.getElementById('auth-forgot-row').classList.toggle('hidden', mode === 'signup');
     showAuthError('');
   }
   function showAuthError(msg) {
     var e = document.getElementById('auth-error');
     e.textContent = msg || ''; e.classList.toggle('hidden', !msg);
+  }
+
+  // .auth-card tiene 5 paneles mutuamente excluyentes (login, confirmá tu
+  // cuenta, y los 3 de recuperación de contraseña) — un solo punto que
+  // oculta los otros 4 y muestra el pedido, en vez de un par de
+  // show/hide sueltos por cada combinación (así lo agregado para
+  // recuperación de contraseña no tuvo que reinventar el mecanismo).
+  var AUTH_PANELS = ['auth-form-panel', 'auth-check-email-panel', 'auth-forgot-panel', 'auth-forgot-sent-panel', 'auth-reset-password-panel'];
+  function showAuthPanel(id) {
+    AUTH_PANELS.forEach(function (p) { document.getElementById(p).classList.toggle('hidden', p !== id); });
   }
 
   // Pantalla dedicada de "confirmá tu cuenta" — reemplaza al formulario
@@ -2266,12 +2347,10 @@
     ULTIMO_EMAIL_REGISTRADO = email;
     document.getElementById('auth-check-email').textContent = email;
     document.getElementById('auth-resend-info').classList.add('hidden');
-    document.getElementById('auth-form-panel').classList.add('hidden');
-    document.getElementById('auth-check-email-panel').classList.remove('hidden');
+    showAuthPanel('auth-check-email-panel');
   }
   function showFormPanel() {
-    document.getElementById('auth-check-email-panel').classList.add('hidden');
-    document.getElementById('auth-form-panel').classList.remove('hidden');
+    showAuthPanel('auth-form-panel');
   }
 
   // Toast breve para feedback puntual que no necesita bloquear la pantalla
@@ -2285,6 +2364,14 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove('is-open'); }, 4000);
   }
+
+  // Destino de vuelta compartido por cualquier flujo que le pida a Supabase
+  // redirigir el navegador (OAuth de Google, el link de recuperación de
+  // contraseña por mail): el propio location.href sin el hash. Si estabas en
+  // #materias antes de entrar, no hace falta preservarlo — al volver
+  // autenticado (o al elegir la contraseña nueva) arrancás en Inicio como
+  // cualquier login nuevo.
+  function authRedirectUrl() { return location.href.split('#')[0]; }
 
   function bindAuthUI() {
     // El botón de Google redirige el navegador entero a Google y vuelve acá
@@ -2301,11 +2388,7 @@
         showAuthError('');
         setBtnBusy(btnGoogle, true, 'Redirigiendo…');
         try {
-          // El propio location.href (sin el hash) como destino de vuelta:
-          // si estabas en #materias antes de entrar, no hace falta
-          // preservarlo — al volver autenticado arrancás en Inicio como
-          // cualquier login nuevo.
-          var res = await sb().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.href.split('#')[0] } });
+          var res = await sb().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: authRedirectUrl() } });
           if (res.error) throw res.error;
           // Si no tiró error, el navegador ya está siendo redirigido a
           // Google — no hay nada más que hacer en esta pestaña.
@@ -2393,6 +2476,83 @@
         info.textContent = traducirErrorAuth(e);
         info.classList.remove('hidden');
       } finally {
+        setBtnBusy(btn, false);
+      }
+    });
+
+    // ---- Recuperar contraseña ----
+    document.getElementById('btn-auth-forgot').addEventListener('click', function () {
+      showAuthError('');
+      document.getElementById('forgot-error').classList.add('hidden');
+      // Mismo caso que el botón de Google: el link del mail necesita volver a
+      // una URL http(s) real, no funciona con el archivo abierto directo.
+      if (location.protocol === 'file:') {
+        showAuthError('Para recuperar tu contraseña, abrí esta página desde una URL http(s) (no funciona con el archivo abierto directamente).');
+        return;
+      }
+      var emailInput = document.querySelector('#form-auth [name="email"]');
+      document.getElementById('forgot-email').value = (emailInput && emailInput.value.trim()) || '';
+      showAuthPanel('auth-forgot-panel');
+    });
+    document.getElementById('btn-forgot-volver').addEventListener('click', function () { showFormPanel(); });
+    document.getElementById('btn-forgot-sent-volver').addEventListener('click', function () { showFormPanel(); });
+    document.getElementById('form-forgot').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var email = ev.target.email.value.trim();
+      var errEl = document.getElementById('forgot-error');
+      errEl.classList.add('hidden');
+      var btn = document.getElementById('forgot-submit');
+      setBtnBusy(btn, true, 'Mandando…');
+      try {
+        var res = await sb().auth.resetPasswordForEmail(email, { redirectTo: authRedirectUrl() });
+        if (res.error) throw res.error;
+        // Supabase no distingue en la respuesta si el email existe o no (por
+        // diseño, para no filtrar qué cuentas están registradas) — el mismo
+        // mensaje de "listo" se muestra siempre que la llamada no tira error
+        // de red/formato, nunca uno condicional según si mandó el mail de
+        // verdad.
+        document.getElementById('forgot-sent-email').textContent = email;
+        showAuthPanel('auth-forgot-sent-panel');
+      } catch (e) {
+        errEl.textContent = traducirErrorAuth(e);
+        errEl.classList.remove('hidden');
+      } finally {
+        setBtnBusy(btn, false);
+      }
+    });
+
+    // ---- Elegir contraseña nueva (volviendo del link del mail) ----
+    document.getElementById('form-reset-password').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var form = ev.target;
+      var pass = form.password.value;
+      var confirm2 = form.passwordConfirm.value;
+      var errEl = document.getElementById('reset-password-error');
+      errEl.classList.add('hidden');
+      if (pass !== confirm2) {
+        errEl.textContent = 'Las contraseñas no coinciden.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (pass.length < 6) {
+        errEl.textContent = 'La contraseña tiene que tener al menos 6 caracteres.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      var btn = document.getElementById('reset-password-submit');
+      setBtnBusy(btn, true, 'Guardando…');
+      try {
+        var res = await sb().auth.updateUser({ password: pass });
+        if (res.error) throw res.error;
+        EN_RECUPERACION_PASSWORD = false;
+        // La sesión temporal que creó el link de recuperación ya queda
+        // como una sesión normal y válida después de este cambio — no hace
+        // falta un login aparte, se entra directo con el usuario que
+        // devuelve updateUser().
+        onSignedIn(res.data.user);
+      } catch (e) {
+        errEl.textContent = traducirErrorAuth(e);
+        errEl.classList.remove('hidden');
         setBtnBusy(btn, false);
       }
     });
@@ -2536,6 +2696,11 @@
     document.getElementById('btn-logout').addEventListener('click', async function (ev) {
       ev.stopPropagation();
       if (!confirm('¿Cerrar sesión?')) return;
+      // Marca este signOut() como deliberado — así el listener de SIGNED_OUT
+      // sabe que no es un vencimiento de sesión inesperado (ver
+      // onAuthStateChange) y muestra el login normal, no el aviso de "tu
+      // sesión venció".
+      CERRANDO_SESION_DELIBERADO = true;
       await sb().auth.signOut();
     });
     document.getElementById('input-avatar').addEventListener('change', async function (e) {
@@ -2636,7 +2801,12 @@
       await ensureSemestresServerSide();
     } catch (e) {
       console.warn('Cursada: error cargando datos de la cuenta', e);
-      setGate('gate-error');
+      // Mismo criterio que en las funciones de guardado: si esto falló
+      // porque el token ya estaba vencido (p. ej. una pestaña que quedó
+      // dormida horas y el usuario la reactivó) en vez del genérico "no se
+      // pudo cargar" (que sugiere revisar la conexión) se muestra el aviso
+      // correcto — acá sí es la sesión, no la red.
+      if (esErrorSesionVencida(e)) mostrarSesionVencida(); else setGate('gate-error');
       return;
     }
 
@@ -2672,11 +2842,15 @@
   }
 
   // Si volviste de Google con un error (cancelaste el consentimiento, el
-  // proveedor no está bien configurado en Supabase, etc.), Supabase te
-  // devuelve acá con `#error=...&error_description=...` en la URL en vez de
-  // una sesión. Se muestra ese error en la pantalla de login y se limpia el
-  // hash (si no, el router de la app lo intenta leer como si fuera una
-  // vista y además queda pegado en la URL para el próximo refresh).
+  // proveedor no está bien configurado en Supabase, etc.) o de un link de
+  // mail vencido/ya usado (confirmación de cuenta o recuperación de
+  // contraseña — Supabase usa el mismo mecanismo para los tres), volvés acá
+  // con `#error=...&error_description=...` en la URL en vez de una sesión.
+  // Se muestra ese error en la pantalla de login (con el link vencido, no
+  // llega a haber sesión ni evento PASSWORD_RECOVERY — por eso este es el
+  // único lugar que necesita manejar ese caso) y se limpia el hash (si no,
+  // el router de la app lo intenta leer como si fuera una vista y además
+  // queda pegado en la URL para el próximo refresh).
   function mostrarErrorOAuthSiHay() {
     var hash = location.hash || '';
     if (hash.indexOf('error=') < 0) return;
@@ -2695,11 +2869,49 @@
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();
     });
+    document.getElementById('btn-sesion-vencida-login').addEventListener('click', function () {
+      // La sesión ya está vencida (por eso se llegó a esta pantalla) —
+      // signOut() acá es sólo higiene, para que el SDK no se quede con un
+      // token muerto guardado localmente. Se marca como deliberado por la
+      // misma razón que el botón de logout: si el signOut() dispara su
+      // propio SIGNED_OUT (puede ser asíncrono), que no vuelva a mostrar
+      // esta misma pantalla en vez de dejar ver el login.
+      SESION_VENCIDA_MOSTRADA = false;
+      CERRANDO_SESION_DELIBERADO = true;
+      sb().auth.signOut().catch(function () {});
+      onSignedOut();
+    });
     window.addEventListener('hashchange', handleRoute);
 
     sb().auth.onAuthStateChange(function (event, session) {
-      if (event === 'SIGNED_OUT') { onSignedOut(); }
-      else if (session && session.user && (!CURRENT_USER || CURRENT_USER.id !== session.user.id)) { onSignedIn(session.user); }
+      // Volviendo del link de recuperación de contraseña: Supabase establece
+      // una sesión temporal a partir del token de la URL y dispara este
+      // evento en vez de SIGNED_IN — se intercepta ACÁ, antes de que caiga
+      // en la rama de abajo y arranque la app normal con esa sesión
+      // temporal. Se vuelve a bindAuthUI() (auth-screen), no a la app.
+      if (event === 'PASSWORD_RECOVERY') {
+        EN_RECUPERACION_PASSWORD = true;
+        document.getElementById('reset-password-error').classList.add('hidden');
+        document.getElementById('form-reset-password').reset();
+        setGate('auth-screen');
+        showAuthPanel('auth-reset-password-panel');
+        return;
+      }
+      if (event === 'SIGNED_OUT') {
+        if (CERRANDO_SESION_DELIBERADO) { CERRANDO_SESION_DELIBERADO = false; onSignedOut(); }
+        // Puede dispararse solo, sin ninguna acción de guardado de por
+        // medio, si Supabase determina que el refresh token ya no sirve
+        // (pestaña abierta mucho tiempo, token revocado, etc.) — se avisa
+        // con la pantalla dedicada en vez de devolver al login sin
+        // explicación. La única excepción es en medio de la recuperación de
+        // contraseña: ahí un SIGNED_OUT es parte normal del flujo (Supabase
+        // cierra la sesión temporal si se abandona esa pantalla), no un
+        // vencimiento real.
+        else if (!EN_RECUPERACION_PASSWORD) { mostrarSesionVencida(); }
+        return;
+      }
+      if (EN_RECUPERACION_PASSWORD) return; // no arrancar la app con la sesión temporal de recuperación
+      if (session && session.user && (!CURRENT_USER || CURRENT_USER.id !== session.user.id)) { onSignedIn(session.user); }
     });
 
     setGateLoadingText('Cargando sesión…');

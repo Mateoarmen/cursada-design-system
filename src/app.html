@@ -11,10 +11,17 @@
   <button type="button" class="btn btn-primary" id="btn-gate-retry">Reintentar</button>
 </div>
 
+<div class="gate-screen hidden" id="gate-sesion-vencida">
+  <div class="gate-brand"><div class="mark"></div></div>
+  <h1 class="gate-title">Tu sesión venció</h1>
+  <span class="gate-text">Por seguridad tenés que iniciar sesión de nuevo para seguir usando Cursada.</span>
+  <button type="button" class="btn btn-primary" id="btn-sesion-vencida-login">Iniciar sesión de nuevo</button>
+</div>
+
 <!-- ============ LOGIN / REGISTRO ============ -->
 <div class="auth-screen hidden" id="auth-screen">
   <div class="auth-card">
-    <div id="auth-form-panel">
+    <div id="auth-form-panel" class="auth-panel-form">
       <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
       <span class="auth-sub">Gestión académica personal — con cuenta, sincronizada entre tus dispositivos.</span>
       <button type="button" class="btn-google" id="btn-auth-google">
@@ -29,6 +36,12 @@
       <form id="form-auth">
         <div class="field"><label for="auth-email">Email</label><input id="auth-email" name="email" type="email" required autocomplete="email" spellcheck="false" placeholder="tu@email.com"></div>
         <div class="field"><label for="auth-password">Contraseña</label><input id="auth-password" name="password" type="password" required autocomplete="current-password" minlength="6" spellcheck="false" placeholder="Mínimo 6 caracteres"></div>
+        <!-- Acción aparte, no un tercer modo del toggle Iniciar sesión/Crear
+             cuenta de arriba — por eso vive suelta acá, no dentro del seg. Se
+             oculta en modo "Crear cuenta" (setAuthMode) porque no aplica. -->
+        <div id="auth-forgot-row" style="display:flex;justify-content:flex-end;margin-top:-8px">
+          <button type="button" class="link-btn" id="btn-auth-forgot">¿Olvidaste tu contraseña?</button>
+        </div>
         <div id="auth-signup-fields" class="hidden" style="display:flex;flex-direction:column;gap:14px">
           <div class="field-row">
             <div class="field"><label for="auth-nombre">Nombre</label><input id="auth-nombre" name="nombre" placeholder="Tu nombre" autocomplete="given-name"></div>
@@ -45,13 +58,42 @@
         <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
       </form>
     </div>
-    <div id="auth-check-email-panel" class="hidden">
+    <div id="auth-check-email-panel" class="auth-panel-msg hidden">
       <div class="auth-check-icon">✉</div>
       <h1 class="auth-check-title">Confirmá tu cuenta</h1>
       <span class="auth-check-body">Te mandamos un mail a <b id="auth-check-email"></b> con un link para confirmar tu cuenta. Abrilo (revisá spam si no aparece) y después volvé acá.</span>
       <span class="auth-info hidden" id="auth-resend-info" aria-live="polite"></span>
       <button type="button" class="btn" id="btn-auth-resend" style="width:100%;height:40px">Reenviar mail</button>
       <button type="button" class="btn btn-primary" id="btn-auth-check-volver" style="width:100%;height:44px">Ya confirmé, iniciar sesión</button>
+    </div>
+    <!-- ============ RECUPERAR CONTRASEÑA — pedir el email ============ -->
+    <div id="auth-forgot-panel" class="auth-panel-form hidden">
+      <h1 class="auth-check-title">Recuperar contraseña</h1>
+      <span class="auth-check-body">Ingresá tu email y, si existe una cuenta con ese email, te mandamos un link para elegir una contraseña nueva.</span>
+      <form id="form-forgot">
+        <div class="field"><label for="forgot-email">Email</label><input id="forgot-email" name="email" type="email" required autocomplete="email" spellcheck="false" placeholder="tu@email.com"></div>
+        <span class="auth-error hidden" id="forgot-error" role="alert" aria-live="polite"></span>
+        <button type="submit" class="btn btn-primary" id="forgot-submit" style="width:100%;height:44px;margin-top:4px">Mandar link de recuperación</button>
+      </form>
+      <button type="button" class="btn" id="btn-forgot-volver" style="width:100%;height:40px">Volver a iniciar sesión</button>
+    </div>
+    <!-- ============ RECUPERAR CONTRASEÑA — confirmación de envío ============ -->
+    <div id="auth-forgot-sent-panel" class="auth-panel-msg hidden">
+      <div class="auth-check-icon">✉</div>
+      <h1 class="auth-check-title">Revisá tu email</h1>
+      <span class="auth-check-body">Si existe una cuenta con <b id="forgot-sent-email"></b>, te mandamos un link para elegir una contraseña nueva (revisá spam si no aparece).</span>
+      <button type="button" class="btn btn-primary" id="btn-forgot-sent-volver" style="width:100%;height:44px">Volver a iniciar sesión</button>
+    </div>
+    <!-- ============ RECUPERAR CONTRASEÑA — elegir la nueva (desde el link del mail) ============ -->
+    <div id="auth-reset-password-panel" class="auth-panel-form hidden">
+      <h1 class="auth-check-title">Elegí una contraseña nueva</h1>
+      <span class="auth-check-body">Escribila dos veces para confirmar.</span>
+      <form id="form-reset-password">
+        <div class="field"><label for="reset-password">Contraseña nueva</label><input id="reset-password" name="password" type="password" required autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Mínimo 6 caracteres"></div>
+        <div class="field"><label for="reset-password-confirm">Confirmar contraseña</label><input id="reset-password-confirm" name="passwordConfirm" type="password" required autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Repetila"></div>
+        <span class="auth-error hidden" id="reset-password-error" role="alert" aria-live="polite"></span>
+        <button type="submit" class="btn btn-primary" id="reset-password-submit" style="width:100%;height:44px;margin-top:4px">Guardar contraseña</button>
+      </form>
     </div>
   </div>
 </div>

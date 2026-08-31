@@ -543,6 +543,105 @@ exactamente el punto de enganche para no tener que reescribir el resto.
   de alcance global (tema, semestre) — no se agregó un lugar nuevo en la
   barra superior para no competir con las acciones de cada vista.
 
+### Recuperación de contraseña
+
+`.auth-card` pasó de 2 paneles (login, confirmá tu cuenta) a 5 — se
+generalizó el show/hide puntual que ya existía en un solo `showAuthPanel(id)`
+que oculta los otros 4 y muestra el pedido, en vez de un par de
+`classList.add/remove('hidden')` sueltos por cada combinación nueva.
+
+- **"¿Olvidaste tu contraseña?"** vive como link debajo del campo de
+  contraseña, dentro del formulario pero fuera del `seg` Iniciar
+  sesión/Crear cuenta — es una acción aparte, no un tercer modo de ese
+  toggle. Se oculta en modo "Crear cuenta" (no aplica, todavía no hay
+  contraseña que recuperar).
+- **Pedir el mail**: un panel con un solo campo, llama a
+  `resetPasswordForEmail(email, { redirectTo })` — el mismo `redirectTo`
+  que ya usaba el botón de Google (`location.href` sin el hash), ahora en
+  una función compartida (`authRedirectUrl()`) en vez de repetido en las dos
+  llamadas. La confirmación ("revisá tu email") es siempre el mismo mensaje
+  genérico, nunca condicional a si la llamada realmente encontró una cuenta
+  con ese mail — es el comportamiento por defecto de Supabase (no filtra qué
+  emails están registrados) y no tiene sentido armarle un mensaje propio que
+  lo contradiga.
+- **Volver del link del mail**: Supabase establece una sesión temporal a
+  partir del token de la URL y dispara el evento `PASSWORD_RECOVERY` (no
+  `SIGNED_IN`) — se intercepta ANTES de la rama genérica de
+  `onAuthStateChange` que arranca la app, así que esa sesión temporal nunca
+  llega a mostrar el dashboard. En su lugar se ve una pantalla dedicada
+  (mismo patrón visual que el resto de `auth-screen`) con contraseña +
+  confirmación. Al guardar (`updateUser({ password })`), esa sesión temporal
+  ya queda como una sesión válida — se entra directo a la app
+  (`onSignedIn(res.data.user)`), sin pedir un login aparte.
+- **Errores**: contraseñas que no coinciden y contraseña corta (mismo
+  mínimo de 6 caracteres que el registro) se validan en el propio
+  formulario, antes de llamar a Supabase. Un link vencido o ya usado nunca
+  llega a generar sesión ni evento `PASSWORD_RECOVERY` — Supabase vuelve en
+  cambio con `#error=access_denied&error_code=otp_expired&…` en el hash, el
+  mismo mecanismo que ya manejaba `mostrarErrorOAuthSiHay()` para los
+  errores de Google, así que no hizo falta un camino nuevo — sólo un ajuste
+  de orden en `traducirErrorAuth()`: Supabase reusa el código genérico
+  `access_denied` tanto para "cancelaste el login de Google" como para
+  "este link venció", así que el chequeo específico (`otp_expired`) tiene
+  que evaluarse antes que el genérico, si no siempre gana el mensaje de
+  Google. El aviso de link vencido señala el mismo camino para pedir uno
+  nuevo: el link de "¿Olvidaste tu contraseña?".
+
+### Manejo de sesión expirada en medio del uso
+
+Antes, un guardado fallido (por cualquier motivo) mostraba siempre el mismo
+`avisarError()` genérico ("revisá tu conexión a internet") — si la causa
+real era que el token venció, el mensaje no tenía nada que ver con lo que
+había que hacer (iniciar sesión de nuevo, no revisar el wifi).
+
+- **`esErrorSesionVencida(e)`** clasifica el error antes de decidir qué
+  mostrar: `.status === 401`, `.code === 'PGRST301'` ("JWT expired", el
+  código que devuelve PostgREST) o un puñado de mensajes conocidos de
+  auth-js (`Invalid Refresh Token`, `session_not_found`, etc.) cuentan como
+  sesión vencida; cualquier otra cosa sigue el camino genérico de siempre.
+  Es best-effort: no se pudo probar contra un JWT realmente vencido en este
+  entorno (tarda ~1h en vencer solo) — quedó documentado en el propio
+  comentario de la función para que, si en producción aparece un caso que
+  esta regex no agarra, sumarlo ahí sea el único cambio que hace falta (ya
+  está conectado a los tres lugares que lo necesitan, no repartido).
+- **Dos caminos, una sola pantalla**: `mostrarSesionVencida()` es el punto
+  al que confluyen (a) un guardado que falla con ese tipo de error
+  (`makeSaver`/`saveSemestresRaw`, y también la carga inicial de datos en
+  `loadAllFromSupabase()`) y (b) un evento `SIGNED_OUT` que Supabase dispara
+  solo — sin que medie ningún guardado — cuando determina que el refresh
+  token ya no sirve. Para (b) hacía falta distinguirlo de un logout
+  deliberado (el botón "Cerrar sesión" también dispara `SIGNED_OUT`): un
+  flag (`CERRANDO_SESION_DELIBERADO`) se marca justo antes de los dos únicos
+  `signOut()` intencionales de la app (el botón de logout y el botón de la
+  propia pantalla de sesión vencida) — si `SIGNED_OUT` llega sin ese flag
+  marcado, es Supabase cerrando la sesión sola.
+- **Qué hace `mostrarSesionVencida()`**: limpia `CACHE`/`CURRENT_USER` (como
+  un logout), cierra cualquier modal que haya quedado abierto directamente
+  (no vía `closeModalEl()`, que preguntaría "¿descartar cambios?" — ver
+  la decisión de abajo) y muestra `gate-sesion-vencida`, una pantalla más
+  con el mismo tratamiento visual que `gate-loading`/`gate-error`
+  (`.gate-screen`), con un botón "Iniciar sesión de nuevo" que lleva al
+  login. Un guard (`SESION_VENCIDA_MOSTRADA`) evita mostrarla dos veces si,
+  por ejemplo, un guardado falla y además dispara el `SIGNED_OUT` automático
+  casi al mismo tiempo — y hace que `avisarError()` se vuelva un no-op
+  mientras tanto, para no terminar con el `alert()` genérico apilado encima
+  de la pantalla dedicada.
+- **Decisión: no se preserva el formulario del modal abierto.** Si el
+  guardado que reveló la sesión vencida venía de un modal (materia,
+  evaluación, evento personal o perfil) con datos sin guardar, esos datos se
+  pierden — se prefirió un aviso claro y confiable antes que un intento de
+  preservación. La razón: cada uno de los 4 modales tiene, además de los
+  campos con `name` de su `<form>`, estado que vive en `STATE.editing` y no
+  en el formulario (colores, franjas horarias y escala de nota en el modal
+  de materia; tipo de evaluación en el de evaluación; "todo el día" en el de
+  evento) — preservarlo de verdad significa, para cada uno, volver a armar
+  ese estado no-formulario y volver a llamar a los `render*()` puntuales que
+  lo pintan (swatches de color, filas de horario, grilla de escala), no sólo
+  guardar un objeto y reabrir el modal. Es una sesión vencida en medio de un
+  modal abierto — un caso posible pero poco frecuente — contra una
+  ampliación real del alcance en las 4 aperturas de modal existentes; no
+  valía la complejidad para este pedido.
+
 ### Perfil de usuario
 
 Nombre, apellido, edad, facultad, carrera, teléfono y foto se editan desde
@@ -688,10 +787,6 @@ faltaría, como mínimo:
   como archivo local o desde cualquier host genérico, los links de
   confirmación de email de Supabase igual funcionan, pero no hay una URL
   "oficial" del producto).
-- **Recuperación de contraseña** ("olvidé mi contraseña") — no se
-  implementó en este pedido, a propósito, para no ampliar el alcance; hoy
-  si alguien pierde su contraseña no tiene forma de recuperar la cuenta
-  desde la app.
 - **Políticas de contraseña** más allá del mínimo de 6 caracteres que exige
   Supabase por defecto (longitud/complejidad configurable desde el panel de
   Supabase, no desde este código).
@@ -707,13 +802,10 @@ faltaría, como mínimo:
   sin él, hay que ir agregando cada URL http(s) nueva desde la que se sirva
   el archivo.
 - **Verificación de dominio de email / anti-spam** para que los mails de
-  confirmación no cayan en spam en proveedores grandes — depende de la
-  configuración de SMTP del proyecto de Supabase (por defecto usa un
-  servicio compartido con límites bajos, pensado para desarrollo).
-- **Manejo de sesión expirada en medio del uso** — hoy, si el token vence
-  mientras la app está abierta, la próxima operación de guardado va a
-  fallar con el aviso de error genérico; no hay un flujo dedicado de
-  "tu sesión venció, iniciá sesión de nuevo" con redirección automática.
+  confirmación (y los de recuperación de contraseña) no caigan en spam en
+  proveedores grandes — depende de la configuración de SMTP del proyecto de
+  Supabase (por defecto usa un servicio compartido con límites bajos,
+  pensado para desarrollo).
 
 ## Accesibilidad y guidelines de interfaz web
 
