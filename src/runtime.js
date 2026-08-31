@@ -2365,7 +2365,10 @@
     btnNo.onclick = function () {
       marcarImportLocalResuelto();
       closeAllModals();
-      if (!CACHE.materias.length) showOnboarding();
+      // Misma prioridad que en onSignedIn(): completar perfil antes que
+      // onboarding — este callback se salteaba ese chequeo y saltaba
+      // directo a onboarding.
+      if (!maybeOfrecerCompletarPerfil() && !CACHE.materias.length) showOnboarding();
     };
     openModal('modal-importar-local');
     return true;
