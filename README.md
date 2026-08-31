@@ -495,9 +495,24 @@ exactamente el punto de enganche para no tener que reescribir el resto.
   muestra una pantalla de error con un botón "Reintentar" en vez de dejar
   alguna vista a medio armar o en blanco.
 - **Sin sesión activa**, la app no muestra ninguna pantalla de datos — sólo
-  el formulario de login/registro (email + contraseña; sin login social por
-  ahora). El mismo formulario alterna entre "Iniciar sesión" y "Crear
-  cuenta" con un toggle arriba.
+  la pantalla de login/registro: un botón "Continuar con Google" arriba de
+  todo y, debajo de un separador, el formulario de email + contraseña (que
+  alterna entre "Iniciar sesión" y "Crear cuenta" con un toggle). El
+  proveedor de Google se habilitó del lado de Supabase (fuera de este
+  código, igual que el resto del proyecto) — acá sólo se agregó el botón y
+  su manejo de errores.
+- **Google necesita una URL http(s) real para el viaje de ida y vuelta**
+  (`signInWithOAuth()` redirige la pestaña entera a Google y Supabase te
+  trae de vuelta a `redirectTo`, que la app arma a partir de
+  `location.href`) — no funciona si abriste el archivo con doble clic
+  (`file://`), porque ni Google ni Supabase pueden redirigir a una ruta de
+  archivo local. En ese caso el botón queda visible pero deshabilitado, con
+  un tooltip que lo explica, en vez de fallar en silencio. Si volvés de
+  Google con un error (cancelaste el consentimiento, el proveedor no está
+  habilitado, etc.), la app lo detecta en el hash de la URL (`#error=…`), lo
+  traduce y lo muestra en la misma pantalla de login — y limpia ese hash de
+  la URL para que el router de la app no lo confunda con una vista ni quede
+  pegado ahí en un refresh.
 - El proyecto de Supabase tiene **confirmación de email activada**: al
   registrarte no queda una sesión activa hasta que confirmás el mail que te
   llega. La app lo detecta (`signUp()` no devuelve sesión) y, en vez de un
@@ -588,8 +603,14 @@ faltaría, como mínimo:
 - **Límites de rate** en signup/login más allá de los defaults del proyecto
   de Supabase (protección contra fuerza bruta / spam de cuentas) — revisar
   la configuración del proyecto, no algo que se controle desde el cliente.
-- **Login social** (Google, Apple, etc.) — mencionado en el pedido original
-  como explícitamente fuera de alcance por ahora.
+- **Login social más allá de Google** (Apple, etc.) — Google ya se agregó;
+  el resto sigue fuera de alcance por ahora.
+- **Dominio real para que Google OAuth funcione siempre**: el botón de
+  Google necesita que `redirectTo` sea una URL que Supabase tenga en su
+  lista de "Redirect URLs" permitidas (configuración del proyecto, no de
+  este código) — con un dominio propio, ese paso se configura una sola vez;
+  sin él, hay que ir agregando cada URL http(s) nueva desde la que se sirva
+  el archivo.
 - **Verificación de dominio de email / anti-spam** para que los mails de
   confirmación no cayan en spam en proveedores grandes — depende de la
   configuración de SMTP del proyecto de Supabase (por defecto usa un

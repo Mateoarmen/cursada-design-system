@@ -2008,6 +2008,8 @@
     if (/Password should be at least/i.test(msg)) return 'La contraseña tiene que tener al menos 6 caracteres.';
     if (/invalid.*email/i.test(msg)) return 'Ese email no parece válido.';
     if (/rate limit/i.test(msg)) return 'Demasiados intentos — esperá un minuto y probá de nuevo.';
+    if (/provider is not enabled/i.test(msg)) return 'El login con Google todavía no está habilitado en el proyecto.';
+    if (/access_denied/i.test(msg)) return 'Cancelaste el inicio de sesión con Google.';
     return msg || 'No se pudo completar la operación. Revisá tu conexión a internet.';
   }
 
@@ -2052,6 +2054,34 @@
   }
 
   function bindAuthUI() {
+    // El botón de Google redirige el navegador entero a Google y vuelve acá
+    // (Supabase se encarga del intercambio de tokens); eso necesita una URL
+    // http(s) real como destino de vuelta — no funciona si el archivo se
+    // abrió con doble clic (file://). Se deja visible pero deshabilitado en
+    // ese caso, con una explicación, en vez de fallar sin avisar.
+    var btnGoogle = document.getElementById('btn-auth-google');
+    if (location.protocol === 'file:') {
+      btnGoogle.disabled = true;
+      btnGoogle.title = 'Para entrar con Google, abrí esta página desde una URL http(s) (no funciona con el archivo abierto directamente).';
+    } else {
+      btnGoogle.addEventListener('click', async function () {
+        showAuthError('');
+        setBtnBusy(btnGoogle, true, 'Redirigiendo…');
+        try {
+          // El propio location.href (sin el hash) como destino de vuelta:
+          // si estabas en #materias antes de entrar, no hace falta
+          // preservarlo — al volver autenticado arrancás en Inicio como
+          // cualquier login nuevo.
+          var res = await sb().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.href.split('#')[0] } });
+          if (res.error) throw res.error;
+          // Si no tiró error, el navegador ya está siendo redirigido a
+          // Google — no hay nada más que hacer en esta pestaña.
+        } catch (e) {
+          showAuthError(traducirErrorAuth(e));
+          setBtnBusy(btnGoogle, false);
+        }
+      });
+    }
     document.querySelectorAll('#auth-mode-toggle [data-auth-mode]').forEach(function (b) {
       b.addEventListener('click', function () { setAuthMode(b.getAttribute('data-auth-mode')); });
     });
@@ -2276,6 +2306,22 @@
     setGate('auth-screen');
   }
 
+  // Si volviste de Google con un error (cancelaste el consentimiento, el
+  // proveedor no está bien configurado en Supabase, etc.), Supabase te
+  // devuelve acá con `#error=...&error_description=...` en la URL en vez de
+  // una sesión. Se muestra ese error en la pantalla de login y se limpia el
+  // hash (si no, el router de la app lo intenta leer como si fuera una
+  // vista y además queda pegado en la URL para el próximo refresh).
+  function mostrarErrorOAuthSiHay() {
+    var hash = location.hash || '';
+    if (hash.indexOf('error=') < 0) return;
+    var params = new URLSearchParams(hash.replace(/^#/, ''));
+    var codigo = params.get('error') || '';
+    var desc = params.get('error_description') || codigo;
+    if (desc) showAuthError(traducirErrorAuth({ message: codigo + ' ' + desc }));
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initTheme();
     bindGlobalUI();
@@ -2295,7 +2341,14 @@
     setGate('gate-loading');
     sb().auth.getSession().then(function (res) {
       var session = res.data && res.data.session;
-      if (!session) { setAuthMode('signin'); setGate('auth-screen'); }
+      if (!session) {
+        setAuthMode('signin');
+        setGate('auth-screen');
+        // Después de setAuthMode() (que limpia el error al resetear el
+        // formulario) — si no, un error de vuelta de Google quedaría
+        // pisado por ese reset antes de llegar a mostrarse.
+        mostrarErrorOAuthSiHay();
+      }
       // Si hay sesión, el evento inicial de onAuthStateChange se encarga.
     });
   });
