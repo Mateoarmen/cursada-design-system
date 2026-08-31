@@ -3,7 +3,13 @@
 //
 // Qué hace:
 //   Envuelve src/landing.html (chrome + <style> + <script>, ya autocontenido)
-//   con el doctype/head/favicon de marca y lo escribe en out/landing.html.
+//   con el doctype/head/favicon de marca y lo escribe en out/index.html —
+//   index.html, no landing.html, a propósito: es la pantalla de entrada de
+//   toda la plataforma (lo que sirve cualquier hosting estático por defecto
+//   en la raíz del dominio), la app autenticada (out/Cursada.html) es un
+//   paso posterior, no la puerta de entrada. Sus botones "Crear mi
+//   cuenta"/"Iniciar sesión" apuntan a Cursada.html con una ruta relativa,
+//   así que los dos archivos tienen que servirse desde el mismo directorio.
 //   A diferencia de build-app.mjs, no concatena varios archivos: la landing
 //   es una única página estática sin dependencias de Supabase ni de otros
 //   módulos de src/, así que no hace falta más que este envoltorio.
@@ -42,7 +48,7 @@ ${landingHtml}
 `;
 
   await mkdir(OUT, { recursive: true });
-  const outPath = path.join(OUT, 'landing.html');
+  const outPath = path.join(OUT, 'index.html');
   await writeFile(outPath, html, 'utf8');
   const sizeKb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
   console.log('[build] listo → ' + path.relative(ROOT, outPath) + ' (' + sizeKb + ' KB)');

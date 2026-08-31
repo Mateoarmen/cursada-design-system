@@ -1106,13 +1106,26 @@ diseño y absorben el angosto sin ayuda — probado sin overflow horizontal en
 `min-width:340px` y el `overflow-x:hidden` del propio diseño ya lo esperaba;
 no es scroll de página, es sólo un recorte visual del decorado).
 
+### Es la puerta de entrada, no una página suelta
+
+La landing **es** el punto de entrada de toda la plataforma, no un archivo
+más al lado de la app — `build/build-landing.mjs` la escribe en
+**`out/index.html`** (no `landing.html`) a propósito: es el nombre que
+cualquier hosting estático sirve solo en la raíz del dominio, sin configurar
+nada aparte. Sus 4 CTAs ("Crear mi cuenta" ×3, "Iniciar sesión") apuntan con
+ruta relativa a `Cursada.html` — la app autenticada es el paso siguiente, no
+el primero. Esto asume que `out/index.html` y `out/Cursada.html` se sirven
+juntos, desde el mismo directorio (ambos build scripts ya escriben ahí) — si
+el día de mañana la app se sirve desde otro dominio o subruta, ese único
+`href="Cursada.html"` (4 apariciones) es lo que hay que actualizar.
+
 ### Build y build:landing
 
 A diferencia de `build-app.mjs`, no hay nada que concatenar: `src/landing.html`
 ya trae su propio `<style>` y `<script>` embebidos (una sola página
 autocontenida, sin Supabase ni dependencias de otros módulos de `src/`), así
 que `build/build-landing.mjs` sólo la envuelve con el doctype/head/favicon de
-marca (mismo isotipo que `build-app.mjs`) y la escribe en `out/landing.html`.
+marca (mismo isotipo que `build-app.mjs`) y la escribe en `out/index.html`.
 `npm run build` corre los dos builds (`build:app` y `build:landing`) en
 secuencia.
 
