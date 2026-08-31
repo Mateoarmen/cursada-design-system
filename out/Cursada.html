@@ -184,8 +184,8 @@ html[data-theme="oscuro"] .nav-item .mark{background:rgba(255,255,255,.25)}
 
 .main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
 .topbar{
-  height:62px;flex:none;background:rgba(245,245,247,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--c-line);
-  display:flex;align-items:center;justify-content:space-between;padding:0 34px;gap:16px;flex-wrap:wrap;
+  min-height:62px;flex:none;background:rgba(245,245,247,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--c-line);
+  display:flex;align-items:center;justify-content:space-between;padding:10px 34px;gap:10px 16px;flex-wrap:wrap;
 }
 html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .topbar-title{display:flex;align-items:baseline;gap:12px;min-width:0}
@@ -380,19 +380,31 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .cal-weekdays span{font-size:11px;letter-spacing:.05em;color:var(--c-ink3);text-transform:uppercase;padding-left:4px}
 .cal-grid{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:1fr;gap:8px}
 .cal-grid.is-semana{grid-template-rows:1fr}
-.cal-cell{background:var(--c-surface);border:none;box-shadow:var(--c-shadow);border-radius:14px;padding:9px 10px;display:flex;flex-direction:column;gap:7px;overflow:hidden;min-height:78px;position:relative}
-.cal-cell.is-semana{min-height:420px;overflow-y:auto}
-.cal-cell.is-muted{background:var(--c-line-faint2);box-shadow:none}
-.cal-cell.is-hoy{box-shadow:0 0 0 2px var(--c-accent)}
+/* Celdas planas (borde, no sombra): a 42 a la vez, una sombra por celda se
+   siente "tarjeta flotante x42" y satura visualmente la grilla. La sombra
+   real (var(--c-shadow)) queda reservada para .cal-day-card, donde sí
+   comunica jerarquía (el día elegido, en el panel lateral). */
+.cal-cell{background:var(--c-surface);border:1px solid var(--c-line);border-radius:12px;padding:8px 9px;display:flex;flex-direction:column;gap:5px;overflow:hidden;min-height:96px;position:relative}
+.cal-cell.is-semana{min-height:340px;overflow-y:auto}
+.cal-cell.is-muted{background:var(--c-line-faint2);border-color:transparent}
+.cal-cell.is-hoy{border-color:var(--c-accent);box-shadow:0 0 0 1px var(--c-accent)}
 .cal-cell.is-selected{outline:2px solid var(--c-ink2);outline-offset:1px}
-.cal-hoy-badge{position:absolute;top:-8px;right:8px;background:var(--c-accent);color:#fff;font-size:9px;font-weight:700;letter-spacing:.03em;padding:2px 6px;border-radius:999px;line-height:1.4}
+/* top/right positivos, no negativos: .cal-cell tiene overflow:hidden (para
+   truncar ítems largos) y ese mismo overflow recorta cualquier hijo absoluto
+   que se salga del borde de la celda — un top negativo quedaba medio cortado
+   en varias filas de la grilla. */
+.cal-hoy-badge{position:absolute;top:4px;right:4px;background:var(--c-accent);color:#fff;font-size:9px;font-weight:700;letter-spacing:.03em;padding:2px 6px;border-radius:999px;line-height:1.4}
 .cal-cell-head{display:flex;align-items:center;justify-content:space-between}
 .cal-num{font-size:13px;font-weight:500;color:var(--c-ink2);font-variant-numeric:tabular-nums}
 .cal-num.is-hoy{font-weight:700;color:var(--c-accent)}
 .cal-num.is-muted{color:var(--c-muted5)}
-.cal-clases{font-size:10px;color:var(--c-muted6)}
 .cal-events{display:flex;flex-direction:column;gap:3px;min-width:0}
 .cal-event{font-size:11px;font-weight:600;line-height:1.25;padding:4px 7px;border-radius:6px;border-left:3px solid;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cal-item-row{display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0;border-radius:5px;cursor:pointer}
+.cal-item-row:hover{background:var(--c-surfaceAlt)}
+.cal-item-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.cal-item-label{font-size:11px;color:var(--c-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-item-more{font-size:10px;color:var(--c-ink3);padding:1px 2px}
 .cal-side{width:312px;flex:none;background:var(--c-sidenav);border-left:1px solid var(--c-line);padding:22px;display:flex;flex-direction:column;gap:16px}
 .cal-side-head{display:flex;flex-direction:column;gap:4px}
 .cal-side-head .t{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-.015em}
@@ -406,7 +418,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .cal-side-add .btn-block{height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--c-accent);font-size:14px;font-weight:600;border:none;color:#fff}
 .cal-side-add .hint{font-size:11px;color:var(--c-ink3);text-align:center;line-height:1.5}
 .cal-nav{display:flex;gap:6px}
-.cal-nav button{width:30px;height:30px;border:none;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--c-ink2);background:var(--c-surfaceAlt)}
+.cal-nav button{width:36px;height:36px;border:none;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--c-ink2);background:var(--c-surfaceAlt)}
 
 /* ---------- Horario ---------- */
 .horario-grid-wrap{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -596,6 +608,24 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
   .detalle-cols{flex-direction:column}
   .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line)}
   .calendario-wrap{flex-direction:column}
+}
+/* Grilla de 7 columnas real en ~350px de ancho de celda no deja lugar para
+   texto legible (probado: el label se corta a 2-3 caracteres y termina
+   pisando la celda vecina). En vez de forzar texto ilegible, el celular
+   colapsa cada ítem a un punto de color — mismo patrón que Apple Calendar
+   en mes — y el detalle completo del día ya vive en .cal-side, debajo. */
+@media(max-width:640px){
+  .cal-grid,.cal-weekdays{gap:5px}
+  .cal-cell{min-height:58px;padding:6px 5px;border-radius:9px;gap:4px}
+  .cal-cell.is-semana{min-height:120px}
+  .cal-num{font-size:12px}
+  .cal-weekdays span{font-size:9px;padding-left:2px}
+  .cal-events{flex-direction:row;flex-wrap:wrap;gap:3px}
+  .cal-item-row{gap:0}
+  .cal-item-label{display:none}
+  .cal-item-more{display:none}
+  .cal-event{font-size:9px;padding:3px 4px}
+  .cal-hoy-badge{font-size:8px;top:3px;right:3px;padding:1px 4px}
 }
 @media print{
   .sidenav,.topbar-actions,.app-toolbar,.materia-add,.mc-foot .btn,.detalle-actions,.acceso-btn{display:none !important}
@@ -1346,13 +1376,24 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
 <template data-template="cal-cell">
   <div class="cal-cell">
-    <div class="cal-cell-head"><span class="cal-num" data-f="num"></span><span class="cal-clases" data-f="clases"></span></div>
+    <div class="cal-cell-head"><span class="cal-num" data-f="num"></span></div>
     <div class="cal-events" data-f="eventos"></div>
   </div>
 </template>
 
 <template data-template="cal-event">
   <div class="cal-event" data-f="label"></div>
+</template>
+
+<template data-template="cal-item">
+  <div class="cal-item-row">
+    <span class="cal-item-dot" data-f="dot"></span>
+    <span class="cal-item-label" data-f="label"></span>
+  </div>
+</template>
+
+<template data-template="cal-item-more">
+  <div class="cal-item-more" data-f="label"></div>
 </template>
 
 <template data-template="cal-day-card">
@@ -2546,13 +2587,23 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // ================================================================
   // CALENDARIO
   // ================================================================
-  function clasesPorDiaSemana() {
+  function horaAMinutos(hhmm) {
+    if (!hhmm) return 0;
+    var p = String(hhmm).split(':');
+    return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+  }
+
+  function clasesDeDia(dow) {
     // Usa el semestre activo: es el patrón semanal "de ahora", no una
     // reconstrucción histórica exacta por fecha (ver README, sección
     // Semestres) — el Calendario puede navegar a meses de semestres viejos
-    // sin que este contador cambie de fuente.
-    var out = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
-    computeMateriasDelActivo().forEach(function (m) { (m.bloques || []).forEach(function (b) { out[b.dia] = (out[b.dia] || 0) + 1; }); });
+    // sin que estos bloques cambien de fuente.
+    var out = [];
+    computeMateriasDelActivo().forEach(function (m) {
+      (m.bloques || []).forEach(function (b) {
+        if (b.dia === dow) out.push({ kind: 'clase', materia: m, color: m.strong, label: m.cod || truncate(m.nombre, 12), horaLabel: horaTexto(b.ini), sortMin: Math.round(b.ini * 60) });
+      });
+    });
     return out;
   }
 
@@ -2565,12 +2616,20 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
 
   function mondayOf(d) { var dow = designDia(d); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (dow - 1)); }
 
+  function itemClickHandler(item) {
+    return function (evClick) {
+      evClick.stopPropagation();
+      if (item.kind === 'clase') location.hash = '#materia-' + encodeURIComponent(item.materia.id);
+      else if (item.kind === 'materia') openEvaluacionModal({ editId: item.item.id });
+      else openPersonalModal({ editId: item.item.id });
+    };
+  }
+
   function buildDayCell(d, opts) {
     opts = opts || {};
     var muted = !!opts.muted;
     var iso = toISODate(d);
     var isHoy = iso === todayISO();
-    var clases = clasesPorDiaSemana();
     var node = tpl('cal-cell');
     node.classList.toggle('is-muted', muted);
     node.classList.toggle('is-hoy', isHoy);
@@ -2580,29 +2639,45 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var numEl = qf(node, 'num'); numEl.textContent = opts.semana ? (DIAS_CORTOS[d.getDay()] + ' ' + d.getDate()) : String(d.getDate());
     numEl.classList.toggle('is-hoy', isHoy && !muted);
     numEl.classList.toggle('is-muted', muted);
-    var dow = designDia(d);
-    qf(node, 'clases').textContent = (!muted && clases[dow]) ? (clases[dow] + (clases[dow] === 1 ? ' clase' : ' clases')) : '';
     var eventosNode = qf(node, 'eventos');
     if (!muted) {
+      var dow = designDia(d);
+      var items = clasesDeDia(dow);
+      var allDayBars = [];
       eventosDeDia(iso).forEach(function (ev) {
-        if (ev.allDay) {
-          var bar = el('div', 'cal-event');
-          bar.style.background = rgba(PERSONAL_COLOR, .16);
-          bar.style.color = PERSONAL_COLOR;
-          bar.style.borderLeftColor = PERSONAL_COLOR;
-          bar.textContent = ev.label;
-          makeRowClickable(bar, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
-          eventosNode.appendChild(bar);
-        } else {
-          var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0';
-          var dot = el('span'); dot.style.cssText = 'width:7px;height:7px;border-radius:50%;flex:none;background:' + ev.color;
-          var lbl = el('span'); lbl.style.cssText = 'font-size:11px;color:var(--c-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-          lbl.textContent = ev.label + (opts.semana && ev.item && ev.item.hora ? ' · ' + ev.item.hora : '');
-          row.appendChild(dot); row.appendChild(lbl);
-          makeRowClickable(row, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
-          eventosNode.appendChild(row);
-        }
+        if (ev.allDay) { allDayBars.push(ev); return; }
+        items.push({ kind: ev.kind, item: ev.item, materia: ev.materia, color: ev.color, label: ev.label, horaLabel: ev.item && ev.item.hora ? ev.item.hora : '', sortMin: horaAMinutos(ev.item && ev.item.hora) });
       });
+      items.sort(function (a, b) { return a.sortMin - b.sortMin; });
+
+      allDayBars.forEach(function (ev) {
+        var bar = el('div', 'cal-event');
+        bar.style.background = rgba(PERSONAL_COLOR, .16);
+        bar.style.color = PERSONAL_COLOR;
+        bar.style.borderLeftColor = PERSONAL_COLOR;
+        bar.textContent = ev.label;
+        makeRowClickable(bar, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
+        eventosNode.appendChild(bar);
+      });
+
+      // En mes, la celda es chica y fija: se cortan los ítems para que no
+      // desborden en silencio (antes el overflow:hidden los recortaba sin
+      // avisar). En semana, la celda ya scrollea (.is-semana), así que se
+      // listan todos.
+      var cap = opts.semana ? items.length : 3;
+      items.slice(0, cap).forEach(function (item) {
+        var row = tpl('cal-item');
+        qf(row, 'dot').style.background = item.color;
+        var lbl = qf(row, 'label');
+        lbl.textContent = item.label + (opts.semana && item.horaLabel ? ' · ' + item.horaLabel : '');
+        makeRowClickable(row, itemClickHandler(item), item.label + (item.horaLabel ? ', ' + item.horaLabel : ''));
+        eventosNode.appendChild(row);
+      });
+      if (items.length > cap) {
+        var more = tpl('cal-item-more');
+        more.textContent = '+' + (items.length - cap) + ' más';
+        eventosNode.appendChild(more);
+      }
     }
     makeRowClickable(node, function () {
       STATE.calSelected = iso;

@@ -664,13 +664,24 @@
 
 <template data-template="cal-cell">
   <div class="cal-cell">
-    <div class="cal-cell-head"><span class="cal-num" data-f="num"></span><span class="cal-clases" data-f="clases"></span></div>
+    <div class="cal-cell-head"><span class="cal-num" data-f="num"></span></div>
     <div class="cal-events" data-f="eventos"></div>
   </div>
 </template>
 
 <template data-template="cal-event">
   <div class="cal-event" data-f="label"></div>
+</template>
+
+<template data-template="cal-item">
+  <div class="cal-item-row">
+    <span class="cal-item-dot" data-f="dot"></span>
+    <span class="cal-item-label" data-f="label"></span>
+  </div>
+</template>
+
+<template data-template="cal-item-more">
+  <div class="cal-item-more" data-f="label"></div>
 </template>
 
 <template data-template="cal-day-card">

@@ -1052,13 +1052,23 @@
   // ================================================================
   // CALENDARIO
   // ================================================================
-  function clasesPorDiaSemana() {
+  function horaAMinutos(hhmm) {
+    if (!hhmm) return 0;
+    var p = String(hhmm).split(':');
+    return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+  }
+
+  function clasesDeDia(dow) {
     // Usa el semestre activo: es el patrón semanal "de ahora", no una
     // reconstrucción histórica exacta por fecha (ver README, sección
     // Semestres) — el Calendario puede navegar a meses de semestres viejos
-    // sin que este contador cambie de fuente.
-    var out = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
-    computeMateriasDelActivo().forEach(function (m) { (m.bloques || []).forEach(function (b) { out[b.dia] = (out[b.dia] || 0) + 1; }); });
+    // sin que estos bloques cambien de fuente.
+    var out = [];
+    computeMateriasDelActivo().forEach(function (m) {
+      (m.bloques || []).forEach(function (b) {
+        if (b.dia === dow) out.push({ kind: 'clase', materia: m, color: m.strong, label: m.cod || truncate(m.nombre, 12), horaLabel: horaTexto(b.ini), sortMin: Math.round(b.ini * 60) });
+      });
+    });
     return out;
   }
 
@@ -1071,12 +1081,20 @@
 
   function mondayOf(d) { var dow = designDia(d); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (dow - 1)); }
 
+  function itemClickHandler(item) {
+    return function (evClick) {
+      evClick.stopPropagation();
+      if (item.kind === 'clase') location.hash = '#materia-' + encodeURIComponent(item.materia.id);
+      else if (item.kind === 'materia') openEvaluacionModal({ editId: item.item.id });
+      else openPersonalModal({ editId: item.item.id });
+    };
+  }
+
   function buildDayCell(d, opts) {
     opts = opts || {};
     var muted = !!opts.muted;
     var iso = toISODate(d);
     var isHoy = iso === todayISO();
-    var clases = clasesPorDiaSemana();
     var node = tpl('cal-cell');
     node.classList.toggle('is-muted', muted);
     node.classList.toggle('is-hoy', isHoy);
@@ -1086,29 +1104,45 @@
     var numEl = qf(node, 'num'); numEl.textContent = opts.semana ? (DIAS_CORTOS[d.getDay()] + ' ' + d.getDate()) : String(d.getDate());
     numEl.classList.toggle('is-hoy', isHoy && !muted);
     numEl.classList.toggle('is-muted', muted);
-    var dow = designDia(d);
-    qf(node, 'clases').textContent = (!muted && clases[dow]) ? (clases[dow] + (clases[dow] === 1 ? ' clase' : ' clases')) : '';
     var eventosNode = qf(node, 'eventos');
     if (!muted) {
+      var dow = designDia(d);
+      var items = clasesDeDia(dow);
+      var allDayBars = [];
       eventosDeDia(iso).forEach(function (ev) {
-        if (ev.allDay) {
-          var bar = el('div', 'cal-event');
-          bar.style.background = rgba(PERSONAL_COLOR, .16);
-          bar.style.color = PERSONAL_COLOR;
-          bar.style.borderLeftColor = PERSONAL_COLOR;
-          bar.textContent = ev.label;
-          makeRowClickable(bar, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
-          eventosNode.appendChild(bar);
-        } else {
-          var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0';
-          var dot = el('span'); dot.style.cssText = 'width:7px;height:7px;border-radius:50%;flex:none;background:' + ev.color;
-          var lbl = el('span'); lbl.style.cssText = 'font-size:11px;color:var(--c-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-          lbl.textContent = ev.label + (opts.semana && ev.item && ev.item.hora ? ' · ' + ev.item.hora : '');
-          row.appendChild(dot); row.appendChild(lbl);
-          makeRowClickable(row, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
-          eventosNode.appendChild(row);
-        }
+        if (ev.allDay) { allDayBars.push(ev); return; }
+        items.push({ kind: ev.kind, item: ev.item, materia: ev.materia, color: ev.color, label: ev.label, horaLabel: ev.item && ev.item.hora ? ev.item.hora : '', sortMin: horaAMinutos(ev.item && ev.item.hora) });
       });
+      items.sort(function (a, b) { return a.sortMin - b.sortMin; });
+
+      allDayBars.forEach(function (ev) {
+        var bar = el('div', 'cal-event');
+        bar.style.background = rgba(PERSONAL_COLOR, .16);
+        bar.style.color = PERSONAL_COLOR;
+        bar.style.borderLeftColor = PERSONAL_COLOR;
+        bar.textContent = ev.label;
+        makeRowClickable(bar, function (evClick) { evClick.stopPropagation(); if (ev.kind === 'materia') openEvaluacionModal({ editId: ev.item.id }); else openPersonalModal({ editId: ev.item.id }); }, ev.label);
+        eventosNode.appendChild(bar);
+      });
+
+      // En mes, la celda es chica y fija: se cortan los ítems para que no
+      // desborden en silencio (antes el overflow:hidden los recortaba sin
+      // avisar). En semana, la celda ya scrollea (.is-semana), así que se
+      // listan todos.
+      var cap = opts.semana ? items.length : 3;
+      items.slice(0, cap).forEach(function (item) {
+        var row = tpl('cal-item');
+        qf(row, 'dot').style.background = item.color;
+        var lbl = qf(row, 'label');
+        lbl.textContent = item.label + (opts.semana && item.horaLabel ? ' · ' + item.horaLabel : '');
+        makeRowClickable(row, itemClickHandler(item), item.label + (item.horaLabel ? ', ' + item.horaLabel : ''));
+        eventosNode.appendChild(row);
+      });
+      if (items.length > cap) {
+        var more = tpl('cal-item-more');
+        more.textContent = '+' + (items.length - cap) + ' más';
+        eventosNode.appendChild(more);
+      }
     }
     makeRowClickable(node, function () {
       STATE.calSelected = iso;

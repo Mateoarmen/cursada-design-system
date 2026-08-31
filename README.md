@@ -835,6 +835,68 @@ real: es un lindo detalle pero aparece en Materias/Inicio, vistas de uso
 muy frecuente, y `@property` para animar un `conic-gradient` agrega
 complejidad para un beneficio marginal ahí.
 
+## Calendario
+
+Rediseño de usabilidad/legibilidad del Calendario (vista mes y semana), en PC
+y en celular. Dos problemas de fondo, no de superficie:
+
+**1. La grilla no mostraba las clases.** `eventosDeDia()` sólo lee `agenda`
+(evaluaciones) y `personal` — el horario semanal de cada materia (`bloques`)
+nunca se pintaba en la celda, sólo aparecía como texto plano ("2 clases").
+Resultado: un estudiante con clase todos los días veía un calendario casi
+vacío. Ahora `clasesDeDia(dow)` arma esas clases desde `computeMateriasDelActivo()`
+y se mezclan (ordenadas por hora) con evaluaciones y personal en una sola
+lista de ítems con punto de color — el mismo `m.strong` que ya usan la
+leyenda "Referencias" y el Horario semanal, así que el color de una materia
+es consistente en toda la app. Click en un punto de clase navega a
+`#materia-<id>`; click en un punto de evaluación/personal abre su modal
+(igual que antes).
+
+**2. El header de la vista se rompía en mobile.** `.topbar` tenía `height:62px`
+fijo con `flex-wrap:wrap` — cuando el contenido no entraba en una fila (el
+caso normal en celular: título + navegación + "hoy" + selector Mes/Semana +
+botón), el wrap ocurría igual pero la altura fija no crecía, así que la
+segunda fila quedaba **superpuesta** encima de la grilla en vez de debajo.
+Se veía en Calendario (el toggle Mes/Semana tapando los días de la semana)
+y también en Inicio (el botón "+ Nuevo" tapando el "Hola, `‹nombre›`").
+Cambié `height:62px` fijo por `min-height:62px` (+ padding vertical): ahora
+cuando envuelve a una segunda fila, el header simplemente crece. Corrige el
+bug en toda la app, no sólo en Calendario.
+
+Con eso resuelto, el resto es afinar densidad y legibilidad:
+
+- **Celdas planas, no 42 tarjetas flotando**: `.cal-cell` pasó de
+  `box-shadow` a un borde de 1px. Una sombra por celda, multiplicada por 42
+  celdas visibles a la vez, satura la grilla — la sombra real queda para
+  `.cal-day-card` en el panel lateral, donde sí comunica jerarquía (es *el*
+  día elegido).
+- **Recorte visible, no silencioso**: antes `.cal-cell{overflow:hidden}`
+  cortaba ítems de más sin avisar si no entraban en la celda. Ahora el mes
+  muestra hasta 3 ítems por día y agrega "+N más" si hay más — la semana
+  (celda más alta, ya scrollea) los lista todos.
+- **Semana ya no es una pared vacía**: al no pintar clases (problema 1), la
+  vista Semana eran columnas casi en blanco con mucho aire. Con las clases
+  reales adentro, bajé la altura mínima de celda de 420px a 340px (la info
+  ya no necesita tanto alto).
+- **Botones de navegación** (`‹` `›`): de 30×30 a 36×36 — mejor blanco de
+  toque en celular.
+- **`.cal-hoy-badge` (el pill "HOY")**: tenía `top:-8px`, es decir, se
+  posicionaba *fuera* del borde de su propia celda — y esa celda tiene
+  `overflow:hidden`, así que en varias filas de la grilla el badge quedaba
+  cortado a la mitad. Pasó a `top:4px` (adentro del borde), sin recorte en
+  ninguna fila.
+- **Celular (`≤640px`)**: 7 columnas reales en ~45px de ancho de celda no
+  dejan lugar para texto — probé mostrar el label igual y se cortaba a 2-3
+  caracteres, pisando visualmente la celda vecina. Por debajo de ese ancho,
+  cada ítem colapsa a sólo el punto de color (mismo patrón que Apple
+  Calendar en vista mes); el detalle completo del día ya vive debajo, en el
+  panel lateral, que en celular pasa a ocupar todo el ancho.
+
+Probado en el harness mock (`build_test.py`) con datos de prueba realistas
+(4 materias con horario, evaluaciones, personal), en claro/oscuro y en
+375×812 (mobile) y desktop — sin errores de consola, sin overlaps, sin
+texto cortado a mitad de palabra.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que
