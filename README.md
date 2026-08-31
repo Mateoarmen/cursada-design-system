@@ -532,16 +532,72 @@ exactamente el punto de enganche para no tener que reescribir el resto.
 
 ### Perfil de usuario
 
-Nombre y foto se editan desde el modal de perfil (mismo patrón visual que
-los otros 3 modales de la app). La foto se recorta a cuadrado (centrado) y
-se reescala a 256px de lado con `<canvas>` antes de subirse — no hace falta
-un avatar más grande en ningún lugar de la interfaz, y subir el archivo
-original sin comprimir hubiera sido innecesariamente pesado. Sin foto, el
-avatar muestra las iniciales del nombre (o la primera letra del email, si
-todavía no cargaste un nombre) sobre un color de la misma paleta de 9
-acentos que ya usan las materias (`ACCENTS`) — el color es determinístico
-por usuario (siempre el mismo, elegido a partir de tu id de cuenta), no
-aleatorio en cada carga.
+Nombre, apellido, edad, facultad, carrera, teléfono y foto se editan desde
+un único modal de perfil (mismo patrón visual que los otros 3 modales de la
+app), reusado en dos contextos distintos — ver "Completar perfil" más
+abajo. La foto se recorta a cuadrado (centrado) y se reescala a 256px de
+lado con `<canvas>` antes de subirse — no hace falta un avatar más grande en
+ningún lugar de la interfaz, y subir el archivo original sin comprimir
+hubiera sido innecesariamente pesado. Sin foto, el avatar muestra las
+iniciales del nombre (o la primera letra del email, si todavía no cargaste
+un nombre) sobre un color de la misma paleta de 9 acentos que ya usan las
+materias (`ACCENTS`) — el color es determinístico por usuario (siempre el
+mismo, elegido a partir de tu id de cuenta), no aleatorio en cada carga.
+
+`facultad`, `carrera`, `edad` y `telefono` (además de `apellido`) se
+agregaron a `profiles` en un pedido posterior, del lado de Supabase (no
+desde este código) — junto con un trigger `handle_new_user()` que, si el
+registro trae estos datos en `raw_user_meta_data`, los copia solos a la
+fila de `profiles` en el mismo momento de crear la cuenta. Esa parte es
+100% del lado de la base; el trabajo de acá fue mandarle esos datos cuando
+existen (registro por email) y ofrecer una forma de completarlos cuando no
+(Google, o una cuenta vieja).
+
+- **Registro por email**: el formulario de "Crear cuenta" pide, además de
+  email y contraseña, nombre, apellido, edad, facultad, carrera y teléfono
+  — se mandan en `options.data` de `signUp()`, y el trigger de la base los
+  copia solo. **Ninguno de estos 6 campos es obligatorio para poder
+  registrarte** (no tienen `required`) — se puede crear una cuenta con sólo
+  email y contraseña, a propósito: exigir todo de entrada suma fricción justo
+  en el paso donde menos la querés, y lo que quede sin completar se te
+  vuelve a pedir después (ver "Completar perfil"). La edad, si la cargás, se
+  manda como número (no como texto) y el input tiene `min="14" max="99"`
+  como única validación de rango — nada más elaborado, como pedía el
+  alcance.
+- **Registro por Google**: Google no deja interponer un formulario propio
+  antes de volver a la app, así que estos datos (más allá de lo que
+  Supabase/Google puedan completar solos) quedan vacíos hasta que se
+  completan a mano — ver "Completar perfil" a continuación.
+
+### Completar perfil
+
+Después de cada login exitoso (de cualquier tipo — email, Google, o una
+sesión que ya tenías guardada), la app revisa tu fila de `profiles`. Si
+**`facultad`, `carrera` o `telefono`** están vacíos, se abre el mismo modal
+de perfil, pero en modo "Completá tu perfil": título distinto, un texto de
+contexto explicando por qué se pregunta, y el botón de cancelar dice
+"Completar más tarde" en vez de "Cancelar" — mismo formulario, mismo botón
+de guardar, mismo código de guardado que la edición manual del perfil desde
+el side nav; no hay dos formularios de perfil en la base de código, sólo un
+`modo` que cambia el copy alrededor. Elegí sólo esos 3 campos como
+disparadores (no `nombre`/`apellido`/`edad`/foto) siguiendo exactamente el
+pedido — son los que ningún proveedor de login externo va a completar
+nunca solo, a diferencia de nombre/foto que Google sí podría traer.
+
+- **No es bloqueante**: se puede cerrar sin completar nada y seguir usando
+  el resto de la app con normalidad.
+- **Vuelve a aparecer en el próximo login** mientras sigan faltando esos
+  datos — a propósito, sin un flag de "no preguntar más" (a diferencia del
+  aviso de importar datos locales, que si se descarta no vuelve a
+  preguntar en ese navegador). Acá el pedido explícito era lo contrario:
+  insistir suavemente en cada login hasta completarlo, sin bloquear nada.
+- **Prioridad con los otros avisos post-login**: si en el mismo login
+  también correspondería mostrar el aviso de "importar datos locales" o el
+  onboarding de bienvenida (los tres son excluyentes entre sí, para que uno
+  no tape visualmente al otro), el orden es: importar datos locales primero
+  (hay datos reales de por medio), completar perfil después (es rápido y
+  suele darse justo en el momento en que más tiene sentido, un alta por
+  Google), onboarding al final si seguís sin ninguna materia cargada.
 
 ### Migración de datos que ya tenías en `localStorage`
 

@@ -335,7 +335,7 @@
       sb().from('personal').select('*')
     ]);
     results.forEach(function (r) { if (r.error) throw r.error; });
-    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', foto_url: null };
+    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', edad: null, facultad: null, carrera: null, telefono: null, foto_url: null };
     CACHE.semestres = results[1].data.map(rowToSemestre);
     CACHE.materias = results[2].data.map(rowToMateria);
     CACHE.agenda = results[3].data.map(rowToAgenda);
@@ -2017,6 +2017,7 @@
     AUTH_MODE = mode;
     document.querySelectorAll('#auth-mode-toggle [data-auth-mode]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-auth-mode') === mode); });
     document.getElementById('auth-submit').textContent = mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión';
+    document.getElementById('auth-signup-fields').classList.toggle('hidden', mode !== 'signup');
     showAuthError('');
   }
   function showAuthError(msg) {
@@ -2094,9 +2095,30 @@
       var btn = document.getElementById('auth-submit');
       setBtnBusy(btn, true, AUTH_MODE === 'signup' ? 'Creando cuenta…' : 'Entrando…');
       try {
-        var res = AUTH_MODE === 'signup'
-          ? await sb().auth.signUp({ email: email, password: password })
-          : await sb().auth.signInWithPassword({ email: email, password: password });
+        var res;
+        if (AUTH_MODE === 'signup') {
+          // Estos campos no son obligatorios (podés crear la cuenta sin
+          // completarlos) — el trigger de la base los copia solos a
+          // `profiles` si vienen, y si no, la pantalla de "completá tu
+          // perfil" te los va a volver a pedir en el próximo login.
+          var edadTxt = form.edad.value.trim();
+          res = await sb().auth.signUp({
+            email: email,
+            password: password,
+            options: {
+              data: {
+                nombre: form.nombre.value.trim(),
+                apellido: form.apellido.value.trim(),
+                edad: edadTxt === '' ? null : Number(edadTxt),
+                facultad: form.facultad.value.trim(),
+                carrera: form.carrera.value.trim(),
+                telefono: form.telefono.value.trim()
+              }
+            }
+          });
+        } else {
+          res = await sb().auth.signInWithPassword({ email: email, password: password });
+        }
         if (res.error) throw res.error;
         if (AUTH_MODE === 'signup') {
           if (res.data && !res.data.session) {
@@ -2147,11 +2169,44 @@
   // ================================================================
   // PERFIL
   // ================================================================
-  function openPerfilModal() {
-    document.getElementById('form-perfil').nombre.value = (CURRENT_PROFILE && CURRENT_PROFILE.nombre) || '';
+  // modo: 'editar' (default, desde el side nav) | 'completar' (aviso
+  // automático post-login cuando faltan datos — ver maybeOfrecerCompletarPerfil).
+  // Es el mismo modal y el mismo formulario en los dos casos, sólo cambia el
+  // título, un texto de contexto y la etiqueta del botón de cancelar — no
+  // hay dos formularios de perfil en el código.
+  function openPerfilModal(modo) {
+    var p = CURRENT_PROFILE || {};
+    var form = document.getElementById('form-perfil');
+    form.nombre.value = p.nombre || '';
+    form.apellido.value = p.apellido || '';
+    form.edad.value = p.edad != null ? p.edad : '';
+    form.facultad.value = p.facultad || '';
+    form.carrera.value = p.carrera || '';
+    form.telefono.value = p.telefono || '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
+    var completar = modo === 'completar';
+    document.getElementById('modal-perfil-titulo').textContent = completar ? 'Completá tu perfil' : 'Tu perfil';
+    document.getElementById('modal-perfil-intro').classList.toggle('hidden', !completar);
+    document.getElementById('btn-perfil-cancelar').textContent = completar ? 'Completar más tarde' : 'Cancelar';
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
     openModal('modal-perfil');
+  }
+
+  // Los únicos 3 campos que gatillan el aviso — nombre/apellido/edad/foto
+  // pueden quedar sin completar sin que la app insista (ver README).
+  function perfilIncompleto(p) {
+    if (!p) return true;
+    return !p.facultad || !p.carrera || !p.telefono;
+  }
+  // No bloqueante: sólo abre el modal (que se puede cerrar sin guardar nada,
+  // "Completar más tarde") — no impide usar el resto de la app. Si siguen
+  // faltando datos, vuelve a aparecer en el próximo login, sin un flag de
+  // "no preguntar más" (a diferencia del aviso de importar datos locales,
+  // acá si se pospone es a propósito que se repita, ver README).
+  function maybeOfrecerCompletarPerfil() {
+    if (!perfilIncompleto(CURRENT_PROFILE)) return false;
+    openPerfilModal('completar');
+    return true;
   }
 
   // Recorta a cuadrado (centrado) y reescala a 256px de lado — no hace falta
@@ -2193,7 +2248,7 @@
   function bindProfileUI() {
     document.getElementById('sidenav-user').addEventListener('click', function (ev) {
       if (ev.target.closest('#btn-logout')) return;
-      openPerfilModal();
+      openPerfilModal('editar');
     });
     document.getElementById('btn-logout').addEventListener('click', async function (ev) {
       ev.stopPropagation();
@@ -2215,13 +2270,23 @@
     document.getElementById('btn-perfil-foto').addEventListener('click', function () { document.getElementById('input-avatar').click(); });
     document.getElementById('form-perfil').addEventListener('submit', async function (ev) {
       ev.preventDefault();
-      var nombre = ev.target.nombre.value.trim();
+      var form = ev.target;
+      var edadTxt = form.edad.value.trim();
+      var patch = {
+        id: CURRENT_USER.id,
+        nombre: form.nombre.value.trim(),
+        apellido: form.apellido.value.trim(),
+        edad: edadTxt === '' ? null : Number(edadTxt),
+        facultad: form.facultad.value.trim(),
+        carrera: form.carrera.value.trim(),
+        telefono: form.telefono.value.trim()
+      };
       var btn = document.getElementById('btn-perfil-guardar');
       setBtnBusy(btn, true, 'Guardando…');
       try {
-        var res = await sb().from('profiles').upsert({ id: CURRENT_USER.id, nombre: nombre });
+        var res = await sb().from('profiles').upsert(patch);
         if (res.error) throw res.error;
-        CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, { id: CURRENT_USER.id, nombre: nombre });
+        CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, patch);
         closeAllModals();
         renderSidenavUser();
         renderRoute();
@@ -2288,14 +2353,15 @@
     renderSidenavUser();
     handleRoute();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
-    // El aviso de "importar datos locales" y el onboarding son los dos
-    // overlays de pantalla completa que pueden aparecer al iniciar sesión —
-    // nunca los dos a la vez (si no, el de arriba tapa al de abajo). El
-    // aviso de importación tiene prioridad: hay datos reales del usuario de
-    // por medio, y decidir qué hacer con ellos no debería competir visualmente
-    // con la pantalla de bienvenida genérica.
+    // Import de datos locales, "completá tu perfil" y onboarding son los
+    // avisos que pueden aparecer al iniciar sesión — nunca más de uno a la
+    // vez (si no, uno tapa al otro). Orden de prioridad: importar datos
+    // locales primero (hay datos reales de por medio); completar perfil
+    // después (un toque personal rápido, típicamente sólo tras un alta por
+    // Google); onboarding al final, sólo si seguís sin ninguna materia.
     var mostroImportLocal = maybeOfrecerImportLocal();
-    if (!mostroImportLocal && !CACHE.materias.length) showOnboarding();
+    var mostroCompletarPerfil = !mostroImportLocal && maybeOfrecerCompletarPerfil();
+    if (!mostroImportLocal && !mostroCompletarPerfil && !CACHE.materias.length) showOnboarding();
   }
 
   function onSignedOut() {

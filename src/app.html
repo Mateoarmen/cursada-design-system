@@ -29,6 +29,18 @@
       <form id="form-auth">
         <div class="field"><label>Email</label><input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></div>
         <div class="field"><label>Contraseña</label><input name="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></div>
+        <div id="auth-signup-fields" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+          <div class="field-row">
+            <div class="field"><label>Nombre</label><input name="nombre" placeholder="Tu nombre" autocomplete="given-name"></div>
+            <div class="field"><label>Apellido</label><input name="apellido" placeholder="Tu apellido" autocomplete="family-name"></div>
+          </div>
+          <div class="field-row">
+            <div class="field" style="flex:none;width:100px"><label>Edad</label><input name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
+            <div class="field"><label>Teléfono</label><input name="telefono" type="tel" placeholder="Ej: 099 123 456" autocomplete="tel"></div>
+          </div>
+          <div class="field"><label>Facultad</label><input name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
+          <div class="field"><label>Carrera</label><input name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+        </div>
         <span class="auth-error hidden" id="auth-error"></span>
         <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
       </form>
@@ -519,11 +531,12 @@
 <div class="modal-backdrop" id="modal-perfil">
   <div class="modal modal-xs">
     <div class="modal-head">
-      <div class="titles"><span class="t">Tu perfil</span><span class="s" id="perfil-email"></span></div>
+      <div class="titles"><span class="t" id="modal-perfil-titulo">Tu perfil</span><span class="s" id="perfil-email"></span></div>
       <button class="modal-close" data-close-modal>×</button>
     </div>
     <form id="form-perfil">
       <div class="modal-body pad-lg">
+        <span class="auth-info hidden" id="modal-perfil-intro">Nos ayuda a personalizar tu experiencia — podés completarlo ahora o más tarde desde tu perfil.</span>
         <div style="display:flex;align-items:center;gap:16px">
           <div class="av" id="modal-perfil-avatar"></div>
           <div style="display:flex;flex-direction:column;gap:6px">
@@ -532,10 +545,19 @@
           </div>
           <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
         </div>
-        <div class="field"><label>Nombre</label><input name="nombre" placeholder="Tu nombre"></div>
+        <div class="field-row">
+          <div class="field"><label>Nombre</label><input name="nombre" placeholder="Tu nombre"></div>
+          <div class="field"><label>Apellido</label><input name="apellido" placeholder="Tu apellido"></div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:none;width:100px"><label>Edad</label><input name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
+          <div class="field"><label>Teléfono</label><input name="telefono" type="tel" placeholder="Ej: 099 123 456"></div>
+        </div>
+        <div class="field"><label>Facultad</label><input name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
+        <div class="field"><label>Carrera</label><input name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
       </div>
       <div class="modal-foot" style="justify-content:flex-end">
-        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="button" class="btn" id="btn-perfil-cancelar" data-close-modal>Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btn-perfil-guardar">Guardar</button>
       </div>
     </form>
