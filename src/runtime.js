@@ -1193,6 +1193,98 @@
     document.getElementById('btn-detalle-nueva-eval').onclick = function () { openEvaluacionModal({ materiaId: m.id }); };
     document.getElementById('btn-detalle-cargar-nota').onclick = function () { openEvaluacionModal({ materiaId: m.id }); };
     document.getElementById('btn-detalle-escala').onclick = function () { openMateriaModal(m.id); };
+    renderDetalleSimulador(m);
+  }
+
+  // ----------------------------------------------------------------
+  // Simulador de escenario (Detalle de materia) — un slider por evaluación
+  // sin nota, promedio en vivo con la MISMA fórmula de computeMateria()
+  // (promedio simple sin ponderar) y la misma toneDe() para clasificarlo.
+  // Todo el estado (valores de los sliders, si la sección está abierta)
+  // vive en variables de closure de renderDetalleSimulador — no hay ningún
+  // var module-level acá: renderRoute() no destruye el DOM de #detalle al
+  // navegar (sólo lo esconde), así que sin esto el estado viejo sobreviviría
+  // entre materias. Arranca colapsado en cada llamada — cambiar de materia,
+  // recargar la nota real, o cualquier otro motivo de re-render vuelve
+  // siempre a "colapsada por default". Nunca llama a saveAgendaRaw() ni
+  // toca `agenda` — es sólo una previsualización, no se guarda.
+  function pintarRangeFill(range) {
+    var min = Number(range.min), max = Number(range.max), value = Number(range.value);
+    var pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+    range.style.background = 'linear-gradient(to right, var(--c-accent) 0%, var(--c-accent) ' + pct + '%, var(--c-line) ' + pct + '%, var(--c-line) 100%)';
+  }
+  function recalcularSimulacion(m, pendientes, valores) {
+    var simuladas = pendientes.map(function (a) { return valores[a.id]; });
+    var todas = m.parciales.concat(simuladas);
+    var promedio = todas.reduce(function (x, y) { return x + y; }, 0) / todas.length;
+    var tone = toneDe(m.estado, m.esc, todas);
+    document.getElementById('detalle-sim-ring').setAttribute('style', ringStyle(promedio, TONE[tone], 72, m.esc.total));
+    var ringInner = document.getElementById('detalle-sim-ring-inner');
+    ringInner.setAttribute('style', ringInnerStyle(72, 8));
+    clear(ringInner);
+    var v = el('span'); v.className = 'mono'; v.style.cssText = 'font-size:17px;font-weight:600;line-height:1'; v.textContent = val(promedio, m.esc);
+    ringInner.appendChild(v);
+    document.getElementById('detalle-sim-texto').textContent = promedio >= m.esc.aprob
+      ? 'Con este escenario, tu promedio sería ' + valU(promedio, m.esc) + ' — aprobarías.'
+      : 'Con este escenario, tu promedio sería ' + valU(promedio, m.esc) + ', todavía por debajo del mínimo (' + valU(m.esc.aprob, m.esc) + ').';
+  }
+  function renderDetalleSimulador(m) {
+    var pendientes = m.evaluaciones.filter(function (a) { return a.nota == null; });
+    var toggleBtn = document.getElementById('btn-detalle-sim-toggle');
+    var panel = document.getElementById('detalle-sim');
+    if (!pendientes.length) {
+      toggleBtn.classList.add('hidden');
+      panel.classList.add('hidden');
+      return;
+    }
+    toggleBtn.classList.remove('hidden');
+    panel.classList.add('hidden'); // colapsada por default en cada render
+
+    var valores = {}; // evaluacionId -> nota simulada, sólo vive en este closure
+    var slidersWrap = document.getElementById('detalle-sim-sliders');
+    clear(slidersWrap);
+    var step = m.esc.tipo === 'nota' ? 0.5 : 1;
+    var filas = [];
+    pendientes.forEach(function (a) {
+      var node = tpl('sim-slider-row');
+      qf(node, 'label').textContent = truncate(a.titulo, 24);
+      var range = qf(node, 'range');
+      range.min = '0'; range.max = String(m.esc.total); range.step = String(step);
+      range.setAttribute('aria-label', 'Nota simulada para ' + a.titulo);
+      var valSpan = qf(node, 'val');
+      filas.push({ id: a.id, range: range, valSpan: valSpan });
+      range.addEventListener('input', function () {
+        valores[a.id] = Number(range.value);
+        valSpan.textContent = valU(valores[a.id], m.esc);
+        pintarRangeFill(range);
+        recalcularSimulacion(m, pendientes, valores);
+      });
+      slidersWrap.appendChild(node);
+    });
+
+    // Punto de partida: el mínimo de aprobación (m.esc.aprob), no el
+    // promedio real — así el simulador siempre arranca en un punto de
+    // referencia estable ("esto es lo justo para pasar, ajustá desde acá"),
+    // en vez de, si el promedio real ya está aprobado, arrancar mostrando
+    // un escenario peor apenas se abre la sección sin que el usuario haya
+    // tocado nada.
+    function reiniciar() {
+      filas.forEach(function (f) {
+        valores[f.id] = m.esc.aprob;
+        f.range.value = String(valores[f.id]);
+        f.valSpan.textContent = valU(valores[f.id], m.esc);
+        pintarRangeFill(f.range);
+      });
+      recalcularSimulacion(m, pendientes, valores);
+    }
+    reiniciar();
+
+    toggleBtn.onclick = function () {
+      var abrir = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !abrir);
+      if (!abrir) reiniciar(); // se está colapsando: reinicia, como pide el alcance
+    };
+    document.getElementById('btn-detalle-sim-reset').onclick = reiniciar;
   }
 
   async function toggleAgendaHecho(id, hecho) {

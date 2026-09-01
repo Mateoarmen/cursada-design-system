@@ -1618,6 +1618,83 @@ al moverlos, y al botón de logout nuevo.
 pedido de mover, y son acciones de "esta pantalla ahora mismo" más que de
 configuración de cuenta.
 
+## Simulador de escenario (Detalle de materia)
+
+Detalle de materia ya mostraba "te faltan X para aprobar" como un número
+estático (`m.necesita`, `computeMateria()`). Este pedido lo vuelve
+interactivo: un slider por cada evaluación sin nota cargada, con un
+promedio simulado en vivo — sin cambiar la fórmula de cálculo real, la
+reusa tal cual.
+
+### Reusa la fórmula real, no inventa una nueva
+
+El promedio simulado se arma concatenando `m.parciales` (las notas reales
+ya cargadas) con los valores actuales de los sliders, y se clasifica con la
+misma `toneDe(m.estado, m.esc, notas)` que ya usa el cálculo real — se le
+pasa el array combinado, no un promedio ya hecho, así "aprobada siempre es
+success" y el margen de riesgo (configurable desde Ajustes, ver sección de
+arriba) se respetan igual que en el dato real. Sin ponderación por tipo de
+evaluación (un parcial no vale más que un trabajo práctico) — el cálculo
+real tampoco pondera, y el simulador tiene que mostrar exactamente lo que
+pasaría con ese cálculo, no una versión más sofisticada que no existe hoy.
+
+### Punto de partida de los sliders: el mínimo de aprobación
+
+Los sliders arrancan en `m.esc.aprob`, no en el promedio real. Se evaluó la
+alternativa de arrancar en `m.actual` (para que abrir la sección "no cambie
+nada" al principio), pero tiene un problema: si el promedio real ya está
+por encima del mínimo, arrancar ahí *bajaría* el promedio simulado apenas
+se abre la sección — cada slider nuevo entra al promedio con un valor igual
+al actual, empujando hacia la media general. Se lee como que la app
+muestra un escenario peor sin que el usuario haya tocado nada. Arrancar en
+`m.esc.aprob` es consistente sin importar el estado real ("esto es lo justo
+para pasar, ajustá desde acá") y es el mismo número que ya aparece al lado
+en el callout ("aprueba con X") — mismo ancla mental.
+
+### Diferenciación visual: anillo aparte + halo punteado + etiqueta
+
+El anillo real (`#detalle-ring`) nunca se toca — cero riesgo de que el dato
+real se vea alguna vez como simulado. El simulador tiene su propio anillo
+chico, más angosto (72px vs. 140px), con el mismo sistema de color
+(`TONE`) que el real, pero envuelto en un halo con `border:2px dashed`, más
+una etiqueta "SIMULADO" al lado — dos señales redundantes, no una sola
+sutil, para que sea inconfundible a simple vista.
+
+### Estado puramente local — nunca se guarda
+
+Los valores de los sliders viven en variables de closure dentro de
+`renderDetalleSimulador(m)` — no hay ningún `var` a nivel de módulo para
+esto. Esto importa porque `renderRoute()` no destruye el DOM de `#detalle`
+al navegar (sólo lo esconde con `.hidden`), así que el estado no se
+descarta solo — el reset es explícito: **la sección arranca colapsada en
+cada llamada a `renderDetalleSimulador()`**, y esa función se llama en cada
+`renderDetalle()` (cambiar de materia, recargar una nota real, cualquier
+motivo de re-render). Colapsar la sección a mano también reinicia los
+sliders al mínimo de aprobación, no sólo navegar — igual de explícito.
+Ningún código de este feature llama a `saveAgendaRaw()`/`agendaToRow()`; no
+hay botón de "guardar esta simulación como nota real" — si se llega a pedir
+eso, es un feature aparte con sus propias implicancias (mezclar una
+previsualización con el flujo real de cargar notas).
+
+Si no hay ninguna evaluación pendiente en la materia (todas tienen nota, o
+no hay ninguna cargada todavía), el botón "Simular escenario" no aparece —
+no hay nada que simular.
+
+### Primer `<input type="range">` de la app
+
+Sin precedente que reusar: el panel de Ajustes (sección de arriba)
+documentó una decisión deliberada de *no* usar un slider nativo para el
+margen de riesgo, porque no había ningún precedente en la app y ese control
+era de 7 valores discretos (mejor resuelto con `.num-pill`). Este pedido es
+distinto — pide explícitamente un slider para un rango continuo (0 a
+`m.esc.total`), así que acá sí se construyó uno: track y thumb con estilos
+propios (`-webkit-slider-thumb`/`-moz-range-thumb`), con el relleno de
+color hasta el valor actual pintado por JS vía un `linear-gradient` inline
+(mismo criterio que `.bar-fill` ya usa con `width` inline, acá con
+`background`). El paso del slider es `0.5` para escalas de "nota" y `1`
+para porcentaje/puntos — coherente con la precisión que ya usa `fmt()` para
+mostrar esos números.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

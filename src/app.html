@@ -312,6 +312,18 @@
               <button class="btn" id="btn-detalle-cargar-nota">Cargar nota</button>
               <button class="btn" id="btn-detalle-escala">Cambiar escala y aprobación</button>
             </div>
+            <button type="button" class="btn btn-sm hidden" id="btn-detalle-sim-toggle">Simular escenario</button>
+            <div class="detalle-sim hidden" id="detalle-sim">
+              <div class="detalle-sim-head">
+                <div class="detalle-sim-ring-wrap"><div class="ring" id="detalle-sim-ring"><div class="ring-inner" id="detalle-sim-ring-inner"></div></div></div>
+                <div class="detalle-sim-summary">
+                  <span class="detalle-sim-badge">Simulado</span>
+                  <span id="detalle-sim-texto"></span>
+                </div>
+              </div>
+              <div id="detalle-sim-sliders"></div>
+              <button type="button" class="btn btn-sm" id="btn-detalle-sim-reset">Reiniciar</button>
+            </div>
           </div>
           <div class="card detalle-col" style="flex:1.15">
             <div class="panel-head"><h2 class="panel-title">Evaluaciones y entregas</h2><span class="panel-hint mono" id="detalle-eval-count"></span></div>
@@ -807,6 +819,14 @@
     <span class="label" data-f="label"></span>
     <div class="bar-wrap"><div class="bar-fill" data-f="barFill"></div></div>
     <span class="v" data-f="val"></span>
+  </div>
+</template>
+
+<template data-template="sim-slider-row">
+  <div class="detalle-sim-slider-row">
+    <span class="detalle-sim-slider-label" data-f="label"></span>
+    <input type="range" class="detalle-sim-range" data-f="range">
+    <span class="detalle-sim-slider-val mono" data-f="val"></span>
   </div>
 </template>
 

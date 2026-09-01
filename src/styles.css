@@ -150,7 +150,10 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .semestre-row-select.is-active .semestre-row-nombre{color:#fff}
 .semestre-row-meta{font-size:12px;color:var(--c-ink3);flex:none}
 .semestre-row-edit{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-ink2);font-size:13px}
-.semestre-row-delete{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-danger);font-size:13px}
+/* 🗑 es un emoji a color, no un glifo de texto como ✎ — al mismo font-size
+   se ve bastante más grande y pesado, achicado acá para que ambos íconos
+   pesen parecido. */
+.semestre-row-delete{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-danger);font-size:10px}
 .semestre-row-nombre-input{height:42px;flex:1;min-width:0;border:none;border-radius:10px;padding:0 12px;font-size:14px;font-weight:600;background:var(--c-surfaceAlt);color:var(--c-ink)}
 
 .sidenav-nav{display:flex;flex-direction:column;gap:2px}
@@ -214,6 +217,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .btn-ghost{background:transparent;color:var(--c-ink2);font-weight:500}
 .btn-sm{height:30px;padding:0 12px;font-size:12px}
 .icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt)}
+/* ⌕ es un glifo fino, se pierde con el font-size heredado del body en un
+   botón de 34px. */
+.icon-btn.topbar-search{font-size:18px}
 
 .seg{display:flex;background:var(--c-surfaceAlt);border-radius:10px;padding:2px;gap:2px}
 .seg-item{height:30px;padding:0 14px;border-radius:8px;font-size:13px;color:var(--c-ink2);display:flex;align-items:center;gap:7px;border:none;background:transparent}
@@ -342,6 +348,30 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .callout b{font-size:14px;font-weight:600;line-height:1.45}
 .callout span{font-size:14px;line-height:1.5;color:var(--c-ink2)}
 .detalle-actions{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap}
+
+/* ---------- Simulador de escenario (Detalle) ---------- */
+.detalle-sim{display:flex;flex-direction:column;gap:16px;padding-top:16px;border-top:1px solid var(--c-line-faint)}
+.detalle-sim-head{display:flex;align-items:center;gap:16px}
+/* Halo punteado alrededor del anillo simulado — junto con la etiqueta
+   "Simulado", la señal de que este número no es el real. El anillo en sí
+   reusa exactamente ringStyle()/ringInnerStyle(), sin tocar el real. */
+.detalle-sim-ring-wrap{flex:none;padding:5px;border-radius:50%;border:2px dashed var(--c-ink3)}
+.detalle-sim-summary{display:flex;flex-direction:column;gap:4px;min-width:0}
+.detalle-sim-badge{align-self:flex-start;display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--c-ink2);background:var(--c-surfaceAlt);border:1.5px dashed var(--c-muted4)}
+.detalle-sim-summary span:last-child{font-size:13px;line-height:1.5;color:var(--c-ink2)}
+.detalle-sim-slider-row{display:flex;align-items:center;gap:12px}
+.detalle-sim-slider-row + .detalle-sim-slider-row{margin-top:10px}
+.detalle-sim-slider-label{flex:1;min-width:0;font-size:13px;color:var(--c-ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detalle-sim-slider-val{flex:none;width:56px;text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+/* Primer <input type="range"> nativo de toda la app — sin precedente que
+   reusar, así que el track/thumb se estilan a mano en los 3 dialectos
+   (estándar + -webkit- + -moz-). El relleno de color hasta el valor actual
+   se pinta por JS con un linear-gradient inline (pintarRangeFill()), mismo
+   criterio que .bar-fill con su width inline. */
+.detalle-sim-range{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:6px;border-radius:999px;background:var(--c-line);outline:none}
+.detalle-sim-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--c-accent);border:2px solid var(--c-surface);box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
+.detalle-sim-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--c-accent);border:2px solid var(--c-surface);box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
+.detalle-sim-range::-moz-range-track{height:6px;border-radius:999px;background:transparent}
 .eval-list{display:flex;flex-direction:column}
 .eval-row{display:flex;align-items:center;gap:15px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
 /* Cada fila vive envuelta en .swipe-row (ver template eval-row en app.html —
@@ -774,7 +804,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 .sidenav-user .who{flex:1;min-width:0;overflow:hidden}
 .sidenav-user .who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .sidenav-user .who span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.sidenav-logout,.sidenav-settings{flex:none;width:26px;height:26px;border-radius:8px;border:none;background:transparent;color:var(--c-ink3);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+.sidenav-logout,.sidenav-settings{flex:none;width:26px;height:26px;border-radius:8px;border:none;background:transparent;color:var(--c-ink3);display:flex;align-items:center;justify-content:center;cursor:pointer}
+/* ⏻ y ⚙ no pesan igual al mismo font-size — el símbolo de apagado ya se ve
+   bien a 13px, la tuerca necesita más para no verse chica al lado. */
+.sidenav-logout{font-size:13px}
+.sidenav-settings{font-size:16px}
 .sidenav-logout:hover{background:var(--c-line-faint);color:var(--c-danger)}
 .sidenav-settings:hover{background:var(--c-line-faint);color:var(--c-ink)}
 #import-local-resumen{font-size:14px;font-weight:600;line-height:1.4}
