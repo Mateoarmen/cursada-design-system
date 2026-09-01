@@ -270,13 +270,13 @@ Las decisiones detrás de esa tabla:
   campos) sumaría fricción sin sumar claridad. Si estás en el semestre
   equivocado, cambiás de semestre activo primero — es una operación de un
   clic.
-- **No hay estado "archivado" ni botón para "cerrar" un semestre.** Cambiar
-  cuál semestre está activo ya cumple el pedido (ver/editar el semestre
-  viejo sigue siendo posible en cualquier momento, sólo hay que volver a
-  activarlo). No agregué un estado adicional porque no lo pediste como
-  requisito y no encontré un caso de uso claro que lo necesitara — el
-  contador de materias por semestre en el selector ya deja claro cuáles
-  tienen contenido.
+- **No hay estado "archivado" para un semestre — pero sí se puede eliminar
+  (pedido explícito en una pasada posterior, ver sección "Progreso histórico
+  entre semestres" más abajo).** Cambiar cuál semestre está activo sigue
+  siendo la forma normal de "dejar atrás" uno sin perder nada; eliminar es
+  para cuando de verdad no querés conservarlo — borra en cascada sus
+  materias y las evaluaciones de agenda de esas materias, con confirmación
+  previa mostrando cuánto se va a borrar.
 - **El contador de "clases por día" en Calendario/Horario usa el semestre
   activo, no el semestre que estaba vigente en la fecha que estás mirando.**
   Es un dato derivado del horario semanal (qué día de la semana tenés cada
@@ -1396,6 +1396,146 @@ cualquier ancho mayor quedaba como un `<div>` de flujo normal, con su texto
 de `.tabbar`/`.fab`/etc. (ver "Gap #1" en la pasada anterior), esta vez sin
 haberlo notado: se sumó `.swipe-action` al mismo `display:none` de base que
 ya ocultaba a esos otros elementos fuera de mobile.
+
+## Progreso histórico entre semestres
+
+Hasta acá la app sólo mostraba el estado del semestre activo — nunca
+comparaba contra semestres pasados ni mostraba evolución en el tiempo. Este
+pedido agrega esa dimensión, en dos partes: una sección nueva "Progreso" con
+el detalle completo, y un widget resumen en Inicio para quien no necesita
+entrar a verlo. Vino acompañado de un pedido corto aparte: poder eliminar un
+semestre (ver más abajo).
+
+### Orden cronológico real, no por nombre ni por posición en el array
+
+El nombre de un semestre es texto libre (`"2do cuatrimestre 2026"`) — no
+sirve para ordenar de forma confiable, y el orden en que Supabase devuelve
+las filas tampoco está garantizado. `rowToSemestre()` ahora expone
+`createdAt` (columna que ya existía en la tabla, nunca se leía desde el
+cliente — sólo lectura, nunca se escribe de vuelta) y `semestresOrdenados()`
+ordena por ese campo. Se usa en el modal de semestres y en todo lo de acá
+abajo que necesite saber "cuál es el semestre anterior a este" — **sin
+asumir que el semestre activo es siempre el más nuevo**: para encontrar el
+anterior se ubica la posición del activo dentro de `semestresOrdenados()` y
+se resta 1, nunca "el anteúltimo del array" a secas (podés tener el activo
+en cualquier posición si volviste a activar uno viejo).
+
+### La fórmula de promedio, en un solo lugar
+
+`computeKpis()` (el "Promedio general" de Inicio) ya normalizaba las notas
+de cada materia a un 0-100% y promediaba — pero lo hacía sólo para el
+semestre activo, con la fórmula escrita inline. Se extrajo a
+`promedioNormalizado(materias)`, que ahora llaman tanto `computeKpis()` como
+`computeProgresoPorSemestre()` (nueva) — la misma cuenta, corrida sobre
+cualquier conjunto de materias, no una copia paralela que se puede desincronizar.
+
+`computeProgresoPorSemestre()` arma un punto por cada semestre (en orden
+cronológico) que tenga al menos una materia con nota cargada:
+promedio normalizado, materias aprobadas y total. Es la única fuente de
+datos tanto para la sección Progreso como para el widget de Inicio — un
+cálculo, dos vistas.
+
+### Sección "Progreso"
+
+Ítem nuevo en el cajón (`data-nav="progreso"`), **a propósito sólo en el
+cajón, no en el tab bar de mobile** — el tab bar quedó fijo a 5 destinos en
+la pasada de optimización mobile (`grid-template-columns:repeat(5,1fr)`,
+documentado ahí como decisión deliberada); meter un 6° lo apretaría en
+390px. Progreso es una vista de consulta ocasional, no de uso diario como
+las otras 5, así que el cajón (un toque extra desde el ☰) alcanza sin
+comprometer el tab bar existente.
+
+Sin datos, se ve un estado vacío simple (mismo patrón `.empty-state` que ya
+usa Materias) en vez de un gráfico roto o en blanco. Con datos: un único
+gráfico de línea (no uno por semestre — el pedido original habla de anotar
+aprobadas/total "junto a cada punto del gráfico", en singular, confirmando
+que es un solo gráfico combinado) con el promedio de cada semestre en el eje
+X, más una barra de créditos acumulados hacia el título.
+
+**El gráfico es SVG armado a mano** (`buildProgresoChartSvg()`), sin
+librería — mismo espíritu que el ring/donut que ya usaba Detalle
+(`ringStyle()`, un `conic-gradient` sin SVG ni deps), pero un gráfico de
+línea de verdad necesita trazos, así que esta vez sí hizo falta SVG. Se arma
+como string HTML (`<svg>...</svg>`) y se asigna con `.innerHTML` — el parser
+de cualquier browser entiende SVG inline sin necesidad de
+`document.createElementNS()`. Es el único lugar de todo el código que arma
+HTML como string en vez de DOM con `el()`/`.textContent` (que es seguro por
+naturaleza) — el único texto libre del usuario que termina ahí adentro (el
+nombre del semestre) pasa por un `escapeHtml()` nuevo antes de interpolarse,
+para no abrir una inyección de HTML si alguien nombra un semestre con algo
+tipo `<img onerror=...>`.
+
+Un bug encontrado probando el gráfico, no evidente por lectura de código:
+con el padding original (30px) el nombre del semestre en el punto más a la
+izquierda o más a la derecha (`text-anchor="middle"`) quedaba centrado justo
+en el borde del `viewBox` — la mitad del texto caía en coordenadas negativas
+o más allá del ancho del SVG, y el propio SVG la recortaba. Se ensanchó el
+padding horizontal a 55px, suficiente para contener un nombre truncado a 14
+caracteres sin que se corte.
+
+### Widget en Inicio
+
+Tercer panel en la columna derecha de `.inicio-cols`, junto a "Materias en
+riesgo" y "Accesos rápidos" (ese contenedor ya era `flex-direction:column`,
+un panel más entra sin tocar el layout existente, y en mobile ya se apila
+solo). **Sólo aparece con 2 o más semestres con datos** — con menos, no hay
+"anterior" contra el cual comparar, así que en vez de un estado vacío
+confuso el panel directamente no se renderiza (`renderProgresoWidgetInicio()`
+se llama al final de `renderInicio()`).
+
+Muestra: el promedio del semestre activo con un indicador ▲/▼ + delta en
+puntos contra el semestre inmediatamente anterior (cronológico de verdad,
+ver arriba) — coloreado con el mismo vocabulario `TONE` que ya usan los
+badges (verde/rojo/gris), nada nuevo. **Es el único elemento "motivacional"
+de todo este pedido** — sin rachas, insignias ni animaciones, tal como pedía
+explícitamente el prompt original. Debajo, si hay `creditos_carrera`
+cargado, una versión compacta de la barra de créditos (reusa exactamente
+`.bar-wrap`/`.bar-fill` de `nota-row`, la misma barra que ya usa Detalle
+para las notas — no CSS nuevo) sin el detalle completo de la sección
+Progreso. Un link "ver detalle" lleva a `#progreso`.
+
+### Créditos hacia el título
+
+Suma de `creditos` de las materias con `estado === 'aprobada'` en **todos**
+los semestres (`creditosAcumulados()`, sin acotar al activo — a propósito,
+distinto del resto de la app) sobre `profiles.creditos_carrera`. Si ese
+campo es `null` (usuario no lo cargó todavía), no se muestra una barra en
+cero ni un placeholder — se muestra una invitación chica a completarlo que
+abre el modal de perfil (`openPerfilModal('editar')`, ya existía).
+
+### Campo nuevo: créditos de la carrera, en Perfil
+
+`creditos_carrera` (columna nueva en `profiles`, agregada directamente en
+Supabase — el cliente no la crea) se sumó al grupo "Estudio" del modal de
+perfil, mismo patrón que el campo "Edad" ya existente (`type="number"`,
+nullable: string vacío guarda `null`, no `0`). **No es obligatorio en ningún
+modo** — a diferencia de nombre/apellido/edad/facultad/carrera/teléfono, no
+se agregó a `PERFIL_CAMPOS` (el array de campos que se vuelven obligatorios
+en el modo "completar perfil" de cuentas de Google), porque el prompt es
+explícito en que este campo puede completarse en cualquier momento.
+
+### Eliminar un semestre (pedido corto, aparte del prompt principal)
+
+Hasta esta pasada un semestre se podía crear y renombrar, pero no borrar —
+una decisión de scope explícita de una pasada anterior (ver sección
+"Semestres" más arriba). Ahora cada fila del modal de semestres tiene un
+tercer botón (🗑, junto al ✎ de renombrar) que dispara `eliminarSemestre()`:
+mismo patrón de cascada con confirmación que ya usaba el borrado de materia
+(`confirm()` con el conteo real de lo que se va a borrar → borrar hijos →
+borrar padre → avisar si algo falla), un nivel más — semestre → sus materias
+→ las evaluaciones de agenda de esas materias.
+
+Dos decisiones tomadas al implementar esto, no pedidas explícitamente:
+
+- **Si el semestre borrado estaba activo, se reactiva el más nuevo de los
+  que quedan** (por posición cronológica real, no por orden del array).
+- **Se permite borrar el último semestre que te queda — no se bloquea.**
+  Probado explícitamente: con 0 semestres la app cae con gracia en sus
+  estados vacíos existentes (Materias/Horario/Progreso muestran su empty
+  state, los KPIs de Inicio muestran 0/—, el selector dice "Sin semestre"),
+  y crear una materia nueva sin semestre activo ya auto-creaba uno antes de
+  este pedido. No hizo falta inventar un caso especial para algo que la app
+  ya sabía manejar.
 
 ## Ver también
 

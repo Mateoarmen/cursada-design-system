@@ -71,6 +71,15 @@
     return pad2(h) + ':' + pad2(m);
   }
   function truncate(s, n) { return (s && s.length > n) ? s.slice(0, n - 1) + '…' : (s || ''); }
+  // Único lugar del código que arma HTML como string (el gráfico de Progreso,
+  // ver buildProgresoChartSvg) — el resto de la app arma DOM con el()/textContent,
+  // que ya es seguro por naturaleza. Cualquier texto libre del usuario
+  // (nombre de semestre) que termine ahí adentro pasa por acá primero.
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
   function css(obj) {
     return Object.keys(obj).map(function (k) {
       var v = obj[k];
@@ -162,6 +171,41 @@
   function ringInnerStyle(size, thick) {
     return css({ width: (size - thick * 2) + 'px', height: (size - thick * 2) + 'px', borderRadius: '50%', background: 'var(--c-surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px' });
   }
+  // Gráfico de línea del promedio por semestre (sección Progreso) — sin
+  // librería externa, mismo espíritu que el ring de arriba (a mano, con lo
+  // que ya trae el browser), pero un gráfico de línea de verdad necesita
+  // trazos, así que esta vez sí hace falta SVG en vez de un truco con CSS.
+  // Se arma como string y se asigna con innerHTML (el parser HTML entiende
+  // <svg> inline sin falta de un helper de DOM con namespace) — el único
+  // texto libre del usuario que entra ahí (nombre de semestre) pasa por
+  // escapeHtml() primero.
+  function buildProgresoChartSvg(puntos) {
+    var w = Math.max(320, puntos.length * 110);
+    var h = 200;
+    // padL/padR más anchos que lo que pide el trazo en sí: el label de
+    // nombre de semestre (text-anchor="middle") en el primer/último punto se
+    // centra justo en el borde del viewBox, así que sin este margen la mitad
+    // del texto queda afuera y el SVG la recorta (confirmado probando con
+    // "1er cuatrimestre 2026" truncado a 14 caracteres).
+    var padL = 55, padR = 55, padT = 40, padB = 34;
+    var plotW = w - padL - padR, plotH = h - padT - padB;
+    var color = TONE.success;
+    function xAt(i) { return padL + (puntos.length === 1 ? plotW / 2 : (plotW * i) / (puntos.length - 1)); }
+    function yAt(v) { return padT + plotH - (v / 100) * plotH; }
+    var polyPts = puntos.map(function (p, i) { return xAt(i) + ',' + yAt(p.promedio); }).join(' ');
+    var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMinYMid meet">';
+    svg += '<line x1="' + padL + '" y1="' + yAt(0) + '" x2="' + (w - padR) + '" y2="' + yAt(0) + '" stroke="var(--c-line)" stroke-width="1"/>';
+    svg += '<polyline points="' + polyPts + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    puntos.forEach(function (p, i) {
+      var x = xAt(i), y = yAt(p.promedio);
+      svg += '<circle cx="' + x + '" cy="' + y + '" r="4.5" fill="' + color + '"/>';
+      svg += '<text x="' + x + '" y="' + (y - 22) + '" text-anchor="middle" font-size="10" fill="var(--c-ink3)">' + p.aprobadas + '/' + p.total + ' aprob.</text>';
+      svg += '<text x="' + x + '" y="' + (y - 10) + '" text-anchor="middle" font-size="12" font-weight="600" fill="var(--c-ink)">' + p.promedio + '%</text>';
+      svg += '<text x="' + x + '" y="' + (h - 12) + '" text-anchor="middle" font-size="11" fill="var(--c-ink3)">' + escapeHtml(truncate(p.semestre.nombre, 14)) + '</text>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
 
   // ---------- sistema de calificación (mirror exacto) ----------
   function val(v, e) { return v == null ? '—' : (e.tipo === 'nota' ? fmt(v) : String(Math.round(v))); }
@@ -236,7 +280,10 @@
     return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo };
   }
   function rowToSemestre(r) {
-    return { id: r.id, nombre: r.nombre, activo: !!r.activo };
+    // createdAt es sólo lectura — lo genera la DB, nunca se manda de vuelta
+    // en semestreToRow. Se usa para ordenar semestres cronológicamente de
+    // verdad (el nombre es texto libre, no sirve para eso).
+    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at };
   }
 
   async function supaUpsert(table, rows) {
@@ -329,6 +376,16 @@
     var s = loadSemestresRaw().filter(function (x) { return x.activo; })[0];
     return s ? s.id : null;
   }
+  // Orden cronológico real por created_at — el nombre es texto libre (no
+  // confiable para ordenar) y el orden del array tal cual viene de Supabase
+  // tampoco está garantizado. No asumir "el activo es siempre el más
+  // nuevo": para encontrar el semestre anterior a uno dado, ubicar su índice
+  // acá y restar 1, nunca tomar "el anteúltimo del array" a secas.
+  function semestresOrdenados() {
+    return loadSemestresRaw().slice().sort(function (a, b) {
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+  }
   function setSemestreActivo(id) {
     var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: s.id === id }); });
     return saveSemestresRaw(arr);
@@ -367,7 +424,7 @@
       sb().from('personal').select('*')
     ]);
     results.forEach(function (r) { if (r.error) throw r.error; });
-    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', edad: null, facultad: null, carrera: null, telefono: null, foto_url: null };
+    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', edad: null, facultad: null, carrera: null, telefono: null, foto_url: null, creditos_carrera: null };
     CACHE.semestres = results[1].data.map(rowToSemestre);
     CACHE.materias = results[2].data.map(rowToMateria);
     CACHE.agenda = results[3].data.map(rowToAgenda);
@@ -560,6 +617,34 @@
   function materiaNombre(id) { var m = materiaRawById(id); return m ? m.nombre : ''; }
   function materiaCod(id) { var m = materiaRawById(id); return m ? m.cod : ''; }
 
+  // Promedio normalizado (0-100) de un conjunto de materias — de las que
+  // tienen nota cargada (m.actual != null), normaliza cada una a % de su
+  // propia escala y promedia. Extraída de computeKpis() (la usaba sólo para
+  // el semestre activo) para que Progreso pueda correr la misma fórmula
+  // sobre cualquier semestre sin duplicarla.
+  function promedioNormalizado(materias) {
+    var proms = materias.filter(function (m) { return m.actual != null; })
+      .map(function (m) { return m.actual / m.esc.total * 100; });
+    return proms.length ? Math.round(proms.reduce(function (a, b) { return a + b; }, 0) / proms.length) : null;
+  }
+  // Un punto por semestre (en orden cronológico real, ver semestresOrdenados)
+  // que tenga al menos una materia con nota cargada — la fuente de datos
+  // tanto de la sección Progreso como del widget resumen de Inicio, un solo
+  // cálculo para las dos vistas.
+  function computeProgresoPorSemestre() {
+    return semestresOrdenados().map(function (s) {
+      var materias = computeMaterias({ semestreId: s.id });
+      return { semestre: s, promedio: promedioNormalizado(materias), aprobadas: materias.filter(function (m) { return m.estado === 'aprobada'; }).length, total: materias.length };
+    }).filter(function (p) { return p.promedio != null; });
+  }
+  // Créditos acumulados hacia el título: aprobadas de TODOS los semestres,
+  // no sólo el activo — a propósito, distinto del resto de la app (ver
+  // README, sección Semestres, sobre qué vistas se acotan y cuáles no).
+  function creditosAcumulados() {
+    return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; })
+      .reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0);
+  }
+
   // ================================================================
   // ESTADO EN MEMORIA (sólo UI, nunca persiste solo)
   // ================================================================
@@ -588,7 +673,7 @@
   // ================================================================
   // SIDENAV / TOOLBAR
   // ================================================================
-  var VIEW_LABELS = { inicio: 'Inicio', materias: 'Materias', detalle: 'Materias', agenda: 'Agenda', calendario: 'Calendario', horario: 'Horario' };
+  var VIEW_LABELS = { inicio: 'Inicio', materias: 'Materias', detalle: 'Materias', agenda: 'Agenda', calendario: 'Calendario', horario: 'Horario', progreso: 'Progreso' };
 
   function buildLeyendaItem(label, color, opts) {
     opts = opts || {};
@@ -711,8 +796,7 @@
       .map(function (a) { return { a: a, d: parseISODate(a.fecha) }; })
       .filter(function (x) { return x.d >= t; })
       .sort(function (x, y) { return x.d - y.d; })[0];
-    var proms = materias.filter(function (m) { return m.actual != null; }).map(function (m) { return m.actual / m.esc.total * 100; });
-    var promedio = proms.length ? Math.round(proms.reduce(function (a, b) { return a + b; }, 0) / proms.length) : null;
+    var promedio = promedioNormalizado(materias);
     var estaSemana = pendientes.filter(function (a) { var d = diffDias(parseISODate(a.fecha), t); return d >= 0 && d <= 6; });
     var vencidas = pendientes.filter(function (a) { return parseISODate(a.fecha) < t; });
     return [
@@ -809,6 +893,82 @@
         riesgoList.appendChild(node);
       });
     }
+
+    renderProgresoWidgetInicio();
+  }
+
+  // ================================================================
+  // PROGRESO (histórico entre semestres)
+  // ================================================================
+  // Panel de créditos hacia el título — compartido entre la sección
+  // Progreso completa y el widget resumen de Inicio, sólo cambia qué tan
+  // detallado es lo que arma (compact=true en Inicio, sin el conteo exacto
+  // de créditos, sólo el %).
+  function renderCreditosInto(container, compact) {
+    clear(container);
+    var cc = CURRENT_PROFILE && CURRENT_PROFILE.creditos_carrera;
+    if (cc == null) {
+      var cta = el('div', 'progreso-creditos-cta');
+      var span = el('span'); span.textContent = 'Completá los créditos de tu carrera en tu perfil para ver tu progreso hacia el título.';
+      var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Completar perfil';
+      btn.addEventListener('click', function () { openPerfilModal('editar'); });
+      cta.appendChild(span); cta.appendChild(btn);
+      container.appendChild(cta);
+      return;
+    }
+    var acumulados = creditosAcumulados();
+    var pct = cc > 0 ? Math.max(0, Math.min(100, Math.round((acumulados / cc) * 100))) : 0;
+    var row = el('div', 'nota-row');
+    var label = el('span', 'label'); label.textContent = compact ? 'Hacia el título' : (acumulados + ' / ' + cc + ' créditos');
+    var barWrap = el('div', 'bar-wrap');
+    var barFill = el('div', 'bar-fill');
+    barFill.setAttribute('style', css({ width: pct + '%', background: TONE.success }));
+    barWrap.appendChild(barFill);
+    var v = el('span', 'v'); v.textContent = pct + '%';
+    row.appendChild(label); row.appendChild(barWrap); row.appendChild(v);
+    container.appendChild(row);
+  }
+  function renderProgreso() {
+    var puntos = computeProgresoPorSemestre();
+    document.getElementById('progreso-empty').classList.toggle('hidden', puntos.length > 0);
+    document.getElementById('progreso-content').classList.toggle('hidden', puntos.length === 0);
+    if (!puntos.length) return;
+    document.getElementById('progreso-chart').innerHTML = buildProgresoChartSvg(puntos);
+    renderCreditosInto(document.getElementById('progreso-creditos'), false);
+  }
+  // Sólo se muestra con ≥2 semestres con datos — nada de estado vacío acá,
+  // si no hay historial suficiente el panel directamente no aparece (ver
+  // prompt original). El delta compara el activo contra el anterior
+  // cronológico de verdad (posición del activo en semestresOrdenados() menos
+  // 1), nunca "el anteúltimo del array".
+  function renderProgresoWidgetInicio() {
+    var panel = document.getElementById('progreso-widget');
+    var puntos = computeProgresoPorSemestre();
+    if (puntos.length < 2) { panel.classList.add('hidden'); return; }
+    panel.classList.remove('hidden');
+
+    var ordenados = semestresOrdenados();
+    var activoId = activeSemestreId();
+    var idxActivo = -1;
+    ordenados.forEach(function (s, i) { if (s.id === activoId) idxActivo = i; });
+    var anterior = idxActivo > 0 ? ordenados[idxActivo - 1] : null;
+    var puntoActivo = puntos.filter(function (p) { return p.semestre.id === activoId; })[0];
+    var puntoAnterior = anterior ? puntos.filter(function (p) { return p.semestre.id === anterior.id; })[0] : null;
+
+    var deltaWrap = document.getElementById('progreso-widget-delta');
+    clear(deltaWrap);
+    if (puntoActivo && puntoAnterior) {
+      var delta = puntoActivo.promedio - puntoAnterior.promedio;
+      var tone = delta > 0 ? 'success' : (delta < 0 ? 'danger' : 'neutral');
+      var row = el('div', 'progreso-delta');
+      row.style.color = TONE[tone];
+      var val = el('span', 'progreso-delta-val'); val.textContent = puntoActivo.promedio + '%';
+      var d = el('span', 'progreso-delta-d');
+      d.textContent = (delta > 0 ? '▲ ' : delta < 0 ? '▼ ' : '— ') + Math.abs(delta) + ' pts vs. ' + anterior.nombre;
+      row.appendChild(val); row.appendChild(d);
+      deltaWrap.appendChild(row);
+    }
+    renderCreditosInto(document.getElementById('progreso-widget-creditos'), true);
   }
 
   function agendaBadgeInfo(item, t) {
@@ -2119,7 +2279,7 @@
   // ================================================================
   // ROUTER
   // ================================================================
-  var CORE_VIEWS = ['inicio', 'materias', 'detalle', 'agenda', 'calendario', 'horario'];
+  var CORE_VIEWS = ['inicio', 'materias', 'detalle', 'agenda', 'calendario', 'horario', 'progreso'];
   function renderRoute() {
     renderSidenav();
     // Red de seguridad: si quedó un quick-sheet o un row-menu abierto (long
@@ -2134,6 +2294,7 @@
     else if (STATE.route.view === 'agenda') renderAgenda();
     else if (STATE.route.view === 'calendario') renderCalendario();
     else if (STATE.route.view === 'horario') renderHorario();
+    else if (STATE.route.view === 'progreso') renderProgreso();
   }
   // Filtros/búsqueda/vista de Materias, Agenda y Calendario viven en la URL
   // (query string después del hash de la vista, ej. "#materias?filtro=cursando&q=algebra")
@@ -2224,7 +2385,7 @@
     var list = document.getElementById('semestres-list');
     clear(list);
     var activoId = activeSemestreId();
-    loadSemestresRaw().forEach(function (s) {
+    semestresOrdenados().forEach(function (s) {
       var count = loadMateriasRaw().filter(function (m) { return m.semestreId === s.id; }).length;
       var node = tpl('semestre-row');
       var selectBtn = qf(node, 'selectBtn');
@@ -2245,6 +2406,11 @@
       editBtn.addEventListener('click', function (ev) {
         ev.stopPropagation();
         iniciarRenombreSemestre(node, s);
+      });
+      var deleteBtn = qf(node, 'deleteBtn');
+      deleteBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        eliminarSemestre(s);
       });
       list.appendChild(node);
     });
@@ -2276,6 +2442,38 @@
       if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
       else if (ev.key === 'Escape') { done = true; renderSemestresModal(); }
     });
+  }
+
+  // Mismo patrón de borrado en cascada que ya usa la materia (confirm() ->
+  // borrar hijos -> borrar padre -> avisarError() si algo falla,
+  // ver btn-materia-eliminar), un nivel más: semestre -> materias -> agenda
+  // de esas materias. saveSemestresRaw() ya borra cualquier id que falte del
+  // array que se le pasa, no hace falta una ruta de borrado nueva para eso.
+  async function eliminarSemestre(s) {
+    var materiasDelSemestre = loadMateriasRaw().filter(function (m) { return m.semestreId === s.id; });
+    var msg = materiasDelSemestre.length
+      ? '¿Eliminar "' + s.nombre + '"? También se van a borrar sus ' + materiasDelSemestre.length + (materiasDelSemestre.length === 1 ? ' materia' : ' materias') + ' y todas sus evaluaciones de la agenda. Esta acción no se puede deshacer.'
+      : '¿Eliminar "' + s.nombre + '"? Esta acción no se puede deshacer.';
+    if (!confirm(msg)) return;
+    var materiaIds = {};
+    materiasDelSemestre.forEach(function (m) { materiaIds[m.id] = true; });
+    var restantes = loadSemestresRaw().filter(function (x) { return x.id !== s.id; });
+    // Si el que se borra estaba activo, pasa a activo el más nuevo de los
+    // que quedan (mismo orden de semestresOrdenados — nada de "el
+    // anteúltimo del array"). Se puede borrar el último semestre sin
+    // bloquear nada: la app ya sabe mostrar "sin materias" con sus estados
+    // vacíos existentes, y crear una materia sin semestre activo ya
+    // auto-crea uno — no hace falta un caso especial nuevo para esto.
+    if (s.activo && restantes.length) {
+      var masNuevo = semestresOrdenados().filter(function (x) { return x.id !== s.id; }).slice(-1)[0];
+      restantes = restantes.map(function (x) { return Object.assign({}, x, { activo: x.id === masNuevo.id }); });
+    }
+    var okSem = await saveSemestresRaw(restantes);
+    var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return !materiaIds[m.id]; }));
+    var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return !materiaIds[a.materiaId]; }));
+    if (!okSem || !okMat || !okAg) avisarError();
+    renderSemestresModal();
+    renderRoute();
   }
 
   // Sugerencia de nombre para un semestre nuevo, en base a la fecha real —
@@ -2856,6 +3054,7 @@
     form.facultad.value = p.facultad || '';
     form.carrera.value = p.carrera || '';
     form.telefono.value = p.telefono || '';
+    form.creditos_carrera.value = p.creditos_carrera != null ? p.creditos_carrera : '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
     // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
     // propia con su propia identidad grande (.perfil-hero) — el subtítulo
@@ -3013,6 +3212,7 @@
       ev.preventDefault();
       var form = ev.target;
       var edadTxt = form.edad.value.trim();
+      var creditosCarreraTxt = form.creditos_carrera.value.trim();
       var patch = {
         id: CURRENT_USER.id,
         nombre: form.nombre.value.trim(),
@@ -3020,7 +3220,8 @@
         edad: edadTxt === '' ? null : Number(edadTxt),
         facultad: form.facultad.value.trim(),
         carrera: form.carrera.value.trim(),
-        telefono: form.telefono.value.trim()
+        telefono: form.telefono.value.trim(),
+        creditos_carrera: creditosCarreraTxt === '' ? null : Number(creditosCarreraTxt)
       };
       var btn = document.getElementById('btn-perfil-guardar');
       setBtnBusy(btn, true, 'Guardando…');

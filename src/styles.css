@@ -150,6 +150,7 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .semestre-row-select.is-active .semestre-row-nombre{color:#fff}
 .semestre-row-meta{font-size:12px;color:var(--c-ink3);flex:none}
 .semestre-row-edit{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-ink2);font-size:13px}
+.semestre-row-delete{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-danger);font-size:13px}
 .semestre-row-nombre-input{height:42px;flex:1;min-width:0;border:none;border-radius:10px;padding:0 12px;font-size:14px;font-weight:600;background:var(--c-surfaceAlt);color:var(--c-ink)}
 
 .sidenav-nav{display:flex;flex-direction:column;gap:2px}
@@ -558,6 +559,21 @@ html[data-theme="oscuro"] .topbar{background:rgba(28,28,30,.82)}
 .empty-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 .empty-actions .btn{height:44px;padding:0 22px;font-size:14px}
 .empty-hint{font-size:12px;color:var(--c-ink3)}
+
+/* ---------- Progreso (histórico entre semestres) ---------- */
+.progreso-content{display:flex;flex-direction:column;gap:16px}
+/* Con muchos semestres el SVG es más ancho que el panel — scrollea en vez
+   de empujar la página entera (mismo criterio que .filtros-row/.mini-days). */
+.progreso-chart-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.progreso-chart-wrap svg{display:block}
+.progreso-creditos-cta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.progreso-creditos-cta span{font-size:13px;color:var(--c-ink2);flex:1;min-width:200px}
+/* Único elemento "motivacional" que pide el prompt (▲/▼ + delta) — mismo
+   vocabulario de tono (success/danger) que ya usan los badges, nada de
+   rachas ni animaciones. */
+.progreso-delta{display:flex;align-items:baseline;gap:8px}
+.progreso-delta-val{font-family:var(--font-display);font-size:22px;font-weight:600;letter-spacing:-.02em}
+.progreso-delta-d{font-size:13px;font-weight:600}
 
 .onboarding{position:fixed;inset:0;background:var(--c-bg);display:flex;z-index:200}
 .onboarding.hidden{display:none}

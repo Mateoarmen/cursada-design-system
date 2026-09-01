@@ -117,6 +117,7 @@
       <button class="nav-item" data-nav="agenda"><span class="mark"></span><span>Agenda</span></button>
       <button class="nav-item" data-nav="calendario"><span class="mark"></span><span>Calendario</span></button>
       <button class="nav-item" data-nav="horario"><span class="mark"></span><span>Horario</span></button>
+      <button class="nav-item" data-nav="progreso"><span class="mark"></span><span>Progreso</span></button>
     </nav>
     <div class="sidenav-legend hidden" id="sidenav-legend">
       <span class="lbl" id="sidenav-legend-lbl">Referencias</span>
@@ -207,6 +208,14 @@
                 <span class="panel-hint mono">actual / aprueba con</span>
               </div>
               <div id="riesgo-list"></div>
+            </div>
+            <div class="card panel hidden" id="progreso-widget">
+              <div class="panel-head">
+                <h2 class="panel-title">Progreso</h2>
+                <a class="panel-hint" href="#progreso">ver detalle</a>
+              </div>
+              <div id="progreso-widget-delta"></div>
+              <div id="progreso-widget-creditos"></div>
             </div>
             <div class="card panel">
               <h2 class="panel-title">Accesos rápidos</h2>
@@ -395,6 +404,32 @@
       <div class="view">
         <div class="horario-grid-wrap">
           <div class="horario-grid" id="horario-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROGRESO ============ -->
+    <section class="view-screen hidden" id="progreso">
+      <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú">☰</button>
+        <span class="topbar-title"><h1 class="t">Progreso</h1></span>
+      </header>
+      <div class="view">
+        <div class="empty-state hidden" id="progreso-empty">
+          <div class="empty-copy">
+            <span class="t">Todavía no hay historial para mostrar</span>
+            <span class="s">En cuanto tengas notas cargadas en al menos un semestre, acá vas a ver tu promedio a lo largo del tiempo y tu progreso hacia el título.</span>
+          </div>
+        </div>
+        <div class="progreso-content hidden" id="progreso-content">
+          <div class="card panel">
+            <div class="panel-head"><h2 class="panel-title">Promedio por semestre</h2></div>
+            <div class="progreso-chart-wrap" id="progreso-chart"></div>
+          </div>
+          <div class="card panel" id="progreso-creditos-panel">
+            <div class="panel-head"><h2 class="panel-title">Progreso hacia el título</h2></div>
+            <div id="progreso-creditos"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -652,6 +687,7 @@
           <span class="perfil-group-lbl">Estudio</span>
           <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
           <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+          <div class="field"><label for="perfil-creditos-carrera">Créditos de la carrera</label><input id="perfil-creditos-carrera" name="creditos_carrera" type="number" min="0" step="1" placeholder="Ej: 240"><span style="font-size:11px;color:var(--c-ink3)">¿Cuántos créditos tiene tu carrera en total? Se usa para mostrar tu progreso general — podés completarlo después.</span></div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
       </div>
@@ -828,6 +864,7 @@
     </button>
     <span class="semestre-row-meta" data-f="meta"></span>
     <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar semestre">✎</button>
+    <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar semestre">🗑</button>
   </div>
 </template>
 
