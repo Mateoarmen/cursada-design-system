@@ -39,9 +39,9 @@
   // de fuente del sistema (ver styles.css); MONO queda como alias para no
   // tocar cada llamada de chip()/badge()/ring() una por una.
   var MONO = "-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif";
-  // margen de riesgo (escala 0-12), constante de runtime — no hay pantalla de ajustes
-  // en este entregable. Cambiá este valor (0 a 3, pasos de .5) para ajustar cuándo
-  // una materia pasa de "warning" a "danger" en el semáforo de riesgo.
+  // Margen de riesgo (escala 0-12): ahora vive en profiles.margen_riesgo
+  // (panel de Ajustes), esto es sólo el fallback mientras el perfil no
+  // cargó todavía — ver margenDe() más abajo.
   var MARGEN_RIESGO = 1;
   var NOTA_APROBACION_DEFECTO = 3;
 
@@ -212,7 +212,10 @@
   function uni(e) { return e.tipo === 'nota' ? '' : (e.tipo === 'pct' ? '%' : ' pts'); }
   function valU(v, e) { return v == null ? '—' : val(v, e) + uni(e); }
   function escLabel(e) { return e.tipo === 'nota' ? 'Nota 0–12' : (e.tipo === 'pct' ? 'Porcentaje' : 'Puntaje ' + e.total); }
-  function margenDe(e) { return MARGEN_RIESGO / 12 * e.total; }
+  function margenDe(e) {
+    var margen = CURRENT_PROFILE && CURRENT_PROFILE.margen_riesgo != null ? CURRENT_PROFILE.margen_riesgo : MARGEN_RIESGO;
+    return margen / 12 * e.total;
+  }
   function toneDe(estado, esc, parciales) {
     if (estado === 'aprobada') return 'success';
     if (!parciales.length) return 'neutral';
@@ -424,7 +427,7 @@
       sb().from('personal').select('*')
     ]);
     results.forEach(function (r) { if (r.error) throw r.error; });
-    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', edad: null, facultad: null, carrera: null, telefono: null, foto_url: null, creditos_carrera: null };
+    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', edad: null, facultad: null, carrera: null, telefono: null, foto_url: null, creditos_carrera: null, materias_carrera: null, margen_riesgo: 1 };
     CACHE.semestres = results[1].data.map(rowToSemestre);
     CACHE.materias = results[2].data.map(rowToMateria);
     CACHE.agenda = results[3].data.map(rowToAgenda);
@@ -643,6 +646,12 @@
   function creditosAcumulados() {
     return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; })
       .reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0);
+  }
+  // Mismo criterio que creditosAcumulados() (aprobadas de todos los
+  // semestres), cuenta en vez de sumar creditos — para la meta de
+  // "cantidad de materias de la carrera".
+  function materiasAprobadasCount() {
+    return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; }).length;
   }
 
   // ================================================================
@@ -900,26 +909,25 @@
   // ================================================================
   // PROGRESO (histórico entre semestres)
   // ================================================================
-  // Panel de créditos hacia el título — compartido entre la sección
-  // Progreso completa y el widget resumen de Inicio, sólo cambia qué tan
-  // detallado es lo que arma (compact=true en Inicio, sin el conteo exacto
-  // de créditos, sólo el %).
-  function renderCreditosInto(container, compact) {
+  // Barra de progreso hacia una meta de carrera — compartida entre créditos
+  // y cantidad de materias (Ajustes las trata como dos metas independientes,
+  // ninguna pisa a la otra si están las dos cargadas), y entre la sección
+  // Progreso completa y el widget resumen de Inicio (compact=true ahí, sin
+  // el conteo exacto, sólo el %).
+  function renderMetaBarInto(container, compact, valorMeta, valorActual, unidad, ctaTexto) {
     clear(container);
-    var cc = CURRENT_PROFILE && CURRENT_PROFILE.creditos_carrera;
-    if (cc == null) {
+    if (valorMeta == null) {
       var cta = el('div', 'progreso-creditos-cta');
-      var span = el('span'); span.textContent = 'Completá los créditos de tu carrera en tu perfil para ver tu progreso hacia el título.';
-      var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Completar perfil';
-      btn.addEventListener('click', function () { openPerfilModal('editar'); });
+      var span = el('span'); span.textContent = ctaTexto;
+      var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Ir a Ajustes';
+      btn.addEventListener('click', function () { openAjustesModal(); });
       cta.appendChild(span); cta.appendChild(btn);
       container.appendChild(cta);
       return;
     }
-    var acumulados = creditosAcumulados();
-    var pct = cc > 0 ? Math.max(0, Math.min(100, Math.round((acumulados / cc) * 100))) : 0;
+    var pct = valorMeta > 0 ? Math.max(0, Math.min(100, Math.round((valorActual / valorMeta) * 100))) : 0;
     var row = el('div', 'nota-row');
-    var label = el('span', 'label'); label.textContent = compact ? 'Hacia el título' : (acumulados + ' / ' + cc + ' créditos');
+    var label = el('span', 'label'); label.textContent = compact ? ('Hacia el título · ' + unidad) : (valorActual + ' / ' + valorMeta + ' ' + unidad);
     var barWrap = el('div', 'bar-wrap');
     var barFill = el('div', 'bar-fill');
     barFill.setAttribute('style', css({ width: pct + '%', background: TONE.success }));
@@ -934,7 +942,8 @@
     document.getElementById('progreso-content').classList.toggle('hidden', puntos.length === 0);
     if (!puntos.length) return;
     document.getElementById('progreso-chart').innerHTML = buildProgresoChartSvg(puntos);
-    renderCreditosInto(document.getElementById('progreso-creditos'), false);
+    renderMetaBarInto(document.getElementById('progreso-creditos'), false, CURRENT_PROFILE && CURRENT_PROFILE.creditos_carrera, creditosAcumulados(), 'créditos', 'Completá los créditos de tu carrera en Ajustes para ver tu progreso hacia el título.');
+    renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
   }
   // Sólo se muestra con ≥2 semestres con datos — nada de estado vacío acá,
   // si no hay historial suficiente el panel directamente no aparece (ver
@@ -968,7 +977,8 @@
       row.appendChild(val); row.appendChild(d);
       deltaWrap.appendChild(row);
     }
-    renderCreditosInto(document.getElementById('progreso-widget-creditos'), true);
+    renderMetaBarInto(document.getElementById('progreso-widget-creditos'), true, CURRENT_PROFILE && CURRENT_PROFILE.creditos_carrera, creditosAcumulados(), 'créditos', 'Completá los créditos de tu carrera en Ajustes.');
+    renderMetaBarInto(document.getElementById('progreso-widget-materias'), true, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes.');
   }
 
   function agendaBadgeInfo(item, t) {
@@ -1747,14 +1757,17 @@
   // Modales con un formulario real donde perder lo tipeado importa — se les
   // guarda una "foto" del formulario al abrir (snapshotModalForm) para poder
   // avisar si hay cambios sin guardar al intentar cerrar sin querer.
-  var MODAL_FORMS = { 'modal-materia': 'form-materia', 'modal-evaluacion': 'form-evaluacion', 'modal-personal': 'form-personal', 'modal-perfil': 'form-perfil' };
+  var MODAL_FORMS = { 'modal-materia': 'form-materia', 'modal-evaluacion': 'form-evaluacion', 'modal-personal': 'form-personal', 'modal-perfil': 'form-perfil', 'modal-ajustes': 'form-ajustes' };
   // El modal de materia tiene selecciones (color, franjas horarias, sistema
   // de calificación) que viven en STATE.editing, no en <input>/<select> con
   // `name` — FormData no las ve, así que se agregan a mano a su snapshot.
+  // Mismo motivo para el margen de riesgo de Ajustes (fila de pills, no un
+  // <input> nativo).
   var MODAL_EXTRA_STATE = {
     'modal-materia': function () { return { colorId: STATE.editing.colorId, esc: STATE.editing.esc, horarioRows: STATE.editing.horarioRows }; },
     'modal-evaluacion': function () { return { evalMateriaId: STATE.editing.evalMateriaId, evalTipo: STATE.editing.evalTipo, evalTipoCustom: STATE.editing.evalTipoCustom }; },
-    'modal-personal': function () { return { todoElDia: STATE.editing.todoElDia }; }
+    'modal-personal': function () { return { todoElDia: STATE.editing.todoElDia }; },
+    'modal-ajustes': function () { return { margen: AJUSTES_MARGEN_ACTUAL }; }
   };
   var MODAL_SNAPSHOTS = {};
   function modalSnapshotValue(modalId) {
@@ -3054,7 +3067,6 @@
     form.facultad.value = p.facultad || '';
     form.carrera.value = p.carrera || '';
     form.telefono.value = p.telefono || '';
-    form.creditos_carrera.value = p.creditos_carrera != null ? p.creditos_carrera : '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
     // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
     // propia con su propia identidad grande (.perfil-hero) — el subtítulo
@@ -3090,6 +3102,36 @@
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
     openModal('modal-perfil');
     snapshotModalForm('modal-perfil');
+  }
+
+  // ================================================================
+  // AJUSTES
+  // ================================================================
+  // 7 valores discretos (0 a 3, pasos de .5) — no hace falta la escotilla de
+  // "Otro" que sí tienen los presets de puntaje/aprobación (esc.total/esc.aprob),
+  // ahí el rango es abierto; acá es cerrado y chico. Reusa buildNumPill(),
+  // el mismo builder que ya arma esos presets.
+  var MARGEN_RIESGO_OPCIONES = [0, .5, 1, 1.5, 2, 2.5, 3];
+  var AJUSTES_MARGEN_ACTUAL = 1;
+  function renderAjustesMargenPills() {
+    var wrap = document.getElementById('ajustes-margen-presets');
+    clear(wrap);
+    MARGEN_RIESGO_OPCIONES.forEach(function (n) {
+      wrap.appendChild(buildNumPill(n === AJUSTES_MARGEN_ACTUAL, String(n), function () {
+        AJUSTES_MARGEN_ACTUAL = n;
+        renderAjustesMargenPills();
+      }));
+    });
+  }
+  function openAjustesModal() {
+    var p = CURRENT_PROFILE || {};
+    var form = document.getElementById('form-ajustes');
+    form.creditos_carrera.value = p.creditos_carrera != null ? p.creditos_carrera : '';
+    form.materias_carrera.value = p.materias_carrera != null ? p.materias_carrera : '';
+    AJUSTES_MARGEN_ACTUAL = p.margen_riesgo != null ? p.margen_riesgo : MARGEN_RIESGO;
+    renderAjustesMargenPills();
+    openModal('modal-ajustes');
+    snapshotModalForm('modal-ajustes');
   }
 
   // Los únicos 3 campos que gatillan el aviso — nombre/apellido/edad/foto
@@ -3168,14 +3210,21 @@
 
   function bindProfileUI() {
     document.getElementById('sidenav-user').addEventListener('click', function (ev) {
-      if (ev.target.closest('#btn-logout')) return;
+      if (ev.target.closest('#btn-logout') || ev.target.closest('#btn-ajustes')) return;
       openPerfilModal('editar');
     });
-    // Mobile: "Cerrar sesión" vive también dentro de la pantalla de perfil,
-    // no sólo el ⏻ del cajón (ahí es donde la gente lo busca). Dispara el
-    // mismo #btn-logout en vez de duplicar el confirm()/signOut() — una
-    // sola fuente de verdad para cerrar sesión.
+    document.getElementById('btn-ajustes').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openAjustesModal();
+    });
+    // Mobile: "Cerrar sesión" vive también dentro de la pantalla de perfil
+    // y del panel de Ajustes, no sólo el ⏻ del cajón (ahí es donde la gente
+    // lo busca). Dispara el mismo #btn-logout en vez de duplicar el
+    // confirm()/signOut() — una sola fuente de verdad para cerrar sesión.
     document.getElementById('btn-perfil-logout').addEventListener('click', function () {
+      document.getElementById('btn-logout').click();
+    });
+    document.getElementById('btn-ajustes-logout').addEventListener('click', function () {
       document.getElementById('btn-logout').click();
     });
     document.getElementById('btn-logout').addEventListener('click', async function (ev) {
@@ -3212,7 +3261,6 @@
       ev.preventDefault();
       var form = ev.target;
       var edadTxt = form.edad.value.trim();
-      var creditosCarreraTxt = form.creditos_carrera.value.trim();
       var patch = {
         id: CURRENT_USER.id,
         nombre: form.nombre.value.trim(),
@@ -3220,8 +3268,7 @@
         edad: edadTxt === '' ? null : Number(edadTxt),
         facultad: form.facultad.value.trim(),
         carrera: form.carrera.value.trim(),
-        telefono: form.telefono.value.trim(),
-        creditos_carrera: creditosCarreraTxt === '' ? null : Number(creditosCarreraTxt)
+        telefono: form.telefono.value.trim()
       };
       var btn = document.getElementById('btn-perfil-guardar');
       setBtnBusy(btn, true, 'Guardando…');
@@ -3235,6 +3282,32 @@
         document.getElementById('modal-perfil').classList.remove('is-gate');
         if (PERFIL_GATE_RESOLVE) { var resolver = PERFIL_GATE_RESOLVE; PERFIL_GATE_RESOLVE = null; resolver(); }
         renderSidenavUser();
+        renderRoute();
+      } catch (err) {
+        avisarError();
+      } finally {
+        setBtnBusy(btn, false);
+      }
+    });
+    document.getElementById('form-ajustes').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var form = ev.target;
+      var creditosTxt = form.creditos_carrera.value.trim();
+      var materiasTxt = form.materias_carrera.value.trim();
+      var patch = {
+        id: CURRENT_USER.id,
+        creditos_carrera: creditosTxt === '' ? null : Number(creditosTxt),
+        materias_carrera: materiasTxt === '' ? null : Number(materiasTxt),
+        margen_riesgo: AJUSTES_MARGEN_ACTUAL
+      };
+      var btn = document.getElementById('btn-ajustes-guardar');
+      setBtnBusy(btn, true, 'Guardando…');
+      try {
+        var res = await sb().from('profiles').upsert(patch);
+        if (res.error) throw res.error;
+        CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, patch);
+        snapshotModalForm('modal-ajustes');
+        closeAllModals();
         renderRoute();
       } catch (err) {
         avisarError();

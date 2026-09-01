@@ -108,9 +108,11 @@ instalado:
   `src/runtime.js` (texto generado dinámicamente — buscá los strings en
   español ahí).
 - **Margen de riesgo** (cuándo una materia pasa de "en riesgo" a "en
-  peligro"): constante `MARGEN_RIESGO` al principio de `src/runtime.js`
-  (0 a 3, en pasos de 0.5, escala 0–12). El handoff no incluye una pantalla
-  de ajustes para esto, así que quedó como constante de código.
+  peligro"): ya no es una constante de código — se edita desde el panel de
+  Ajustes (0 a 3, en pasos de 0.5, escala 0–12), ver sección "Panel de
+  Ajustes" más abajo. `MARGEN_RIESGO` sigue existiendo al principio de
+  `src/runtime.js`, pero ahora es sólo el valor de fallback mientras el
+  perfil no cargó todavía.
 
 ## Estructura del proyecto
 
@@ -1450,7 +1452,8 @@ usa Materias) en vez de un gráfico roto o en blanco. Con datos: un único
 gráfico de línea (no uno por semestre — el pedido original habla de anotar
 aprobadas/total "junto a cada punto del gráfico", en singular, confirmando
 que es un solo gráfico combinado) con el promedio de cada semestre en el eje
-X, más una barra de créditos acumulados hacia el título.
+X, más las barras de progreso hacia el título (créditos y/o cantidad de
+materias — ver "Panel de Ajustes" más abajo, sección "Meta de carrera").
 
 **El gráfico es SVG armado a mano** (`buildProgresoChartSvg()`), sin
 librería — mismo espíritu que el ring/donut que ya usaba Detalle
@@ -1488,31 +1491,30 @@ puntos contra el semestre inmediatamente anterior (cronológico de verdad,
 ver arriba) — coloreado con el mismo vocabulario `TONE` que ya usan los
 badges (verde/rojo/gris), nada nuevo. **Es el único elemento "motivacional"
 de todo este pedido** — sin rachas, insignias ni animaciones, tal como pedía
-explícitamente el prompt original. Debajo, si hay `creditos_carrera`
-cargado, una versión compacta de la barra de créditos (reusa exactamente
-`.bar-wrap`/`.bar-fill` de `nota-row`, la misma barra que ya usa Detalle
-para las notas — no CSS nuevo) sin el detalle completo de la sección
+explícitamente el prompt original. Debajo, si hay `creditos_carrera` y/o
+`materias_carrera` cargados, una versión compacta de sus barras (reusa
+exactamente `.bar-wrap`/`.bar-fill` de `nota-row`, la misma barra que ya usa
+Detalle para las notas — no CSS nuevo) sin el detalle completo de la sección
 Progreso. Un link "ver detalle" lleva a `#progreso`.
 
-### Créditos hacia el título
+### Metas hacia el título: créditos y cantidad de materias
 
-Suma de `creditos` de las materias con `estado === 'aprobada'` en **todos**
-los semestres (`creditosAcumulados()`, sin acotar al activo — a propósito,
-distinto del resto de la app) sobre `profiles.creditos_carrera`. Si ese
-campo es `null` (usuario no lo cargó todavía), no se muestra una barra en
-cero ni un placeholder — se muestra una invitación chica a completarlo que
-abre el modal de perfil (`openPerfilModal('editar')`, ya existía).
+Dos metas independientes, cada una gateada por separado — cargar una no
+depende de la otra, y si cargás las dos se muestran las dos. Créditos: suma
+de `creditos` de las materias con `estado === 'aprobada'` en **todos** los
+semestres (`creditosAcumulados()`, sin acotar al activo — a propósito,
+distinto del resto de la app) sobre `profiles.creditos_carrera`. Materias:
+mismo criterio pero contando materias en vez de sumar créditos
+(`materiasAprobadasCount()`) sobre `profiles.materias_carrera`. Ambos
+campos se cargan y editan desde el panel de Ajustes (ver más abajo), no
+desde Perfil. Si algún campo es `null` (todavía no se cargó), esa barra en
+particular no se muestra en cero ni con un placeholder — se muestra una
+invitación chica a completarlo que abre Ajustes (`openAjustesModal()`).
 
-### Campo nuevo: créditos de la carrera, en Perfil
-
-`creditos_carrera` (columna nueva en `profiles`, agregada directamente en
-Supabase — el cliente no la crea) se sumó al grupo "Estudio" del modal de
-perfil, mismo patrón que el campo "Edad" ya existente (`type="number"`,
-nullable: string vacío guarda `null`, no `0`). **No es obligatorio en ningún
-modo** — a diferencia de nombre/apellido/edad/facultad/carrera/teléfono, no
-se agregó a `PERFIL_CAMPOS` (el array de campos que se vuelven obligatorios
-en el modo "completar perfil" de cuentas de Google), porque el prompt es
-explícito en que este campo puede completarse en cualquier momento.
+`renderCreditosInto()` (la función original, sólo créditos) se generalizó a
+`renderMetaBarInto(container, compact, valorMeta, valorActual, unidad,
+ctaTexto)` — misma barra, parametrizada, para no mantener dos copias casi
+idénticas de la lógica de progreso.
 
 ### Eliminar un semestre (pedido corto, aparte del prompt principal)
 
@@ -1536,6 +1538,85 @@ Dos decisiones tomadas al implementar esto, no pedidas explícitamente:
   y crear una materia nueva sin semestre activo ya auto-creaba uno antes de
   este pedido. No hizo falta inventar un caso especial para algo que la app
   ya sabía manejar.
+
+## Panel de Ajustes
+
+Cursada no tenía ningún lugar dedicado a configuración — lo más parecido era
+el modal de Perfil, que es sobre identidad (nombre, foto, facultad), no
+sobre cómo se comporta la app. Este pedido crea ese lugar: un modal nuevo
+con tres secciones (Meta de carrera, Margen de riesgo, Datos y cuenta),
+accesible con un ⚙ junto al bloque de usuario del cajón.
+
+### Entrada: modal, no una vista de nav nueva
+
+`#btn-ajustes` (⚙) vive dentro de `.sidenav-user`, junto al ⏻ de cerrar
+sesión — mismo mecanismo de apertura que Perfil (el bloque entero abre
+Perfil al clickear, salvo en esos dos íconos; el handler de exclusión que ya
+existía para `#btn-logout` sumó `#btn-ajustes`). Ajustes es un modal
+(`#modal-ajustes`, mismo patrón `.modal-head`/`.modal-body`/`.modal-foot`
+que Perfil/Semestres), no un ítem de `CORE_VIEWS` ni del cajón de
+navegación principal — el propio pedido lo enmarca como "Ajustes y Perfil
+agrupados como 'lo tuyo'", separado de Inicio/Materias/Agenda/Calendario/
+Horario/Progreso.
+
+### Control del margen de riesgo: pills, no un slider
+
+No existe ningún `<input type="range">` en toda la app (se confirmó
+buscando antes de elegir). Los patrones que sí existen para "elegir un
+valor discreto" son `.seg-item` (2-4 opciones fijas, como el toggle de
+tema) y `.num-pill` + `buildNumPill()` (los presets de "Puntaje total"/
+"Aprueba con" del modal de materia). El margen va de 0 a 3 en pasos de
+0.5 — exactamente 7 valores discretos — así que una fila de 7 `.num-pill`
+reusa el componente tal cual, sin la escotilla de "Otro" que sí tienen esos
+presets (ahí el rango es abierto; acá es cerrado y chico). El texto de
+ayuda debajo explica qué hace el número en palabras de usuario ("cuándo una
+materia pasa de 'en riesgo' a 'en peligro'"), sin exponer el nombre técnico
+del semáforo.
+
+`margenDe(e)` (antes: `MARGEN_RIESGO / 12 * e.total`, una constante fija)
+pasa a leer `CURRENT_PROFILE.margen_riesgo`, con `MARGEN_RIESGO` como
+fallback si todavía no cargó (nunca debería ser el caso en producción — la
+columna es `not null default 1` — pero cubre el instante entre login y que
+`CURRENT_PROFILE` se puebla). Guardar Ajustes llama a `renderRoute()`, así
+que los semáforos de Materias/Inicio reaccionan al toque, sin recargar.
+
+### Meta de carrera: créditos y cantidad de materias
+
+`creditos_carrera` se mudó acá desde Perfil (donde vivía en el grupo
+"Estudio") — no se duplicó, se sacó el campo entero de `#modal-perfil` y se
+recreó en `#form-ajustes`. `materias_carrera` es el mismo patrón, campo
+nuevo. Los dos son opcionales e independientes — cargar uno no obliga a
+cargar el otro, y si están los dos cargados, la sección Progreso muestra
+las dos barras (ver esa sección más arriba para el detalle de
+`renderMetaBarInto()`).
+
+### Datos y cuenta: reubicados, no reescritos
+
+`#btn-exportar`, `#btn-importar` (+ `#input-importar`) y `#btn-borrar-todo`
+se movieron tal cual desde `.app-toolbar` a esta sección — mismos ids,
+misma lógica de `runtime.js` sin tocar una línea (exportar arma un JSON y
+dispara la descarga vía blob; importar valida la forma del archivo antes de
+llamar a `importCollections()`; borrar todo pide confirmación con el texto
+exacto de siempre y vacía materias/agenda/personal). Exportar e Importar ya
+existían en el código pero vivían ocultos con `class="hidden"` en la
+toolbar (a pedido explícito de una pasada anterior) — acá quedan visibles
+sin más, no hace falta reactivarlos aparte. Se sumó un botón nuevo de
+"Cerrar sesión" que dispara `.click()` sobre el `#btn-logout` real (mismo
+patrón que ya usaba `#btn-perfil-logout` — una sola fuente de verdad para
+el `confirm()`/`signOut()`, nunca una copia).
+
+**Bug evitado al mover estos botones, no evidente hasta escribir el HTML:**
+ninguno de los tres tenía `type="button"` explícito — no hacía falta,
+vivían sueltos en `.app-toolbar`, fuera de cualquier `<form>`. Adentro de
+`<form id="form-ajustes">`, un `<button>` sin `type` es `type="submit"` por
+default: sin agregarlo a mano, tocar "Exportar" hubiera disparado además el
+submit del formulario de Ajustes (guardando créditos/materias/margen de
+paso, sin que el usuario lo pidiera). Se agregó `type="button"` a los tres
+al moverlos, y al botón de logout nuevo.
+
+`.app-toolbar` conserva el toggle de tema y "Imprimir" — no estaban en el
+pedido de mover, y son acciones de "esta pantalla ahora mismo" más que de
+configuración de cuenta.
 
 ## Ver también
 

@@ -144,6 +144,7 @@
     <div class="sidenav-user" id="sidenav-user" title="Editar perfil">
       <div class="av" id="sidenav-user-avatar"></div>
       <div class="who"><b id="sidenav-user-nombre"></b><span id="sidenav-user-email"></span></div>
+      <button type="button" class="sidenav-settings" id="btn-ajustes" title="Ajustes" aria-label="Ajustes">⚙</button>
       <button type="button" class="sidenav-logout" id="btn-logout" title="Cerrar sesión" aria-label="Cerrar sesión">⏻</button>
     </div>
   </aside>
@@ -161,13 +162,6 @@
         <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
       </div>
       <div class="sep"></div>
-      <!-- Import/export JSON ocultos a pedido — el botón y el listener
-           siguen enteros en runtime.js, sólo se sacó la entrada visual.
-           Sacar el `hidden` de estos dos <button> alcanza para reactivarlo. -->
-      <button class="toolbar-btn hidden" id="btn-exportar">Exportar</button>
-      <button class="toolbar-btn hidden" id="btn-importar">Importar</button>
-      <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
-      <button class="toolbar-btn" id="btn-borrar-todo">Borrar todo</button>
       <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>
     </div>
 
@@ -216,6 +210,7 @@
               </div>
               <div id="progreso-widget-delta"></div>
               <div id="progreso-widget-creditos"></div>
+              <div id="progreso-widget-materias"></div>
             </div>
             <div class="card panel">
               <h2 class="panel-title">Accesos rápidos</h2>
@@ -429,6 +424,7 @@
           <div class="card panel" id="progreso-creditos-panel">
             <div class="panel-head"><h2 class="panel-title">Progreso hacia el título</h2></div>
             <div id="progreso-creditos"></div>
+            <div id="progreso-materias"></div>
           </div>
         </div>
       </div>
@@ -687,13 +683,51 @@
           <span class="perfil-group-lbl">Estudio</span>
           <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
           <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
-          <div class="field"><label for="perfil-creditos-carrera">Créditos de la carrera</label><input id="perfil-creditos-carrera" name="creditos_carrera" type="number" min="0" step="1" placeholder="Ej: 240"><span style="font-size:11px;color:var(--c-ink3)">¿Cuántos créditos tiene tu carrera en total? Se usa para mostrar tu progreso general — podés completarlo después.</span></div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
       </div>
       <div class="modal-foot" style="justify-content:flex-end">
         <button type="button" class="btn" id="btn-perfil-cancelar" data-close-modal>Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btn-perfil-guardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL AJUSTES ============ -->
+<div class="modal-backdrop" id="modal-ajustes">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="titles"><h2 class="t">Ajustes</h2></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <form id="form-ajustes">
+      <div class="modal-body pad-lg">
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Meta de carrera</span>
+          <div class="field"><label for="ajustes-creditos-carrera">Créditos totales de la carrera</label><input id="ajustes-creditos-carrera" name="creditos_carrera" type="number" min="0" step="1" placeholder="Ej: 240"></div>
+          <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
+          <span style="font-size:11px;color:var(--c-ink3)">Los dos son opcionales e independientes — si cargás los dos, la sección Progreso muestra las dos barras. Podés completarlos después.</span>
+        </div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Margen de riesgo</span>
+          <div class="num-pill-row"><span class="lbl">De 0 a 3</span><div class="num-pills" id="ajustes-margen-presets"></div></div>
+          <span style="font-size:11px;color:var(--c-ink3)">Define cuánto margen le das a una materia antes de que pase de "en riesgo" a "en peligro" en los semáforos de Inicio y Materias.</span>
+        </div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Datos y cuenta</span>
+          <div class="accesos-row">
+            <button type="button" class="btn" id="btn-exportar">Exportar</button>
+            <button type="button" class="btn" id="btn-importar">Importar</button>
+            <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
+            <button type="button" class="btn" id="btn-borrar-todo">Borrar todo</button>
+            <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-ajustes-guardar">Guardar</button>
       </div>
     </form>
   </div>

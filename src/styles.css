@@ -774,8 +774,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 .sidenav-user .who{flex:1;min-width:0;overflow:hidden}
 .sidenav-user .who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .sidenav-user .who span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.sidenav-logout{flex:none;width:26px;height:26px;border-radius:8px;border:none;background:transparent;color:var(--c-ink3);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+.sidenav-logout,.sidenav-settings{flex:none;width:26px;height:26px;border-radius:8px;border:none;background:transparent;color:var(--c-ink3);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
 .sidenav-logout:hover{background:var(--c-line-faint);color:var(--c-danger)}
+.sidenav-settings:hover{background:var(--c-line-faint);color:var(--c-ink)}
 #import-local-resumen{font-size:14px;font-weight:600;line-height:1.4}
 
 /* ============================================================================
