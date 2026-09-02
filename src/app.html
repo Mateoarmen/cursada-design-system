@@ -275,7 +275,7 @@
               <h2 class="panel-title">Accesos rápidos</h2>
               <div class="accesos-row">
                 <button class="acceso-btn" id="acceso-materia">+ Materia</button>
-                <button class="acceso-btn" id="acceso-entrega">+ Entrega</button>
+                <button class="acceso-btn" id="acceso-entrega">+ Tarea o evaluación</button>
                 <button class="acceso-btn" id="acceso-evento">+ Evento personal</button>
                 <button class="acceso-btn" data-nav="horario">Ver horario</button>
               </div>
@@ -343,6 +343,7 @@
         <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
         <div class="topbar-actions">
           <button class="btn" id="btn-detalle-editar">Editar materia</button>
+          <button class="btn" id="btn-detalle-nueva-tarea">+ Nueva tarea</button>
           <button class="btn btn-primary" id="btn-detalle-nueva-eval">+ Nueva evaluación</button>
         </div>
       </header>
@@ -387,7 +388,7 @@
             </div>
           </div>
           <div class="card detalle-col" style="flex:1.15">
-            <div class="panel-head"><h2 class="panel-title">Evaluaciones y entregas</h2><span class="panel-hint mono" id="detalle-eval-count"></span></div>
+            <div class="panel-head"><h2 class="panel-title">Evaluaciones y tareas</h2><span class="panel-hint mono" id="detalle-eval-count"></span></div>
             <div class="eval-list" id="detalle-eval-list"></div>
           </div>
         </div>
@@ -536,7 +537,7 @@
   <button class="fab" id="btn-fab" aria-label="Nuevo"><span aria-hidden="true">+</span></button>
   <div class="quick-sheet" id="quick-sheet" aria-label="Crear">
     <button type="button" id="quick-materia">+ Materia</button>
-    <button type="button" id="quick-entrega">+ Entrega</button>
+    <button type="button" id="quick-entrega">+ Tarea o evaluación</button>
     <button type="button" id="quick-evento">+ Evento personal</button>
   </div>
   <div class="row-menu" id="row-menu" aria-label="Acciones para la fila seleccionada">
@@ -644,8 +645,23 @@
 <div class="modal-backdrop" id="modal-evaluacion">
   <div class="modal modal-sm">
     <div class="modal-head">
-      <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo examen o entrega</h2>
+      <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo</h2>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <!-- Fase 1: paso 1 de la creación — sin esto no hay forma de saber si
+         lo que se está por cargar es una tarea (sin nota) o una evaluación
+         (con nota máxima/obtenida) hasta llegar al final del form. Sólo se
+         ve al crear (sin editId) y sin un kind ya definido por el caller
+         (ver openEvaluacionModal/renderModalEvalKindStep en runtime.js) —
+         editar un ítem existente nunca lo muestra, el kind ya quedó fijado. -->
+    <div class="modal-body pad-lg" id="modal-eval-kind-step">
+      <div class="field">
+        <label id="eval-kind-label">¿Qué querés agregar?</label>
+        <div class="seg-cards" id="modal-eval-kind-cards" role="group" aria-labelledby="eval-kind-label">
+          <button type="button" class="seg-card" data-kind="tarea"><b>Tarea</b><span>Sin nota — pendiente o completada</span></button>
+          <button type="button" class="seg-card" data-kind="evaluacion"><b>Evaluación</b><span>Con nota máxima y nota obtenida</span></button>
+        </div>
+      </div>
     </div>
     <form id="form-evaluacion">
       <div class="modal-body pad-lg">
@@ -653,7 +669,7 @@
           <label id="eval-materia-label">Materia</label>
           <div class="chips-materia" id="modal-eval-materias" role="group" aria-labelledby="eval-materia-label"></div>
         </div>
-        <div class="field">
+        <div class="field" id="eval-tipo-field">
           <label id="eval-tipo-label">Tipo</label>
           <div class="tipos-seg" id="modal-eval-tipos" role="group" aria-labelledby="eval-tipo-label"></div>
           <input type="text" id="modal-eval-tipo-custom" class="hidden" placeholder="Nombre del tipo (ej: Coloquio, Laboratorio)" autocomplete="off">
@@ -678,10 +694,14 @@
             <select id="eval-hecho" name="hecho"><option value="">Pendiente</option><option value="1">Entregado / rendido</option></select>
           </div>
         </div>
-        <div class="field-row">
+        <div class="field-row" id="eval-nota-field-row">
+          <div class="field" style="flex:none;width:160px">
+            <label id="modal-eval-nota-maxima-label" for="eval-nota-maxima">Nota máxima</label>
+            <input id="eval-nota-maxima" name="notaMaxima" type="number" step="0.1" min="0.1">
+          </div>
           <div class="field" style="flex:none;width:220px">
             <label id="modal-eval-nota-label" for="eval-nota">Nota obtenida (opcional)</label>
-            <input id="eval-nota" name="nota" type="number" step="0.1" placeholder="Todavía sin calificar">
+            <input id="eval-nota" name="nota" type="number" step="0.1" min="0" placeholder="Todavía sin calificar">
           </div>
         </div>
         <div class="field"><label for="eval-notas">Notas</label><textarea id="eval-notas" name="notas" placeholder="Qué llevar, temas incluidos, bibliografía…"></textarea></div>

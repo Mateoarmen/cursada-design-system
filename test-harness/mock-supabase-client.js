@@ -21,21 +21,31 @@
       { id: 'sem-0', user_id: 'test-user-id-000', nombre: '1er cuatrimestre 2026', activo: false, created_at: '2026-02-01T00:00:00Z' }
     ],
     materias: [
-      { id: 'mat-1', user_id: 'test-user-id-000', semestre_id: 'sem-1', cod: 'AM2', nombre: 'Análisis Matemático II', doc: 'Dra. Pérez', color_id: 'azul', creditos: 6, salon: 'Aula 204', bloques: [{ dia: 1, ini: 8, fin: 10 }, { dia: 3, ini: 8, fin: 10 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
-      { id: 'mat-2', user_id: 'test-user-id-000', semestre_id: 'sem-1', cod: 'ALG', nombre: 'Álgebra', doc: 'Dr. Gómez', color_id: 'coral', creditos: 6, salon: 'Aula 110', bloques: [{ dia: 2, ini: 10, fin: 12.5 }, { dia: 4, ini: 10, fin: 12.5 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'cursando' },
-      { id: 'mat-3', user_id: 'test-user-id-000', semestre_id: 'sem-1', cod: 'FIS1', nombre: 'Física I', doc: 'Ing. Ruiz', color_id: 'violeta', creditos: 5, salon: 'Lab 3', bloques: [{ dia: 1, ini: 14, fin: 16.5 }, { dia: 5, ini: 14, fin: 16 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'cursando' },
-      { id: 'mat-4', user_id: 'test-user-id-000', semestre_id: 'sem-1', cod: 'PROG', nombre: 'Programación II', doc: 'Ing. Sosa', color_id: 'verde', creditos: 6, salon: 'Lab 1', bloques: [{ dia: 3, ini: 16, fin: 19 }], esc: { tipo: 'pct', total: 100, aprob: 60 }, estado: 'cursando' },
-      { id: 'mat-old-1', user_id: 'test-user-id-000', semestre_id: 'sem-0', cod: 'FIL', nombre: 'Filosofía', doc: 'Dr. Rossi', color_id: 'azul', creditos: 5, salon: 'Aula 1', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
-      { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', cod: 'HIS', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', creditos: 4, salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
+      { id: 'mat-1', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Análisis Matemático II', doc: 'Dra. Pérez', color_id: 'azul', salon: 'Aula 204', bloques: [{ dia: 1, ini: 8, fin: 10 }, { dia: 3, ini: 8, fin: 10 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
+      { id: 'mat-2', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Álgebra', doc: 'Dr. Gómez', color_id: 'coral', salon: 'Aula 110', bloques: [{ dia: 2, ini: 10, fin: 12.5 }, { dia: 4, ini: 10, fin: 12.5 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'cursando' },
+      { id: 'mat-3', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Física I', doc: 'Ing. Ruiz', color_id: 'violeta', salon: 'Lab 3', bloques: [{ dia: 1, ini: 14, fin: 16.5 }, { dia: 5, ini: 14, fin: 16 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'cursando' },
+      // A propósito sin evaluaciones cargadas (Fase 2, caso borde "materia
+      // sin evaluaciones") — Programación II no aparece en `agenda` abajo.
+      { id: 'mat-4', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Programación II', doc: 'Ing. Sosa', color_id: 'verde', salon: 'Lab 1', bloques: [{ dia: 3, ini: 16, fin: 19 }], esc: { tipo: 'pct', total: 100, aprob: 60 }, estado: 'cursando' },
+      // Σ nota_maxima de sus evaluaciones (50+30=80) ≠ esc.total (100) —
+      // Fase 2, caso borde a avisar sin romper.
+      { id: 'mat-5', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Contabilidad II', doc: 'Cra. Nieves', color_id: 'amarillo', salon: 'Aula 305', bloques: [], esc: { tipo: 'puntos', total: 100, aprob: 60 }, estado: 'cursando' },
+      { id: 'mat-old-1', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Filosofía', doc: 'Dr. Rossi', color_id: 'azul', salon: 'Aula 1', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
+      { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
     ],
+    // Fase 1: kind ('tarea'|'evaluacion') + nota_maxima (sólo evaluación).
     agenda: [
-      { id: 'ag-1', user_id: 'test-user-id-000', materia_id: 'mat-1', tipo: 'parcial', titulo: 'Primer parcial', fecha: todayPlus(2), hora: '08:00', hecho: true, nota: 10, notas: '', tag_id: 'tag-1' },
-      { id: 'ag-2', user_id: 'test-user-id-000', materia_id: 'mat-2', tipo: 'tp', titulo: 'Entrega TP3', fecha: todayPlus(2), hora: '23:59', hecho: true, nota: 12, notas: '' },
-      { id: 'ag-3', user_id: 'test-user-id-000', materia_id: 'mat-3', tipo: 'final', titulo: 'Recuperatorio de laboratorio', fecha: todayPlus(5), hora: '14:00', hecho: false, nota: null, notas: '' },
-      { id: 'ag-4', user_id: 'test-user-id-000', materia_id: 'mat-4', tipo: 'tp', titulo: 'Entrega proyecto final', fecha: todayPlus(9), hora: '20:00', hecho: false, nota: null, notas: '' },
-      { id: 'ag-5', user_id: 'test-user-id-000', materia_id: 'mat-1', tipo: 'coloquio', titulo: 'Coloquio integrador', fecha: todayPlus(9), hora: '10:00', hecho: false, nota: null, notas: '' },
-      { id: 'ag-old-1', user_id: 'test-user-id-000', materia_id: 'mat-old-1', tipo: 'final', titulo: 'Final Filosofía', fecha: '2026-06-15', hora: '10:00', hecho: true, nota: 8, notas: '' },
-      { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', tipo: 'final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, notas: '' }
+      { id: 'ag-1', user_id: 'test-user-id-000', materia_id: 'mat-1', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Primer parcial', fecha: todayPlus(2), hora: '08:00', hecho: true, nota: 10, nota_maxima: 12, notas: '', tag_id: 'tag-1' },
+      { id: 'ag-5', user_id: 'test-user-id-000', materia_id: 'mat-1', kind: 'evaluacion', tipo: 'Final', titulo: 'Coloquio integrador', fecha: todayPlus(9), hora: '10:00', hecho: false, nota: null, nota_maxima: 12, notas: '' },
+      { id: 'ag-2', user_id: 'test-user-id-000', materia_id: 'mat-2', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Primer parcial', fecha: todayPlus(2), hora: '23:59', hecho: true, nota: 10, nota_maxima: 12, notas: '' },
+      { id: 'ag-2b', user_id: 'test-user-id-000', materia_id: 'mat-2', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Segundo parcial', fecha: todayPlus(16), hora: '14:00', hecho: false, nota: null, nota_maxima: 12, notas: '' },
+      { id: 'ag-3', user_id: 'test-user-id-000', materia_id: 'mat-3', kind: 'evaluacion', tipo: 'Obligatorio', titulo: 'Recuperatorio de laboratorio', fecha: todayPlus(5), hora: '14:00', hecho: false, nota: null, nota_maxima: 12, notas: '' },
+      { id: 'ag-4', user_id: 'test-user-id-000', materia_id: 'mat-4', kind: 'tarea', tipo: 'Tarea', titulo: 'Entregar informe del proyecto final', fecha: todayPlus(9), hora: '20:00', hecho: false, nota: null, nota_maxima: null, notas: '' },
+      { id: 'ag-6', user_id: 'test-user-id-000', materia_id: 'mat-1', kind: 'tarea', tipo: 'Tarea', titulo: 'Estudiar capítulo 4', fecha: todayPlus(1), hora: '', hecho: true, nota: null, nota_maxima: null, notas: '' },
+      { id: 'ag-5b', user_id: 'test-user-id-000', materia_id: 'mat-5', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial 1', fecha: todayPlus(6), hora: '10:00', hecho: false, nota: null, nota_maxima: 50, notas: '' },
+      { id: 'ag-5c', user_id: 'test-user-id-000', materia_id: 'mat-5', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial 2', fecha: todayPlus(20), hora: '10:00', hecho: false, nota: null, nota_maxima: 30, notas: '' },
+      { id: 'ag-old-1', user_id: 'test-user-id-000', materia_id: 'mat-old-1', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Filosofía', fecha: '2026-06-15', hora: '10:00', hecho: true, nota: 8, nota_maxima: 12, notas: '' },
+      { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, nota_maxima: 12, notas: '' }
     ],
     personal: [
       { id: 'p-1', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(0), hora: '19:00', todo_el_dia: false, tag_id: 'tag-2' },

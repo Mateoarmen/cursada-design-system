@@ -1825,7 +1825,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
               <h2 class="panel-title">Accesos rápidos</h2>
               <div class="accesos-row">
                 <button class="acceso-btn" id="acceso-materia">+ Materia</button>
-                <button class="acceso-btn" id="acceso-entrega">+ Entrega</button>
+                <button class="acceso-btn" id="acceso-entrega">+ Tarea o evaluación</button>
                 <button class="acceso-btn" id="acceso-evento">+ Evento personal</button>
                 <button class="acceso-btn" data-nav="horario">Ver horario</button>
               </div>
@@ -1893,6 +1893,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
         <div class="topbar-actions">
           <button class="btn" id="btn-detalle-editar">Editar materia</button>
+          <button class="btn" id="btn-detalle-nueva-tarea">+ Nueva tarea</button>
           <button class="btn btn-primary" id="btn-detalle-nueva-eval">+ Nueva evaluación</button>
         </div>
       </header>
@@ -1937,7 +1938,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             </div>
           </div>
           <div class="card detalle-col" style="flex:1.15">
-            <div class="panel-head"><h2 class="panel-title">Evaluaciones y entregas</h2><span class="panel-hint mono" id="detalle-eval-count"></span></div>
+            <div class="panel-head"><h2 class="panel-title">Evaluaciones y tareas</h2><span class="panel-hint mono" id="detalle-eval-count"></span></div>
             <div class="eval-list" id="detalle-eval-list"></div>
           </div>
         </div>
@@ -2086,7 +2087,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   <button class="fab" id="btn-fab" aria-label="Nuevo"><span aria-hidden="true">+</span></button>
   <div class="quick-sheet" id="quick-sheet" aria-label="Crear">
     <button type="button" id="quick-materia">+ Materia</button>
-    <button type="button" id="quick-entrega">+ Entrega</button>
+    <button type="button" id="quick-entrega">+ Tarea o evaluación</button>
     <button type="button" id="quick-evento">+ Evento personal</button>
   </div>
   <div class="row-menu" id="row-menu" aria-label="Acciones para la fila seleccionada">
@@ -2194,8 +2195,23 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 <div class="modal-backdrop" id="modal-evaluacion">
   <div class="modal modal-sm">
     <div class="modal-head">
-      <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo examen o entrega</h2>
+      <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo</h2>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <!-- Fase 1: paso 1 de la creación — sin esto no hay forma de saber si
+         lo que se está por cargar es una tarea (sin nota) o una evaluación
+         (con nota máxima/obtenida) hasta llegar al final del form. Sólo se
+         ve al crear (sin editId) y sin un kind ya definido por el caller
+         (ver openEvaluacionModal/renderModalEvalKindStep en runtime.js) —
+         editar un ítem existente nunca lo muestra, el kind ya quedó fijado. -->
+    <div class="modal-body pad-lg" id="modal-eval-kind-step">
+      <div class="field">
+        <label id="eval-kind-label">¿Qué querés agregar?</label>
+        <div class="seg-cards" id="modal-eval-kind-cards" role="group" aria-labelledby="eval-kind-label">
+          <button type="button" class="seg-card" data-kind="tarea"><b>Tarea</b><span>Sin nota — pendiente o completada</span></button>
+          <button type="button" class="seg-card" data-kind="evaluacion"><b>Evaluación</b><span>Con nota máxima y nota obtenida</span></button>
+        </div>
+      </div>
     </div>
     <form id="form-evaluacion">
       <div class="modal-body pad-lg">
@@ -2203,7 +2219,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
           <label id="eval-materia-label">Materia</label>
           <div class="chips-materia" id="modal-eval-materias" role="group" aria-labelledby="eval-materia-label"></div>
         </div>
-        <div class="field">
+        <div class="field" id="eval-tipo-field">
           <label id="eval-tipo-label">Tipo</label>
           <div class="tipos-seg" id="modal-eval-tipos" role="group" aria-labelledby="eval-tipo-label"></div>
           <input type="text" id="modal-eval-tipo-custom" class="hidden" placeholder="Nombre del tipo (ej: Coloquio, Laboratorio)" autocomplete="off">
@@ -2228,10 +2244,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <select id="eval-hecho" name="hecho"><option value="">Pendiente</option><option value="1">Entregado / rendido</option></select>
           </div>
         </div>
-        <div class="field-row">
+        <div class="field-row" id="eval-nota-field-row">
+          <div class="field" style="flex:none;width:160px">
+            <label id="modal-eval-nota-maxima-label" for="eval-nota-maxima">Nota máxima</label>
+            <input id="eval-nota-maxima" name="notaMaxima" type="number" step="0.1" min="0.1">
+          </div>
           <div class="field" style="flex:none;width:220px">
             <label id="modal-eval-nota-label" for="eval-nota">Nota obtenida (opcional)</label>
-            <input id="eval-nota" name="nota" type="number" step="0.1" placeholder="Todavía sin calificar">
+            <input id="eval-nota" name="nota" type="number" step="0.1" min="0" placeholder="Todavía sin calificar">
           </div>
         </div>
         <div class="field"><label for="eval-notas">Notas</label><textarea id="eval-notas" name="notas" placeholder="Qué llevar, temas incluidos, bibliografía…"></textarea></div>
@@ -2763,7 +2783,9 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   var MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
   var DIAS_BLOQUE = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   var DIAS_BLOQUE_MINI = ['L', 'M', 'X', 'J', 'V', 'S'];
-  var TIPOS_EVAL = ['Parcial', 'Final', 'Entrega', 'Tarea', 'Presentación'];
+  // Fase 1: "tipo" ahora sólo describe evaluaciones (agenda.kind==='evaluacion') —
+  // las tareas no tienen tipo preestablecido, sólo título libre.
+  var TIPOS_EVAL = ['Parcial', 'Final', 'Obligatorio', 'Presentación'];
 
   // ---------- utilidades ----------
   function uid() {
@@ -2987,10 +3009,10 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     return { id: r.id, semestreId: r.semestre_id, nombre: r.nombre, doc: r.doc, colorId: r.color_id, salon: r.salon, bloques: r.bloques || [], esc: r.esc, estado: r.estado };
   }
   function agendaToRow(a) {
-    return { id: a.id, user_id: CURRENT_USER.id, materia_id: a.materiaId || null, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora || '', hecho: !!a.hecho, nota: a.nota == null ? null : a.nota, notas: a.notas || '', tag_id: a.tagId || null };
+    return { id: a.id, user_id: CURRENT_USER.id, materia_id: a.materiaId || null, kind: a.kind, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora || '', hecho: !!a.hecho, nota: a.nota == null ? null : a.nota, nota_maxima: a.notaMaxima == null ? null : a.notaMaxima, notas: a.notas || '', tag_id: a.tagId || null };
   }
   function rowToAgenda(r) {
-    return { id: r.id, materiaId: r.materia_id, tipo: r.tipo, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', hecho: !!r.hecho, nota: r.nota == null ? null : r.nota, notas: r.notas || '', tagId: r.tag_id || null };
+    return { id: r.id, materiaId: r.materia_id, kind: r.kind, tipo: r.tipo, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', hecho: !!r.hecho, nota: r.nota == null ? null : r.nota, notaMaxima: r.nota_maxima == null ? null : r.nota_maxima, notas: r.notas || '', tagId: r.tag_id || null };
   }
   function personalToRow(p) {
     return { id: p.id, user_id: CURRENT_USER.id, titulo: p.titulo, fecha: p.fecha, hora: p.todoElDia ? '' : (p.hora || ''), todo_el_dia: !!p.todoElDia, tag_id: p.tagId || null };
@@ -3339,8 +3361,13 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // campo `nota` de las que ya están calificadas.
   function computeMateria(m, agendaAll) {
     var agenda = agendaAll || loadAgendaRaw();
-    var evaluaciones = agenda.filter(function (a) { return a.materiaId === m.id; })
+    // `items`: todo lo de agenda ligado a esta materia (tareas + evaluaciones,
+    // Fase 1) — se usa para el listado de Detalle. `evaluaciones`: sólo
+    // kind==='evaluacion' — la única fuente para nota/promedio/simulador,
+    // las tareas nunca entran a ese cálculo.
+    var items = agenda.filter(function (a) { return a.materiaId === m.id; })
       .sort(function (a, b) { return parseISODate(a.fecha) - parseISODate(b.fecha) || (a.hora || '').localeCompare(b.hora || ''); });
+    var evaluaciones = items.filter(function (a) { return a.kind === 'evaluacion'; });
     var notasEvals = evaluaciones.filter(function (a) { return a.nota != null; });
     var parciales = notasEvals.map(function (a) { return a.nota; });
     var e = m.esc;
@@ -3371,6 +3398,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     out.badgeTone = ESTADO_TONE[m.estado];
     out.riesgoTxt = riesgoTxt;
     out.necesita = necesita;
+    out.items = items;
     out.evaluaciones = evaluaciones;
     out.notasEvals = notasEvals;
     out.parciales = parciales;
@@ -3428,7 +3456,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     materiasFiltro: 'todas',
     materiasQuery: '',
     materiasView: 'tarjetas',
-    agendaFiltroTipo: 'Todo',
+    agendaFiltroKind: '',
     agendaFiltroMateria: '',
     agendaFiltroEstado: '',
     agendaQuery: '',
@@ -3566,7 +3594,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var agenda = agendaDeSemestre(activeSemestreId());
     var pendientes = agenda.filter(function (a) { return !a.hecho; });
     var proxExamen = pendientes
-      .filter(function (a) { return a.tipo === 'Parcial' || a.tipo === 'Final'; })
+      .filter(function (a) { return a.kind === 'evaluacion'; })
       .map(function (a) { return { a: a, d: parseISODate(a.fecha) }; })
       .filter(function (x) { return x.d >= t; })
       .sort(function (x, y) { return x.d - y.d; })[0];
@@ -3590,9 +3618,11 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   function computeProgresoSemestreActivo() {
     var materias = computeMateriasDelActivo();
     var promedio = promedioNormalizado(materias);
-    var agenda = agendaDeSemestre(activeSemestreId());
-    var evaluacionesEsperadas = agenda.length;
-    var evaluacionesCalificadas = agenda.filter(function (a) { return a.nota != null; }).length;
+    // Fase 1: sólo evaluaciones cuentan acá — agendaDeSemestre() trae
+    // tareas también, y una tarea nunca tiene nota que cargar.
+    var evaluacionesDelSemestre = agendaDeSemestre(activeSemestreId()).filter(function (a) { return a.kind === 'evaluacion'; });
+    var evaluacionesEsperadas = evaluacionesDelSemestre.length;
+    var evaluacionesCalificadas = evaluacionesDelSemestre.filter(function (a) { return a.nota != null; }).length;
 
     var ordenados = semestresOrdenados();
     var activoId = activeSemestreId();
@@ -3890,7 +3920,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   }
 
   function agendaBadgeInfo(item, t) {
-    if (item.hecho) return { tone: 'success', label: (item.tipo === 'Parcial' || item.tipo === 'Final') ? 'Rendido' : 'Entregado' };
+    if (item.hecho) return { tone: 'success', label: item.itemKind === 'evaluacion' || item.kind === 'evaluacion' ? 'Rendido' : 'Entregado' };
     var d = parseISODate(item.fecha);
     var diff = diffDias(d, t);
     if (diff < 0) return { tone: 'danger', label: 'Vencida hace ' + Math.abs(diff) + (Math.abs(diff) === 1 ? ' día' : ' días') };
@@ -4112,14 +4142,17 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       document.getElementById('detalle-callout-s').textContent = 'Esta materia se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Con ' + count + (count === 1 ? ' nota cargada' : ' notas cargadas') + ' tu promedio es ' + valU(m.actual, m.esc) + ', así que te faltan ' + valU(m.necesita, m.esc) + ' para llegar al mínimo.';
     }
 
-    var evals = m.evaluaciones;
+    // Fase 1: m.items = tareas + evaluaciones de esta materia (todo lo que
+    // aparecía acá antes de separar los kinds) — m.evaluaciones quedó
+    // reservado para el promedio/simulador (sólo kind==='evaluacion').
+    var evals = m.items;
     document.getElementById('detalle-eval-count').textContent = evals.length + (evals.length === 1 ? ' ítem' : ' ítems');
     var evalList = document.getElementById('detalle-eval-list');
     clear(evalList);
     var t = today();
     evals.forEach(function (a) {
       var node = tpl('eval-row');
-      node.title = 'Editar esta evaluación';
+      node.title = 'Editar este ítem';
       var check = qf(node, 'check'); check.checked = !!a.hecho;
       check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(a.id, check.checked); });
       check.addEventListener('click', function (ev) { ev.stopPropagation(); });
@@ -4129,7 +4162,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       renderTagChipInto(qf(node, 'tag'), a.tagId);
       var info = agendaBadgeInfo(a, t);
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
-      makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar evaluación ' + a.titulo);
+      makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar ' + a.titulo);
       // Swipe para marcar entregado, sin long-press acá: ya estás en el
       // detalle de la materia, y editar/eliminar ya están a un toque
       // (la fila abre el modal, que tiene su propio botón de eliminar).
@@ -4156,8 +4189,9 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     });
 
     document.getElementById('btn-detalle-editar').onclick = function () { openMateriaModal(m.id); };
-    document.getElementById('btn-detalle-nueva-eval').onclick = function () { openEvaluacionModal({ materiaId: m.id }); };
-    document.getElementById('btn-detalle-cargar-nota').onclick = function () { openEvaluacionModal({ materiaId: m.id }); };
+    document.getElementById('btn-detalle-nueva-eval').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion' }); };
+    document.getElementById('btn-detalle-nueva-tarea').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'tarea' }); };
+    document.getElementById('btn-detalle-cargar-nota').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion', modoNota: true }); };
     document.getElementById('btn-detalle-escala').onclick = function () { openMateriaModal(m.id); };
     renderDetalleSimulador(m);
   }
@@ -4331,7 +4365,10 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // ================================================================
   function agendaEntries() {
     var out = [];
-    loadAgendaRaw().forEach(function (a) { out.push({ kind: 'materia', id: a.id, materiaId: a.materiaId, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora, hecho: a.hecho, tagId: a.tagId }); });
+    // itemKind (tarea/evaluacion, agenda.kind) no puede llamarse `kind` acá:
+    // ese nombre ya lo usa esta función para el origen de la fila
+    // (materia/personal) — ver README, Fase 1.
+    loadAgendaRaw().forEach(function (a) { out.push({ kind: 'materia', itemKind: a.kind, id: a.id, materiaId: a.materiaId, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora, hecho: a.hecho, nota: a.nota, notaMaxima: a.notaMaxima, tagId: a.tagId }); });
     if (STATE.mostrarPersonales) loadPersonalRaw().forEach(function (p) { out.push({ kind: 'personal', id: p.id, tipo: 'Evento personal', titulo: p.titulo, fecha: p.fecha, hora: p.todoElDia ? '' : p.hora, hecho: false, todoElDia: p.todoElDia, tagId: p.tagId }); });
     return out;
   }
@@ -4349,14 +4386,18 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     document.getElementById('agenda-filtro-estado').value = STATE.agendaFiltroEstado;
     document.getElementById('agenda-filtro-estado').onchange = function (e) { STATE.agendaFiltroEstado = e.target.value; renderAgenda(); };
 
-    var tipoValues = ['Todo'].concat(TIPOS_EVAL);
+    // Fase 1: filtro por kind (tarea/evaluación), no por tipo libre — antes
+    // filtraba por TIPOS_EVAL (Parcial/Final/...), que ya no representa
+    // "todo lo que puede aparecer en agenda" ahora que las tareas no tienen
+    // un tipo preestablecido.
+    var kindValues = [['', 'Todo'], ['evaluacion', 'Evaluaciones'], ['tarea', 'Tareas']];
     var filtrosNode = document.getElementById('agenda-filtros');
     clear(filtrosNode);
-    tipoValues.forEach(function (tv, i) {
+    kindValues.forEach(function (kv) {
       var node = tpl('filtro-pill');
-      node.classList.toggle('is-on', STATE.agendaFiltroTipo === tv);
-      qf(node, 'label').textContent = tv === 'Todo' ? 'Todo' : tv + 's';
-      node.addEventListener('click', function () { STATE.agendaFiltroTipo = tv; renderAgenda(); });
+      node.classList.toggle('is-on', STATE.agendaFiltroKind === kv[0]);
+      qf(node, 'label').textContent = kv[1];
+      node.addEventListener('click', function () { STATE.agendaFiltroKind = kv[0]; renderAgenda(); });
       filtrosNode.appendChild(node);
     });
 
@@ -4364,7 +4405,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     if (agendaSearchInput.value !== STATE.agendaQuery) agendaSearchInput.value = STATE.agendaQuery;
     var aq = STATE.agendaQuery.trim().toLowerCase();
     var entries = agendaEntries().filter(function (e) {
-      if (STATE.agendaFiltroTipo !== 'Todo' && e.tipo !== STATE.agendaFiltroTipo) return false;
+      if (STATE.agendaFiltroKind && e.itemKind !== STATE.agendaFiltroKind) return false;
       if (STATE.agendaFiltroMateria && e.materiaId !== STATE.agendaFiltroMateria) return false;
       if (STATE.agendaFiltroEstado === 'pendiente' && e.hecho) return false;
       if (STATE.agendaFiltroEstado === 'hecho' && !e.hecho) return false;
@@ -4888,7 +4929,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // <input> nativo).
   var MODAL_EXTRA_STATE = {
     'modal-materia': function () { return { colorId: STATE.editing.colorId, esc: STATE.editing.esc, horarioRows: STATE.editing.horarioRows }; },
-    'modal-evaluacion': function () { return { evalMateriaId: STATE.editing.evalMateriaId, evalTipo: STATE.editing.evalTipo, evalTipoCustom: STATE.editing.evalTipoCustom }; },
+    'modal-evaluacion': function () { return { kind: STATE.editing.kind, evalMateriaId: STATE.editing.evalMateriaId, evalTipo: STATE.editing.evalTipo, evalTipoCustom: STATE.editing.evalTipoCustom, evalNotaMaxima: STATE.editing.evalNotaMaxima }; },
     'modal-personal': function () { return { todoElDia: STATE.editing.todoElDia }; },
     'modal-ajustes': function () { return { margen: AJUSTES_MARGEN_ACTUAL }; }
   };
@@ -4991,9 +5032,9 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var menu = document.getElementById('nuevo-menu');
     btn.addEventListener('click', function (ev) { ev.stopPropagation(); toggleNuevoMenu(); });
     document.getElementById('nuevo-menu-materia').addEventListener('click', function () { toggleNuevoMenu(true); openMateriaModal(null); });
-    document.getElementById('nuevo-menu-evaluacion').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({}); });
-    document.getElementById('nuevo-menu-tarea').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ tipoPreset: 'Tarea' }); });
-    document.getElementById('nuevo-menu-nota').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ modoNota: true }); });
+    document.getElementById('nuevo-menu-evaluacion').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ kind: 'evaluacion' }); });
+    document.getElementById('nuevo-menu-tarea').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ kind: 'tarea' }); });
+    document.getElementById('nuevo-menu-nota').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ kind: 'evaluacion', modoNota: true }); });
     document.addEventListener('click', function () { toggleNuevoMenu(true); });
     menu.addEventListener('keydown', function (ev) {
       var items = Array.prototype.slice.call(menu.querySelectorAll('button'));
@@ -5226,42 +5267,113 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   });
 
   // ---- Modal evaluación ----
+  // Fase 1: creación en dos pasos — si no se sabe todavía el kind (tarea vs
+  // evaluación), el modal muestra sólo el picker (#modal-eval-kind-step) y
+  // esconde el <form> entero; recién al elegir uno se revela el form, con
+  // los campos de nota/tipo condicionados a kind==='evaluacion'. Editar un
+  // ítem existente nunca pasa por el picker — el kind ya quedó fijado al
+  // crearlo.
   function openEvaluacionModal(opts) {
     opts = opts || {};
     if (!computeMaterias().length) { alert('Agregá primero una materia para poder cargar evaluaciones.'); return; }
     var ev = opts.editId ? agendaRawById(opts.editId) : null;
     var tipoEsPreset = ev ? TIPOS_EVAL.indexOf(ev.tipo) >= 0 : true;
+    // El selector de materia del modal lista TODAS (cualquier semestre — ver
+    // README), pero si hay que elegir un default preferimos una del
+    // semestre activo antes que una vieja al azar.
+    var materiaDefault = opts.materiaId || (computeMateriasDelActivo()[0] || computeMaterias()[0]).id;
+    var kind = ev ? ev.kind : (opts.kind || null);
+    var notaMaximaDefault = ev ? ev.notaMaxima : null;
+    if (kind === 'evaluacion' && notaMaximaDefault == null) {
+      var mDefault = computeMateriaById(materiaDefault);
+      notaMaximaDefault = mDefault ? mDefault.esc.total : null;
+    }
     STATE.editing = {
       evaluacionId: opts.editId || null,
-      // El selector de materia del modal lista TODAS (cualquier semestre —
-      // ver README), pero si hay que elegir un default preferimos una del
-      // semestre activo antes que una vieja al azar.
-      evalMateriaId: ev ? ev.materiaId : (opts.materiaId || (computeMateriasDelActivo()[0] || computeMaterias()[0]).id),
-      evalTipo: ev ? (tipoEsPreset ? ev.tipo : 'Otro') : (opts.tipoPreset || 'Parcial'),
+      kind: kind,
+      evalMateriaId: ev ? ev.materiaId : materiaDefault,
+      evalTipo: ev ? (tipoEsPreset ? ev.tipo : 'Otro') : 'Parcial',
       evalTipoCustom: ev && !tipoEsPreset ? ev.tipo : '',
+      evalNotaMaxima: notaMaximaDefault,
+      // Al editar, no pisar la nota_maxima ya guardada si se cambia de
+      // materia desde el picker — al crear, sí seguir al total de la
+      // materia elegida hasta que el usuario la toque a mano.
+      notaMaximaTocada: !!ev,
       tagId: ev ? ev.tagId : null,
       tagNuevoAbierto: false,
       tagNuevoColor: 'azul'
     };
-    document.getElementById('modal-evaluacion-title').textContent = ev ? 'Editar examen o entrega' : 'Nuevo examen o entrega';
     document.getElementById('btn-evaluacion-eliminar').classList.toggle('hidden', !ev);
     var form = document.getElementById('form-evaluacion');
     form.reset();
     form.titulo.value = ev ? ev.titulo : '';
     form.fecha.value = ev ? ev.fecha : (opts.fecha || todayISO());
     form.hora.value = ev ? (ev.hora || '') : '';
-    form.hecho.value = ev ? (ev.hecho ? '1' : '') : (opts.modoNota ? '1' : '');
+    form.notaMaxima.value = notaMaximaDefault != null ? notaMaximaDefault : '';
     form.nota.value = ev && ev.nota != null ? ev.nota : '';
+    form.nota.max = notaMaximaDefault != null ? notaMaximaDefault : '';
     form.notas.value = ev ? (ev.notas || '') : '';
+    renderModalEvalFieldsVisibility();
+    form.hecho.value = ev ? (ev.hecho ? '1' : '') : (opts.modoNota ? '1' : '');
     renderModalEvalMaterias();
     renderModalEvalTipos();
+    renderModalEvalKindStep();
     renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
     openModal('modal-evaluacion');
     snapshotModalForm('modal-evaluacion');
-    // "Cargar nota" desde +Nuevo (bloque C3): mismo formulario que
-    // "Evaluación", sólo cambia el foco inicial — va directo al campo de
-    // nota en vez de al título.
+    // "Cargar nota" desde +Nuevo: mismo formulario que "Evaluación", sólo
+    // cambia el foco inicial — va directo al campo de nota en vez de al
+    // título.
     if (opts.modoNota) { var notaInput = document.getElementById('eval-nota'); if (notaInput) notaInput.focus(); }
+  }
+
+  // Picker Tarea/Evaluación (paso 1 de la creación) + título dinámico del
+  // modal — el <form> entero queda escondido hasta que se elige un kind.
+  function renderModalEvalKindStep() {
+    var step = document.getElementById('modal-eval-kind-step');
+    var formEl = document.getElementById('form-evaluacion');
+    var chosen = !!STATE.editing.kind;
+    step.classList.toggle('hidden', chosen);
+    formEl.classList.toggle('hidden', !chosen);
+    var editando = !!STATE.editing.evaluacionId;
+    var label = STATE.editing.kind === 'tarea' ? 'tarea' : (STATE.editing.kind === 'evaluacion' ? 'evaluación' : '');
+    document.getElementById('modal-evaluacion-title').textContent = editando ? ('Editar ' + label) : (label ? ('Nueva ' + label) : '¿Qué querés agregar?');
+    document.querySelectorAll('#modal-eval-kind-cards .seg-card').forEach(function (btn) {
+      var k = btn.getAttribute('data-kind');
+      btn.classList.toggle('is-on', STATE.editing.kind === k);
+      if (!btn._boundKind) {
+        btn._boundKind = true;
+        btn.addEventListener('click', function () {
+          STATE.editing.kind = k;
+          if (k === 'evaluacion' && STATE.editing.evalNotaMaxima == null) {
+            var m = computeMateriaById(STATE.editing.evalMateriaId);
+            STATE.editing.evalNotaMaxima = m ? m.esc.total : null;
+          }
+          var form = document.getElementById('form-evaluacion');
+          form.notaMaxima.value = STATE.editing.evalNotaMaxima != null ? STATE.editing.evalNotaMaxima : '';
+          form.nota.max = STATE.editing.evalNotaMaxima != null ? STATE.editing.evalNotaMaxima : '';
+          renderModalEvalFieldsVisibility();
+          renderModalEvalKindStep();
+        });
+      }
+    });
+  }
+
+  // Muestra/esconde los campos que sólo aplican a evaluación (tipo, nota
+  // máxima/obtenida) y ajusta el texto del estado (una tarea se "completa",
+  // una evaluación se "entrega/rinde") — un solo lugar para esa rama, en
+  // vez de repetirla en cada función que toca el form.
+  function renderModalEvalFieldsVisibility() {
+    var isEval = STATE.editing.kind === 'evaluacion';
+    document.getElementById('eval-tipo-field').classList.toggle('hidden', !isEval);
+    document.getElementById('eval-nota-field-row').classList.toggle('hidden', !isEval);
+    document.getElementById('eval-nota-maxima').required = isEval;
+    var hechoSel = document.getElementById('eval-hecho');
+    var prevVal = hechoSel.value;
+    clear(hechoSel);
+    var optPend = el('option'); optPend.value = ''; optPend.textContent = 'Pendiente'; hechoSel.appendChild(optPend);
+    var optDone = el('option'); optDone.value = '1'; optDone.textContent = isEval ? 'Entregado / rendido' : 'Completada'; hechoSel.appendChild(optDone);
+    hechoSel.value = prevVal;
   }
 
   function renderModalEvalMaterias() {
@@ -5276,12 +5388,22 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       chip.style.background = on ? m.soft : '';
       chip.style.color = on ? m.strong : '';
       chip.style.borderColor = on ? m.strong : '';
-      chip.addEventListener('click', function () { STATE.editing.evalMateriaId = m.id; renderModalEvalMaterias(); });
+      chip.addEventListener('click', function () {
+        STATE.editing.evalMateriaId = m.id;
+        if (STATE.editing.kind === 'evaluacion' && !STATE.editing.notaMaximaTocada) {
+          STATE.editing.evalNotaMaxima = m.esc.total;
+          var form = document.getElementById('form-evaluacion');
+          form.notaMaxima.value = m.esc.total;
+          form.nota.max = m.esc.total;
+        }
+        renderModalEvalMaterias();
+      });
       wrap.appendChild(node);
     });
     var m = computeMateriaById(STATE.editing.evalMateriaId);
     var unidad = m ? (m.esc.tipo === 'nota' ? 'notas 0–12' : (m.esc.tipo === 'pct' ? '%' : 'pts')) : '';
     document.getElementById('modal-eval-nota-label').textContent = 'Nota obtenida (' + unidad + ', opcional)';
+    document.getElementById('modal-eval-nota-maxima-label').textContent = 'Nota máxima (' + unidad + ')';
   }
   function renderModalEvalTipos() {
     var wrap = document.getElementById('modal-eval-tipos');
@@ -5370,19 +5492,35 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('eval-nota-maxima').addEventListener('input', function () {
+      STATE.editing.notaMaximaTocada = true;
+      STATE.editing.evalNotaMaxima = this.value === '' ? null : Number(this.value);
+      document.getElementById('eval-nota').max = this.value || '';
+    });
     document.getElementById('form-evaluacion').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
-      var tipoFinal = STATE.editing.evalTipo === 'Otro' ? (STATE.editing.evalTipoCustom.trim() || 'Otro') : STATE.editing.evalTipo;
+      var isEval = STATE.editing.kind === 'evaluacion';
+      var tipoFinal = isEval ? (STATE.editing.evalTipo === 'Otro' ? (STATE.editing.evalTipoCustom.trim() || 'Otro') : STATE.editing.evalTipo) : 'Tarea';
+      var notaMaximaFinal = isEval ? (form.notaMaxima.value === '' ? null : Number(form.notaMaxima.value)) : null;
+      var notaFinal = null;
+      if (isEval && form.nota.value !== '') {
+        notaFinal = Number(form.nota.value);
+        // El input ya bloquea con max= (Fase 2) — este clamp es sólo la red
+        // de seguridad si algo lo saltea (autofill, devtools).
+        if (notaMaximaFinal != null) notaFinal = Math.min(notaFinal, notaMaximaFinal);
+      }
       var record = {
         id: STATE.editing.evaluacionId || uid(),
         materiaId: STATE.editing.evalMateriaId,
+        kind: STATE.editing.kind,
         tipo: tipoFinal,
         titulo: form.titulo.value.trim(),
         fecha: form.fecha.value,
         hora: form.hora.value,
         hecho: form.hecho.value === '1',
-        nota: form.nota.value === '' ? null : Number(form.nota.value),
+        nota: notaFinal,
+        notaMaxima: notaMaximaFinal,
         notas: form.notas.value.trim(),
         tagId: STATE.editing.tagId
       };
@@ -5566,7 +5704,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       if (STATE.materiasQuery) params.set('q', STATE.materiasQuery);
       if (STATE.materiasView !== 'tarjetas') params.set('vista', STATE.materiasView);
     } else if (STATE.route.view === 'agenda') {
-      if (STATE.agendaFiltroTipo !== 'Todo') params.set('tipo', STATE.agendaFiltroTipo);
+      if (STATE.agendaFiltroKind) params.set('kind', STATE.agendaFiltroKind);
       if (STATE.agendaFiltroMateria) params.set('materia', STATE.agendaFiltroMateria);
       if (STATE.agendaFiltroEstado) params.set('estado', STATE.agendaFiltroEstado);
       if (STATE.agendaQuery) params.set('q', STATE.agendaQuery);
@@ -5606,7 +5744,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       STATE.materiasQuery = params.get('q') || '';
       STATE.materiasView = params.get('vista') === 'tabla' ? 'tabla' : 'tarjetas';
     } else if (STATE.route.view === 'agenda') {
-      STATE.agendaFiltroTipo = params.get('tipo') || 'Todo';
+      STATE.agendaFiltroKind = params.get('kind') || '';
       STATE.agendaFiltroMateria = params.get('materia') || '';
       STATE.agendaFiltroEstado = params.get('estado') || '';
       STATE.agendaQuery = params.get('q') || '';
@@ -5854,7 +5992,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     // misma función según STATE.route.view en el momento del click.
     function fabAction() {
       var view = STATE.route.view;
-      if (view === 'detalle') { openEvaluacionModal({ materiaId: STATE.route.materiaId }); return; }
+      if (view === 'detalle') { openEvaluacionModal({ materiaId: STATE.route.materiaId, kind: 'evaluacion' }); return; }
       if (view === 'agenda') { openEvaluacionModal({}); return; }
       if (view === 'calendario') { openPersonalModal({ fecha: STATE.calSelected }); return; }
       openMateriaModal(null); // inicio, materias, horario
