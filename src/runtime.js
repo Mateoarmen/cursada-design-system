@@ -2686,7 +2686,7 @@
     renderModalEvalTipos();
     renderModalEvalKindStep();
     renderModalEvalVisibility();
-    renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
+    renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', presetKind: STATE.editing.kind === 'evaluacion' ? 'evaluacion' : 'otro', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
     openModal('modal-evaluacion');
     snapshotModalForm('modal-evaluacion');
     // "Cargar nota" desde +Nuevo: mismo formulario que "Evaluación", sólo
@@ -2716,6 +2716,9 @@
           form.nota.max = STATE.editing.evalNotaMaxima != null ? STATE.editing.evalNotaMaxima : '';
           renderModalEvalFieldsVisibility();
           renderModalEvalVisibility();
+          // Los presets de etiqueta rápida dependen del kind (Fase 5) —
+          // recién ahora se sabe cuál mostrar.
+          renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', presetKind: k === 'evaluacion' ? 'evaluacion' : 'otro', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
         });
       }
     });
@@ -2834,16 +2837,27 @@
     customInput.oninput = function () { STATE.editing.evalTipoCustom = customInput.value; };
   }
 
-  // ---- Selector de etiqueta (bloque A5) ----
-  // Reusado por el modal de Evaluación (kind 'academico') y el de Evento
-  // personal (kind 'personal') — mismos ids de STATE.editing (tagId,
+  // ---- Selector de etiqueta (bloque A5, unificado en Fase 5) ----
+  // Reusado por el modal de Evaluación/Tarea (kind 'academico') y el de
+  // Evento personal (kind 'personal') — mismos ids de STATE.editing (tagId,
   // tagNuevoAbierto, tagNuevoColor), sólo cambian los ids del DOM que le
-  // pasa cada caller.
+  // pasa cada caller. `ids.presetKind` ('evaluacion'|'otro') decide qué
+  // lista de creación rápida mostrar — ver TAG_PRESETS.
+  //
+  // Fase 5: acá vive TODO lo de etiquetas (crear, elegir, renombrar,
+  // eliminar) — antes "renombrar/eliminar" vivía aparte en una sección de
+  // Ajustes que duplicaba esta misma idea; se sacó de ahí y se juntó acá.
+  var TAG_PRESETS = {
+    evaluacion: ['Parcial', 'Examen', 'Final', 'Oral'],
+    otro: ['Estudiar', 'Leer', 'Entrega', 'Grupal']
+  };
+  var TAG_PRESET_COLOR = { Parcial: 'coral', Examen: 'rosa', Final: 'indigo', Oral: 'violeta', Estudiar: 'azul', Leer: 'turquesa', Entrega: 'amarillo', Grupal: 'verde' };
   function renderTagPicker(ids) {
     var wrap = document.getElementById(ids.wrap);
     clear(wrap);
-    loadEventTagsRaw().filter(function (t) { return t.kind === ids.kind; }).forEach(function (t) {
-      var node = tpl('chip-materia');
+    var tags = loadEventTagsRaw().filter(function (t) { return t.kind === ids.kind; });
+    tags.forEach(function (t) {
+      var node = tpl('tag-chip');
       var on = STATE.editing.tagId === t.id;
       var chip = qf(node, 'chip');
       var a = ACCENTS[t.colorId] || ACCENTS.gris;
@@ -2851,14 +2865,53 @@
       chip.classList.toggle('is-on', on);
       chip.style.background = a.soft;
       chip.style.color = a.text;
-      chip.style.borderColor = on ? a.strong : 'transparent';
       chip.style.border = '1.5px solid ' + (on ? a.strong : 'transparent');
       chip.addEventListener('click', function () {
         STATE.editing.tagId = on ? null : t.id;
         renderTagPicker(ids);
       });
+      qf(node, 'editBtn').addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        var nuevo = prompt('Nuevo nombre para esta etiqueta:', t.nombre);
+        if (nuevo == null || !nuevo.trim() || nuevo.trim() === t.nombre) return;
+        var arr = loadEventTagsRaw().map(function (x) { return x.id === t.id ? Object.assign({}, x, { nombre: nuevo.trim() }) : x; });
+        var ok = await saveEventTagsRaw(arr);
+        if (!ok) avisarError();
+        renderTagPicker(ids);
+      });
+      qf(node, 'deleteBtn').addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        // ON DELETE SET NULL en agenda.tag_id/personal.tag_id: la base
+        // suelta el tag de cualquier evento que lo tuviera.
+        if (!confirm('¿Eliminar la etiqueta "' + t.nombre + '"? Los eventos que la tenían se quedan sin etiqueta.')) return;
+        var ok = await saveEventTagsRaw(loadEventTagsRaw().filter(function (x) { return x.id !== t.id; }));
+        if (!ok) avisarError();
+        if (STATE.editing.tagId === t.id) STATE.editing.tagId = null;
+        renderTagPicker(ids);
+      });
       wrap.appendChild(node);
     });
+
+    // Creación rápida: un preset por tipo, sólo si todavía no existe una
+    // etiqueta con ese nombre (si ya existe, el chip de arriba alcanza).
+    var nombresExistentes = {};
+    tags.forEach(function (t) { nombresExistentes[t.nombre.toLowerCase()] = true; });
+    (TAG_PRESETS[ids.presetKind] || []).forEach(function (nombrePreset) {
+      if (nombresExistentes[nombrePreset.toLowerCase()]) return;
+      var presetNode = tpl('chip-materia');
+      var presetChip = qf(presetNode, 'chip');
+      presetChip.textContent = '+ ' + nombrePreset;
+      presetChip.addEventListener('click', async function () {
+        var nuevoTag = { id: uid(), nombre: nombrePreset, kind: ids.kind, colorId: TAG_PRESET_COLOR[nombrePreset] || 'azul' };
+        var arr = loadEventTagsRaw(); arr.push(nuevoTag);
+        var ok = await saveEventTagsRaw(arr);
+        if (!ok) { avisarError(); return; }
+        STATE.editing.tagId = nuevoTag.id;
+        renderTagPicker(ids);
+      });
+      wrap.appendChild(presetNode);
+    });
+
     var nuevoNode = tpl('chip-materia');
     var nuevoChip = qf(nuevoNode, 'chip');
     nuevoChip.textContent = '+ Nueva…';
@@ -2983,7 +3036,7 @@
     form.fecha.value = p ? p.fecha : (opts.fecha || todayISO());
     form.hora.value = p ? (p.hora || '') : '';
     renderPersonalToggle();
-    renderTagPicker({ wrap: 'modal-personal-tags', kind: 'personal', nuevoWrap: 'modal-personal-tag-nueva', nuevoNombre: 'modal-personal-tag-nueva-nombre', nuevoSwatches: 'modal-personal-tag-nueva-swatches', nuevoCrear: 'modal-personal-tag-nueva-crear' });
+    renderTagPicker({ wrap: 'modal-personal-tags', kind: 'personal', presetKind: 'otro', nuevoWrap: 'modal-personal-tag-nueva', nuevoNombre: 'modal-personal-tag-nueva-nombre', nuevoSwatches: 'modal-personal-tag-nueva-swatches', nuevoCrear: 'modal-personal-tag-nueva-crear' });
     openModal('modal-personal');
     snapshotModalForm('modal-personal');
   }
@@ -4151,63 +4204,8 @@
     form.materias_carrera.value = p.materias_carrera != null ? p.materias_carrera : '';
     AJUSTES_MARGEN_ACTUAL = p.margen_riesgo != null ? p.margen_riesgo : MARGEN_RIESGO;
     renderAjustesMargenPills();
-    renderAjustesTags();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
-  }
-
-  var KIND_LABEL = { academico: 'Académica', personal: 'Personal' };
-  function renderAjustesTags() {
-    var wrap = document.getElementById('ajustes-tags-list');
-    clear(wrap);
-    var tags = loadEventTagsRaw();
-    if (!tags.length) {
-      var empty = el('span'); empty.style.cssText = 'font-size:12px;color:var(--c-ink3)'; empty.textContent = 'Todavía no creaste ninguna etiqueta.';
-      wrap.appendChild(empty);
-      return;
-    }
-    tags.forEach(function (t) {
-      var node = tpl('tag-row');
-      qf(node, 'chip').setAttribute('style', chipStyle(t.colorId));
-      qf(node, 'chip').textContent = truncate(t.nombre, 20);
-      qf(node, 'kind').textContent = KIND_LABEL[t.kind] || t.kind;
-      qf(node, 'editBtn').addEventListener('click', function () { iniciarRenombreTag(node, t); });
-      qf(node, 'deleteBtn').addEventListener('click', function () { eliminarTag(t); });
-      wrap.appendChild(node);
-    });
-  }
-  function iniciarRenombreTag(row, t) {
-    clear(row);
-    var input = el('input', 'semestre-row-nombre-input');
-    input.value = t.nombre;
-    row.appendChild(input);
-    input.focus(); input.select();
-    var done = false;
-    var commit = async function () {
-      if (done) return;
-      done = true;
-      var nuevo = input.value.trim();
-      if (nuevo && nuevo !== t.nombre) {
-        var arr = loadEventTagsRaw().map(function (x) { return x.id === t.id ? Object.assign({}, x, { nombre: nuevo }) : x; });
-        var ok = await saveEventTagsRaw(arr);
-        if (!ok) avisarError();
-      }
-      renderAjustesTags();
-    };
-    input.addEventListener('blur', commit);
-    input.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-      else if (ev.key === 'Escape') { done = true; renderAjustesTags(); }
-    });
-  }
-  // ON DELETE SET NULL en agenda.tag_id/personal.tag_id: la base se encarga
-  // de "soltar" el tag de cualquier evento que lo tuviera — no hace falta
-  // buscar y limpiar referencias acá.
-  async function eliminarTag(t) {
-    if (!confirm('¿Eliminar la etiqueta "' + t.nombre + '"? Los eventos que la tenían se quedan sin etiqueta.')) return;
-    var ok = await saveEventTagsRaw(loadEventTagsRaw().filter(function (x) { return x.id !== t.id; }));
-    if (!ok) avisarError();
-    renderAjustesTags();
   }
 
   // Los únicos 3 campos que gatillan el aviso — nombre/apellido/fecha de

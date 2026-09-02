@@ -909,11 +909,6 @@
           <span style="font-size:11px;color:var(--c-ink3)">Define cuánto margen le das a una materia antes de que pase de "en riesgo" a "en peligro" en los semáforos de Inicio y Materias.</span>
         </div>
         <div class="perfil-group">
-          <span class="perfil-group-lbl">Etiquetas</span>
-          <span style="font-size:11px;color:var(--c-ink3)">Se crean desde el selector de etiqueta al cargar una evaluación o un evento — acá sólo se renombran o se borran.</span>
-          <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
-        </div>
-        <div class="perfil-group">
           <span class="perfil-group-lbl">Datos y cuenta</span>
           <div class="accesos-row">
             <button type="button" class="btn" id="btn-exportar">Exportar</button>
@@ -1117,13 +1112,17 @@
   </div>
 </template>
 
-<template data-template="tag-row">
-  <div class="semestre-row">
-    <span class="chip" data-f="chip" style="flex:none"></span>
-    <span class="semestre-row-meta" data-f="kind" style="flex:1"></span>
+<!-- Fase 5: chip de etiqueta con acciones — reemplaza la sección aparte de
+     "Etiquetas" que vivía en Ajustes (era un duplicado de esta misma
+     funcionalidad). Vive dentro del selector de etiquetas (renderTagPicker
+     en runtime.js), con ✎/eliminar visibles al hover en desktop y siempre
+     visibles en mobile (no hay hover). -->
+<template data-template="tag-chip">
+  <span class="tag-chip-wrap">
+    <button type="button" class="chip-materia" data-f="chip"></button>
     <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar etiqueta">✎</button>
     <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar etiqueta">🗑</button>
-  </div>
+  </span>
 </template>
 
 <template data-template="tipo-item">

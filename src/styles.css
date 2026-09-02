@@ -575,6 +575,15 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .modal-view-grid .lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3);font-weight:600}
 .modal-view-grid .val{font-size:14px;font-weight:600}
 .modal-view-notas{font-size:13px;color:var(--c-ink2);line-height:1.5;margin-top:4px}
+
+/* ---------- Fase 5: chip de etiqueta con acciones inline ---------- */
+.tag-chip-wrap{display:inline-flex;align-items:center;gap:3px}
+.tag-chip-wrap .semestre-row-edit,.tag-chip-wrap .semestre-row-delete{width:20px;height:20px;font-size:10px;opacity:0;transition:opacity 120ms ease}
+.tag-chip-wrap:hover .semestre-row-edit,.tag-chip-wrap:hover .semestre-row-delete,
+.tag-chip-wrap:focus-within .semestre-row-edit,.tag-chip-wrap:focus-within .semestre-row-delete{opacity:1}
+@media(max-width:760px){
+  .tag-chip-wrap .semestre-row-edit,.tag-chip-wrap .semestre-row-delete{opacity:1}
+}
 .eval-list{display:flex;flex-direction:column}
 .eval-row{display:flex;align-items:center;gap:15px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
 /* Cada fila vive envuelta en .swipe-row (ver template eval-row en app.html —
