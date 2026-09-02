@@ -3,8 +3,12 @@
 //
 // Qué hace:
 //   Concatena src/app.html (chrome + <template>) + src/styles.css +
-//   src/supabase-client.js + src/seed.js + src/runtime.js en un único
-//   out/Cursada.html, con el favicon de marca embebido.
+//   src/supabase-client.js + src/seed.js + src/simulador.js + src/runtime.js
+//   en un único out/Cursada.html, con el favicon de marca embebido.
+//   src/simulador.js va ANTES que runtime.js (Fase 2): es la función pura
+//   del simulador de notas, sin IIFE propio a propósito, para que quede
+//   como función global del documento y runtime.js la llame por nombre —
+//   así también se puede testear con `npm run test:sim` sin navegador.
 //
 // Nota de historial: el turno 3 (marca, Cursada Marca.dc.html) había hecho
 // que este script descargara dos tipografías propias (Manrope + IBM Plex
@@ -41,11 +45,12 @@ const FAVICON_B64 =
   'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMkM3QkZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBBNjNGMCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTgiIGZpbGw9InVybCgjZykiLz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjYiIHN0cm9rZS1kYXNoYXJyYXk9IjY2IDIyIiB0cmFuc2Zvcm09InJvdGF0ZSg0NSAzMiAzMikiLz4KPC9zdmc+Cg==';
 
 async function main() {
-  const [appHtml, stylesCss, supabaseClientJs, seedJs, runtimeJs] = await Promise.all([
+  const [appHtml, stylesCss, supabaseClientJs, seedJs, simuladorJs, runtimeJs] = await Promise.all([
     readFile(path.join(SRC, 'app.html'), 'utf8'),
     readFile(path.join(SRC, 'styles.css'), 'utf8'),
     readFile(path.join(SRC, 'supabase-client.js'), 'utf8'),
     readFile(path.join(SRC, 'seed.js'), 'utf8'),
+    readFile(path.join(SRC, 'simulador.js'), 'utf8'),
     readFile(path.join(SRC, 'runtime.js'), 'utf8')
   ]);
 
@@ -69,6 +74,9 @@ ${supabaseClientJs}
 </script>
 <script>
 ${seedJs}
+</script>
+<script>
+${simuladorJs}
 </script>
 <script>
 ${runtimeJs}

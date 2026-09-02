@@ -8,7 +8,8 @@
     "build:app": "node build/build-app.mjs",
     "build:landing": "node build/build-landing.mjs",
     "build:test": "node build/build-test.mjs",
-    "build": "npm run build:app && npm run build:landing"
+    "build": "npm run build:app && npm run build:landing",
+    "test:sim": "node --test test/simulador.test.js"
   },
   "engines": {
     "node": ">=18"

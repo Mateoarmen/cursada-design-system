@@ -25,11 +25,12 @@ const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'out');
 
 async function main() {
-  const [appHtml, stylesCss, mockJs, seedJs, runtimeJs] = await Promise.all([
+  const [appHtml, stylesCss, mockJs, seedJs, simuladorJs, runtimeJs] = await Promise.all([
     readFile(path.join(SRC, 'app.html'), 'utf8'),
     readFile(path.join(SRC, 'styles.css'), 'utf8'),
     readFile(path.join(ROOT, 'test-harness', 'mock-supabase-client.js'), 'utf8'),
     readFile(path.join(SRC, 'seed.js'), 'utf8'),
+    readFile(path.join(SRC, 'simulador.js'), 'utf8'),
     readFile(path.join(SRC, 'runtime.js'), 'utf8')
   ]);
 
@@ -51,6 +52,9 @@ ${mockJs}
 </script>
 <script>
 ${seedJs}
+</script>
+<script>
+${simuladorJs}
 </script>
 <script>
 ${runtimeJs}

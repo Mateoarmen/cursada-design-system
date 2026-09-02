@@ -383,7 +383,14 @@
                   <span id="detalle-sim-texto"></span>
                 </div>
               </div>
+              <div class="detalle-sim-stats" id="detalle-sim-stats">
+                <div class="detalle-sim-stat"><span class="lbl">Puntos reales</span><span class="v mono" id="detalle-sim-stat-reales"></span></div>
+                <div class="detalle-sim-stat"><span class="lbl">Disponibles</span><span class="v mono" id="detalle-sim-stat-disponibles"></span></div>
+                <div class="detalle-sim-stat"><span class="lbl">Proyectado</span><span class="v mono" id="detalle-sim-stat-proyectado"></span></div>
+              </div>
+              <div class="detalle-sim-aviso hidden" id="detalle-sim-aviso"></div>
               <div id="detalle-sim-sliders"></div>
+              <span class="detalle-sim-escala-aviso hidden" id="detalle-sim-escala-aviso"></span>
               <button type="button" class="btn btn-sm" id="btn-detalle-sim-reset">Reiniciar</button>
             </div>
           </div>
@@ -626,7 +633,8 @@
           </div>
           <div class="num-pill-row"><span class="lbl" id="modal-total-label">Puntaje total (pts)</span><div class="num-pills" id="modal-total-presets"></div></div>
           <div class="num-pill-row"><span class="lbl" id="modal-aprob-label">Aprueba con (pts)</span><div class="num-pills" id="modal-aprob-presets"></div></div>
-          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y entregas".</span>
+          <div class="num-pill-row"><span class="lbl" id="modal-exoneracion-label">Exonera con (opcional)</span><div class="num-pills" id="modal-exoneracion-presets"></div></div>
+          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y tareas".</span>
         </div>
       </div>
       <div class="modal-foot">
@@ -966,6 +974,7 @@
 <template data-template="sim-slider-row">
   <div class="detalle-sim-slider-row">
     <span class="detalle-sim-slider-label" data-f="label"></span>
+    <span class="detalle-sim-slider-tag" data-f="tag"></span>
     <input type="range" class="detalle-sim-range" data-f="range">
     <span class="detalle-sim-slider-val mono" data-f="val"></span>
   </div>

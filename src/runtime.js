@@ -1484,26 +1484,61 @@
     var pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
     range.style.background = 'linear-gradient(to right, var(--c-accent) 0%, var(--c-accent) ' + pct + '%, var(--c-line) ' + pct + '%, var(--c-line) 100%)';
   }
-  function recalcularSimulacion(m, pendientes, valores) {
-    var simuladas = pendientes.map(function (a) { return valores[a.id]; });
-    var todas = m.parciales.concat(simuladas);
-    var promedio = todas.reduce(function (x, y) { return x + y; }, 0) / todas.length;
-    var tone = toneDe(m.estado, m.esc, todas);
-    document.getElementById('detalle-sim-ring').setAttribute('style', ringStyle(promedio, TONE[tone], 72, m.esc.total));
+  // La matemática en sí vive en calcularSimulacion() (src/simulador.js,
+  // función pura, testeada aparte con `npm run test:sim`) — acá sólo se
+  // arma el estado de los sliders y se pinta el resultado.
+  function recalcularSimulacion(m, evaluaciones, valores) {
+    var r = calcularSimulacion(m.esc, evaluaciones, valores);
+    var tone = r.asegurado ? 'success' : (r.imposible ? 'danger' : (r.faltanAprobacion === 0 ? 'success' : 'warning'));
+    document.getElementById('detalle-sim-ring').setAttribute('style', ringStyle(r.puntosProyectados, TONE[tone], 72, r.total || 1));
     var ringInner = document.getElementById('detalle-sim-ring-inner');
     ringInner.setAttribute('style', ringInnerStyle(72, 8));
     clear(ringInner);
-    var v = el('span'); v.className = 'mono'; v.style.cssText = 'font-size:17px;font-weight:600;line-height:1'; v.textContent = val(promedio, m.esc);
+    var v = el('span'); v.className = 'mono'; v.style.cssText = 'font-size:17px;font-weight:600;line-height:1'; v.textContent = val(r.puntosProyectados, m.esc);
     ringInner.appendChild(v);
-    document.getElementById('detalle-sim-texto').textContent = promedio >= m.esc.aprob
-      ? 'Con este escenario, tu promedio sería ' + valU(promedio, m.esc) + ' — aprobarías.'
-      : 'Con este escenario, tu promedio sería ' + valU(promedio, m.esc) + ', todavía por debajo del mínimo (' + valU(m.esc.aprob, m.esc) + ').';
+
+    document.getElementById('detalle-sim-stat-reales').textContent = valU(r.puntosReales, m.esc);
+    document.getElementById('detalle-sim-stat-disponibles').textContent = valU(r.disponibles, m.esc);
+    document.getElementById('detalle-sim-stat-proyectado').textContent = valU(r.puntosProyectados, m.esc) + ' / ' + valU(r.total, m.esc);
+
+    document.getElementById('detalle-sim-texto').textContent = r.asegurado
+      ? 'Ya asegurada la aprobación con lo que ya tenés, pase lo que pase en el resto.'
+      : r.imposible
+        ? 'Con lo que ya tenés y lo máximo que falta, ya no es matemáticamente posible aprobar.'
+        : r.faltanAprobacion === 0
+          ? 'Con este escenario, llegás a ' + valU(r.puntosProyectados, m.esc) + ' — aprobarías.'
+          : 'Con este escenario, te faltan ' + valU(r.faltanAprobacion, m.esc) + ' para aprobar (' + valU(r.aprob, m.esc) + ').';
+
+    var aviso = document.getElementById('detalle-sim-aviso');
+    if (r.asegurado) {
+      aviso.classList.remove('hidden');
+      aviso.setAttribute('style', css({ background: rgba(TONE.success, .09), border: '1px solid ' + rgba(TONE.success, .3) }));
+      aviso.textContent = r.exoneracion != null
+        ? (r.exonerado ? 'Aprobación y exoneración aseguradas con lo que ya tenés.' : 'Aprobación asegurada. Para exonerar todavía te faltan ' + valU(r.faltanExoneracion, m.esc) + '.')
+        : 'Aprobación asegurada con lo que ya tenés.';
+    } else if (r.imposible) {
+      aviso.classList.remove('hidden');
+      aviso.setAttribute('style', css({ background: rgba(TONE.danger, .09), border: '1px solid ' + rgba(TONE.danger, .3) }));
+      aviso.textContent = 'Objetivo imposible: incluso sacando el máximo en todo lo que falta, no se llega a ' + valU(r.aprob, m.esc) + '.';
+    } else if (r.promedioNecesario != null) {
+      aviso.classList.remove('hidden');
+      aviso.setAttribute('style', css({ background: rgba(TONE.warning, .09), border: '1px solid ' + rgba(TONE.warning, .3) }));
+      aviso.textContent = 'Necesitás promediar ' + valU(r.promedioNecesario, m.esc) + ' en las evaluaciones que faltan para llegar al mínimo.';
+    } else {
+      aviso.classList.add('hidden');
+    }
+
+    var escAviso = document.getElementById('detalle-sim-escala-aviso');
+    escAviso.classList.toggle('hidden', !r.escalaInconsistente);
+    if (r.escalaInconsistente) escAviso.textContent = 'Ojo: la suma de notas máximas de las evaluaciones no coincide con el total de la materia (' + valU(m.esc.total, m.esc) + ').';
   }
   function renderDetalleSimulador(m) {
-    var pendientes = m.evaluaciones.filter(function (a) { return a.nota == null; });
+    // m.evaluaciones ya viene filtrado a kind==='evaluacion' (Fase 1) — acá
+    // entran TODAS (con nota real o no, Fase 2), no sólo las pendientes.
+    var evaluaciones = m.evaluaciones;
     var toggleBtn = document.getElementById('btn-detalle-sim-toggle');
     var panel = document.getElementById('detalle-sim');
-    if (!pendientes.length) {
+    if (!evaluaciones.length) {
       toggleBtn.classList.add('hidden');
       panel.classList.add('hidden');
       return;
@@ -1511,42 +1546,48 @@
     toggleBtn.classList.remove('hidden');
     panel.classList.add('hidden'); // colapsada por default en cada render
 
-    var valores = {}; // evaluacionId -> nota simulada, sólo vive en este closure
+    var valores = {}; // evaluacionId -> valor simulado actual del slider
     var slidersWrap = document.getElementById('detalle-sim-sliders');
     clear(slidersWrap);
     var step = m.esc.tipo === 'nota' ? 0.5 : 1;
     var filas = [];
-    pendientes.forEach(function (a) {
+    evaluaciones.forEach(function (a) {
       var node = tpl('sim-slider-row');
       qf(node, 'label').textContent = truncate(a.titulo, 24);
+      var tag = qf(node, 'tag');
       var range = qf(node, 'range');
-      range.min = '0'; range.max = String(m.esc.total); range.step = String(step);
+      range.min = '0'; range.max = String(a.notaMaxima || 0); range.step = String(step);
       range.setAttribute('aria-label', 'Nota simulada para ' + a.titulo);
       var valSpan = qf(node, 'val');
-      filas.push({ id: a.id, range: range, valSpan: valSpan });
+      filas.push({ id: a.id, range: range, valSpan: valSpan, tag: tag, nota: a.nota });
       range.addEventListener('input', function () {
         valores[a.id] = Number(range.value);
+        // Tocar el slider de una evaluación ya calificada la pasa a
+        // "Simulado" — a partir de ahí está explorando un escenario
+        // distinto al real, no mostrando el dato real.
+        tag.textContent = 'Simulado';
         valSpan.textContent = valU(valores[a.id], m.esc);
         pintarRangeFill(range);
-        recalcularSimulacion(m, pendientes, valores);
+        recalcularSimulacion(m, evaluaciones, valores);
       });
       slidersWrap.appendChild(node);
     });
 
-    // Punto de partida: el mínimo de aprobación (m.esc.aprob), no el
-    // promedio real — así el simulador siempre arranca en un punto de
-    // referencia estable ("esto es lo justo para pasar, ajustá desde acá"),
-    // en vez de, si el promedio real ya está aprobado, arrancar mostrando
-    // un escenario peor apenas se abre la sección sin que el usuario haya
-    // tocado nada.
+    // Punto de partida de cada slider: la nota real si ya tiene una, si no
+    // el mínimo de aprobación de la materia acotado a la nota_maxima de esa
+    // fila (antes era un solo valor global — m.esc.aprob — pero ahora cada
+    // evaluación puede tener su propio techo, así que hay que acotarlo por
+    // fila para no arrancar un slider más allá de su propio máximo).
     function reiniciar() {
       filas.forEach(function (f) {
-        valores[f.id] = m.esc.aprob;
+        var max = Number(f.range.max) || 0;
+        valores[f.id] = f.nota != null ? f.nota : Math.min(m.esc.aprob, max);
         f.range.value = String(valores[f.id]);
+        f.tag.textContent = f.nota != null ? 'Real' : 'Simulado';
         f.valSpan.textContent = valU(valores[f.id], m.esc);
         pintarRangeFill(f.range);
       });
-      recalcularSimulacion(m, pendientes, valores);
+      recalcularSimulacion(m, evaluaciones, valores);
     }
     reiniciar();
 
@@ -2431,11 +2472,26 @@
       function () { STATE.editing.aprobOtro = true; renderModalMateriaSistema(); },
       function (val) { STATE.editing.esc.aprob = val; renderModalMateriaSistema(); }));
 
+    // Fase 2: exoneración — opcional (null = la materia no la define). "Sin
+    // exoneración" es un pill más, no un checkbox aparte, mismo idioma que
+    // el resto de esta sección.
+    var exonWrap = document.getElementById('modal-exoneracion-presets');
+    clear(exonWrap);
+    var tieneExon = STATE.editing.esc.exoneracion != null;
+    exonWrap.appendChild(buildNumPill(!tieneExon, 'Sin exoneración', function () {
+      STATE.editing.esc.exoneracion = null;
+      renderModalMateriaSistema();
+    }));
+    exonWrap.appendChild(buildNumPillOtro(tieneExon, tieneExon ? STATE.editing.esc.exoneracion : Math.min(STATE.editing.esc.total, STATE.editing.esc.aprob + 1),
+      function () { STATE.editing.esc.exoneracion = Math.min(STATE.editing.esc.total, STATE.editing.esc.aprob + 1); renderModalMateriaSistema(); },
+      function (val) { STATE.editing.esc.exoneracion = val; renderModalMateriaSistema(); }));
+
     var escSel = STATE.editing.esc;
     var hint = document.getElementById('modal-materia-hint');
-    hint.textContent = tipo === 'nota'
+    hint.textContent = (tipo === 'nota'
       ? 'La materia se califica de 0 a 12 y aprueba con ' + valU(escSel.aprob, escSel) + '.'
-      : 'La materia se califica sobre ' + val(escSel.total, escSel) + uni(escSel) + ' y aprueba con ' + valU(escSel.aprob, escSel) + ' (' + (escSel.total ? Math.round(escSel.aprob / escSel.total * 100) : 0) + '% del total).';
+      : 'La materia se califica sobre ' + val(escSel.total, escSel) + uni(escSel) + ' y aprueba con ' + valU(escSel.aprob, escSel) + ' (' + (escSel.total ? Math.round(escSel.aprob / escSel.total * 100) : 0) + '% del total).')
+      + (escSel.exoneracion != null ? ' Exonera con ' + valU(escSel.exoneracion, escSel) + '.' : '');
   }
 
   function buildNumPill(on, label, onClick) {
