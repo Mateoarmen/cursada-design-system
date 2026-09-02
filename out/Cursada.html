@@ -149,14 +149,11 @@ html[data-theme="oscuro"] .main{
     var(--c-bg);
 }
 
-/* Agenda: cada fila pasa de "renglón con separador" a "tarjeta propia con
-   riel de color", igual que el mockup. .bar4 ya existe en el template
-   (agenda-row) con el color de la materia puesto por JS (barStyle()) — acá
-   sólo se lo reposiciona para que haga de riel del borde izquierdo en vez
-   de barrita suelta junto al checkbox; cero cambios en runtime.js. */
+/* Agenda en tema oscuro: cada fila pasa de "renglón con separador" a
+   "tarjeta propia", igual que el mockup — el riel de color (.bar4) es una
+   sola regla compartida con el tema claro, ver más abajo. */
 html[data-theme="oscuro"] .agenda-list{background:none;box-shadow:none;display:flex;flex-direction:column;gap:8px}
-html[data-theme="oscuro"] .agenda-row{position:relative;background:var(--c-surface);border-radius:16px;padding:14px 16px 14px 19px;border-top:none}
-html[data-theme="oscuro"] .agenda-row .bar4{position:absolute;left:0;top:0;bottom:0;height:auto;border-radius:16px 0 0 16px}
+html[data-theme="oscuro"] .agenda-row{background:var(--c-surface);border-radius:16px;border-top:none}
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -240,6 +237,12 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .semestre-row-nombre{flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c-ink)}
 .semestre-row-select.is-active .semestre-row-nombre{color:#fff}
 .semestre-row-meta{font-size:12px;color:var(--c-ink3);flex:none}
+/* Subir/bajar (bloque D3) — mismo tamaño de toque que editar/eliminar
+   (30px), apilados en vez de lado a lado para no ensanchar la fila. */
+.semestre-row-reorder{display:flex;flex-direction:column;gap:2px;flex:none}
+.semestre-row-mini{width:30px;height:16px;border:none;border-radius:5px;background:var(--c-surfaceAlt);color:var(--c-ink2);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.semestre-row-mini:disabled{opacity:.35;cursor:default}
+.semestre-row-mini:not(:disabled):hover{background:var(--c-muted4)}
 .semestre-row-edit{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-ink2);font-size:13px}
 /* 🗑 es un emoji a color, no un glifo de texto como ✎ — al mismo font-size
    se ve bastante más grande y pesado, achicado acá para que ambos íconos
@@ -567,7 +570,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-group-head .n{font-size:12px;color:var(--c-ink3)}
 .agenda-group-head .rule{flex:1;height:1px;background:var(--c-line-faint)}
 .agenda-list{overflow:hidden}
-.agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px;border-top:1px solid var(--c-line-faint)}
+.agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px 13px 26px;border-top:1px solid var(--c-line-faint);position:relative}
+/* Riel de color del borde izquierdo (bloque D1) — antes vivía en el flujo
+   flex como "barrita suelta junto al checkbox" (barStyle() en runtime.js
+   le fijaba width/height/radius por JS) y sólo en tema oscuro una regla
+   aparte intentaba reposicionarla como riel de card, pero perdía contra el
+   style inline en las propiedades que las dos tocaban (height, radius) —
+   quedaba una pastillita corta flotando en la esquina en vez de un borde
+   prolijo. Ahora barStyle() sólo pone el color (ver runtime.js) y toda la
+   geometría vive acá, una sola regla para los dos temas. */
+.agenda-row .bar4{position:absolute;left:8px;top:10px;bottom:10px;height:auto;width:4px;border-radius:999px}
 /* Mismo motivo que .eval-row de arriba: la fila vive envuelta en .swipe-row,
    así que la selección de "primera fila" pasa por el wrapper. */
 .agenda-list > .swipe-row:first-child .agenda-row{border-top:none}
@@ -576,7 +588,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-title.done{color:var(--c-ink3);text-decoration:line-through}
 .agenda-meta{display:flex;align-items:center;gap:8px}
 .agenda-meta .m{font-size:13px;color:var(--c-ink3)}
-.agenda-fecha{font-size:14px;color:var(--c-ink2);width:170px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.agenda-fecha-col{display:flex;flex-direction:column;gap:2px;width:170px;text-align:right;flex:none}
+.agenda-fecha{font-size:14px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
+.agenda-fecha-col .prox-countdown{align-self:flex-end}
 
 /* ---------- Calendario ---------- */
 .calendario-wrap{flex:1;min-height:0;display:flex;gap:0}
@@ -863,7 +877,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
      ANTES de que eso pase — fecha y badge pasan a su propia línea. */
   .agenda-row{flex-wrap:wrap;row-gap:6px;padding:13px 16px}
   .agenda-body{flex:1 1 180px}
-  .agenda-fecha{width:auto;text-align:left;margin-left:55px} /* 22px checkbox + 15px gap + 3px barra + 15px gap: alinea bajo el título */
+  .agenda-fecha-col{width:auto;text-align:left;align-items:flex-start;margin-left:37px} /* 22px checkbox + 15px gap: alinea bajo el título (la barra ya no ocupa espacio en el flujo, ver .agenda-row .bar4) */
+  .agenda-fecha-col .prox-countdown{align-self:flex-start}
   /* Varios .field dentro de un .field-row traen un width fijo puesto para
      desktop (ej. Código 130px, Créditos 112px en el modal de materia) que
      nunca cede — con el resto de los .field angostándose alrededor, "Nombre
@@ -1218,13 +1233,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
   /* ---------- Agenda ---------- */
   /* Filas más espaciadas (grid de 8px, dirección "Pro Edition") — el
-     margin-left de .agenda-fecha alinea esa columna bajo el título cuando
+     margin-left de .agenda-fecha-col alinea esa columna bajo el título cuando
      wrappea a su propia línea (ver .agenda-body flex-basis arriba): tiene
      que seguir siendo checkbox(22px) + gap para no perder esa alineación. */
   .agenda-groups{gap:16px}
-  .agenda-row{padding:16px;gap:16px}
+  .agenda-row{padding:16px 16px 16px 22px;gap:16px}
   .agenda-title{font-size:14.5px}
-  .agenda-fecha{margin-left:38px;font-size:12.5px}
+  .agenda-fecha-col{margin-left:38px}
+  .agenda-fecha{font-size:12.5px}
   .agenda-row > .badge{margin-left:auto}
 
   /* Swipe para marcar entregado. El verde vive en .swipe-action (fondo
@@ -1374,6 +1390,13 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     display:flex;justify-content:center}
   .sheet-grabber::after{content:'';width:38px;height:4.5px;border-radius:999px;background:var(--c-muted4)}
   .modal-backdrop.is-sheet .modal-head{padding-top:8px}
+
+  /* Fila de semestre a 375px: nombre + cantidad de materias + subir/bajar/
+     renombrar/eliminar en una sola línea es mucho para el ancho de un
+     celular chico. La cantidad de materias ya se ve al entrar al semestre
+     (Materias) — se saca de acá para dejarle el espacio a los botones,
+     que sí son la única forma de hacer esas acciones. */
+  .semestre-row-meta{display:none}
 
   .modal-backdrop.is-gate .modal{min-height:100dvh;border-radius:0}
 
@@ -2425,7 +2448,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
       <div class="bar4" data-f="bar"></div>
       <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="tipo"></span></div></div>
-      <span class="agenda-fecha" data-f="fecha"></span>
+      <div class="agenda-fecha-col">
+        <span class="agenda-fecha" data-f="fecha"></span>
+        <span class="prox-countdown mono hidden" data-f="countdown"></span>
+      </div>
       <span class="badge" data-f="badge"></span>
     </div>
   </div>
@@ -2490,6 +2516,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <span class="semestre-row-nombre" data-f="nombre"></span>
     </button>
     <span class="semestre-row-meta" data-f="meta"></span>
+    <div class="semestre-row-reorder">
+      <button type="button" class="semestre-row-mini" data-f="subirBtn" title="Subir" aria-label="Subir semestre">↑</button>
+      <button type="button" class="semestre-row-mini" data-f="bajarBtn" title="Bajar" aria-label="Bajar semestre">↓</button>
+    </div>
     <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar semestre">✎</button>
     <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar semestre">🗑</button>
   </div>
@@ -2770,6 +2800,12 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     return 'linear-gradient(180deg,' + a.strong + ',' + a.to + ')';
   }
   function barStyle(color) { return css({ width: '4px', height: '36px', borderRadius: '2px', background: color, flex: 'none' }); }
+  // Sólo el color — la geometría del riel de Agenda (ancho, alto, radio,
+  // posición) vive entera en CSS (.agenda-row .bar4), no acá. Antes esta
+  // fila reusaba barStyle(), que traía width/height/radius por inline
+  // style y le ganaba por especificidad a la regla de tema oscuro que
+  // intentaba convertirla en riel — ver el comentario en styles.css.
+  function barColorStyle(color) { return css({ background: color }); }
   function dotStyle(color, r) { return css({ width: '10px', height: '10px', borderRadius: r || '3px', background: color, flex: 'none' }); }
   function ringStyle(v, color, size, total) {
     var pct = Math.max(0, Math.min(100, ((v == null ? 0 : v) / (total || 12)) * 100));
@@ -2887,13 +2923,13 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     return { id: r.id, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', todoElDia: !!r.todo_el_dia, tagId: r.tag_id || null };
   }
   function semestreToRow(s) {
-    return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo };
+    return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo, orden: s.orden };
   }
   function rowToSemestre(r) {
     // createdAt es sólo lectura — lo genera la DB, nunca se manda de vuelta
-    // en semestreToRow. Se usa para ordenar semestres cronológicamente de
-    // verdad (el nombre es texto libre, no sirve para eso).
-    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at };
+    // en semestreToRow. orden sí es de ida y vuelta (bloque D3): lo escribe
+    // moverSemestre()/crearSemestre(), semestresOrdenados() ordena por acá.
+    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at, orden: r.orden };
   }
   function tagToRow(t) {
     return { id: t.id, user_id: CURRENT_USER.id, name: t.nombre, kind: t.kind, color: t.colorId };
@@ -3006,15 +3042,47 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var s = loadSemestresRaw().filter(function (x) { return x.activo; })[0];
     return s ? s.id : null;
   }
-  // Orden cronológico real por created_at — el nombre es texto libre (no
-  // confiable para ordenar) y el orden del array tal cual viene de Supabase
-  // tampoco está garantizado. No asumir "el activo es siempre el más
-  // nuevo": para encontrar el semestre anterior a uno dado, ubicar su índice
-  // acá y restar 1, nunca tomar "el anteúltimo del array" a secas.
+  // Orden manual del usuario (bloque D3, columna `orden`) — antes era
+  // cronológico por created_at; ahora created_at queda sólo de respaldo
+  // para filas viejas sin `orden` todavía (no debería pasar tras la
+  // migración de backfill, pero por si acaso) y como desempate estable si
+  // dos semestres compartieran orden. El nombre es texto libre, nunca sirve
+  // para ordenar. No asumir "el activo es siempre el más nuevo/último": para
+  // encontrar el semestre anterior a uno dado, ubicar su índice acá y
+  // restar 1, nunca tomar "el anteúltimo del array" a secas.
   function semestresOrdenados() {
     return loadSemestresRaw().slice().sort(function (a, b) {
+      if (a.orden != null && b.orden != null && a.orden !== b.orden) return a.orden - b.orden;
+      if (a.orden != null && b.orden == null) return -1;
+      if (a.orden == null && b.orden != null) return 1;
       return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
+  }
+  // Próximo valor de `orden` para un semestre nuevo — siempre al final.
+  function proximoOrdenSemestre() {
+    var max = -1;
+    loadSemestresRaw().forEach(function (s) { if (s.orden != null && s.orden > max) max = s.orden; });
+    return max + 1;
+  }
+  // Sube (-1) o baja (+1) un semestre en la lista — swap de `orden` con el
+  // vecino inmediato en semestresOrdenados(), no un renumerado global.
+  async function moverSemestre(id, delta) {
+    var ordenados = semestresOrdenados();
+    var idx = -1;
+    ordenados.forEach(function (s, i) { if (s.id === id) idx = i; });
+    var vecinoIdx = idx + delta;
+    if (idx < 0 || vecinoIdx < 0 || vecinoIdx >= ordenados.length) return true;
+    var actual = ordenados[idx], vecino = ordenados[vecinoIdx];
+    // Filas viejas sin `orden` (no debería pasar post-migración): asignarle
+    // uno acá mismo en vez de swapear `undefined`.
+    var ordenActual = actual.orden != null ? actual.orden : idx;
+    var ordenVecino = vecino.orden != null ? vecino.orden : vecinoIdx;
+    var arr = loadSemestresRaw().map(function (s) {
+      if (s.id === actual.id) return Object.assign({}, s, { orden: ordenVecino });
+      if (s.id === vecino.id) return Object.assign({}, s, { orden: ordenActual });
+      return s;
+    });
+    return saveSemestresRaw(arr);
   }
   function setSemestreActivo(id) {
     var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: s.id === id }); });
@@ -4269,18 +4337,27 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
       var mark = qf(node, 'checkMark');
       if (item.kind === 'materia') {
         check.checked = !!item.hecho;
-        check.addEventListener('change', function () { toggleAgendaHecho(item.id, check.checked); });
+        // Mismo blindaje que el checkbox análogo del detalle de materia
+        // (ver eval-row): sin esto, el click depende únicamente del
+        // `if (ev.target === check) return` del handler de fila más abajo
+        // — stopPropagation() lo hace explícito en vez de implícito.
+        check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(item.id, check.checked); });
+        check.addEventListener('click', function (ev) { ev.stopPropagation(); });
         mark.textContent = item.hecho ? '✓' : '';
       } else {
         check.disabled = true; check.title = 'Los eventos personales no tienen estado de entrega';
       }
       var m = item.materiaId ? computeMateriaById(item.materiaId) : null;
-      qf(node, 'bar').setAttribute('style', barStyle(m ? m.strong : PERSONAL_COLOR));
+      // El riel sigue el color de materia/personal (misma identidad que
+      // el resto de la app: chip, Calendario, Horario) — la etiqueta ya
+      // tiene su propio chip con su propio color al lado, no compite acá.
+      qf(node, 'bar').setAttribute('style', barColorStyle(m ? m.strong : PERSONAL_COLOR));
       var titleEl = qf(node, 'titulo'); titleEl.textContent = item.titulo; titleEl.classList.toggle('done', !!item.hecho);
       var chip = qf(node, 'chip'); chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle()); chip.textContent = m ? truncate(m.nombre, 16) : 'Personal';
       qf(node, 'tipo').textContent = item.tipo;
       renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
+      setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);
       var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
       makeRowClickable(node, function (ev) {
@@ -5471,7 +5548,8 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     var list = document.getElementById('semestres-list');
     clear(list);
     var activoId = activeSemestreId();
-    semestresOrdenados().forEach(function (s) {
+    var ordenados = semestresOrdenados();
+    ordenados.forEach(function (s, idx) {
       var count = loadMateriasRaw().filter(function (m) { return m.semestreId === s.id; }).length;
       var node = tpl('semestre-row');
       var selectBtn = qf(node, 'selectBtn');
@@ -5487,6 +5565,27 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
         if (!ok) { avisarError(); return; }
         closeAllModals();
         renderRoute();
+      });
+      // Subir/bajar (bloque D3) — swap de `orden` con el vecino, no
+      // reordena nada más. Deshabilitados en los extremos en vez de
+      // ocultos: el tamaño de toque no se mueve de lugar entre filas.
+      var subirBtn = qf(node, 'subirBtn');
+      var bajarBtn = qf(node, 'bajarBtn');
+      subirBtn.disabled = idx === 0;
+      bajarBtn.disabled = idx === ordenados.length - 1;
+      subirBtn.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        subirBtn.disabled = true;
+        var ok = await moverSemestre(s.id, -1);
+        if (!ok) avisarError();
+        renderSemestresModal();
+      });
+      bajarBtn.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        bajarBtn.disabled = true;
+        var ok = await moverSemestre(s.id, 1);
+        if (!ok) avisarError();
+        renderSemestresModal();
       });
       var editBtn = qf(node, 'editBtn');
       editBtn.addEventListener('click', function (ev) {
@@ -5575,7 +5674,7 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
     nombre = (nombre || '').trim();
     if (!nombre) return;
     var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: false }); });
-    arr.push({ id: uid(), nombre: nombre, activo: true });
+    arr.push({ id: uid(), nombre: nombre, activo: true, orden: proximoOrdenSemestre() });
     var btn = document.getElementById('btn-crear-semestre');
     setBtnBusy(btn, true, 'Creando…');
     var ok = await saveSemestresRaw(arr);

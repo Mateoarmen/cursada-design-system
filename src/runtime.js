@@ -167,6 +167,12 @@
     return 'linear-gradient(180deg,' + a.strong + ',' + a.to + ')';
   }
   function barStyle(color) { return css({ width: '4px', height: '36px', borderRadius: '2px', background: color, flex: 'none' }); }
+  // Sólo el color — la geometría del riel de Agenda (ancho, alto, radio,
+  // posición) vive entera en CSS (.agenda-row .bar4), no acá. Antes esta
+  // fila reusaba barStyle(), que traía width/height/radius por inline
+  // style y le ganaba por especificidad a la regla de tema oscuro que
+  // intentaba convertirla en riel — ver el comentario en styles.css.
+  function barColorStyle(color) { return css({ background: color }); }
   function dotStyle(color, r) { return css({ width: '10px', height: '10px', borderRadius: r || '3px', background: color, flex: 'none' }); }
   function ringStyle(v, color, size, total) {
     var pct = Math.max(0, Math.min(100, ((v == null ? 0 : v) / (total || 12)) * 100));
@@ -284,13 +290,13 @@
     return { id: r.id, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', todoElDia: !!r.todo_el_dia, tagId: r.tag_id || null };
   }
   function semestreToRow(s) {
-    return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo };
+    return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo, orden: s.orden };
   }
   function rowToSemestre(r) {
     // createdAt es sólo lectura — lo genera la DB, nunca se manda de vuelta
-    // en semestreToRow. Se usa para ordenar semestres cronológicamente de
-    // verdad (el nombre es texto libre, no sirve para eso).
-    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at };
+    // en semestreToRow. orden sí es de ida y vuelta (bloque D3): lo escribe
+    // moverSemestre()/crearSemestre(), semestresOrdenados() ordena por acá.
+    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at, orden: r.orden };
   }
   function tagToRow(t) {
     return { id: t.id, user_id: CURRENT_USER.id, name: t.nombre, kind: t.kind, color: t.colorId };
@@ -403,15 +409,47 @@
     var s = loadSemestresRaw().filter(function (x) { return x.activo; })[0];
     return s ? s.id : null;
   }
-  // Orden cronológico real por created_at — el nombre es texto libre (no
-  // confiable para ordenar) y el orden del array tal cual viene de Supabase
-  // tampoco está garantizado. No asumir "el activo es siempre el más
-  // nuevo": para encontrar el semestre anterior a uno dado, ubicar su índice
-  // acá y restar 1, nunca tomar "el anteúltimo del array" a secas.
+  // Orden manual del usuario (bloque D3, columna `orden`) — antes era
+  // cronológico por created_at; ahora created_at queda sólo de respaldo
+  // para filas viejas sin `orden` todavía (no debería pasar tras la
+  // migración de backfill, pero por si acaso) y como desempate estable si
+  // dos semestres compartieran orden. El nombre es texto libre, nunca sirve
+  // para ordenar. No asumir "el activo es siempre el más nuevo/último": para
+  // encontrar el semestre anterior a uno dado, ubicar su índice acá y
+  // restar 1, nunca tomar "el anteúltimo del array" a secas.
   function semestresOrdenados() {
     return loadSemestresRaw().slice().sort(function (a, b) {
+      if (a.orden != null && b.orden != null && a.orden !== b.orden) return a.orden - b.orden;
+      if (a.orden != null && b.orden == null) return -1;
+      if (a.orden == null && b.orden != null) return 1;
       return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
+  }
+  // Próximo valor de `orden` para un semestre nuevo — siempre al final.
+  function proximoOrdenSemestre() {
+    var max = -1;
+    loadSemestresRaw().forEach(function (s) { if (s.orden != null && s.orden > max) max = s.orden; });
+    return max + 1;
+  }
+  // Sube (-1) o baja (+1) un semestre en la lista — swap de `orden` con el
+  // vecino inmediato en semestresOrdenados(), no un renumerado global.
+  async function moverSemestre(id, delta) {
+    var ordenados = semestresOrdenados();
+    var idx = -1;
+    ordenados.forEach(function (s, i) { if (s.id === id) idx = i; });
+    var vecinoIdx = idx + delta;
+    if (idx < 0 || vecinoIdx < 0 || vecinoIdx >= ordenados.length) return true;
+    var actual = ordenados[idx], vecino = ordenados[vecinoIdx];
+    // Filas viejas sin `orden` (no debería pasar post-migración): asignarle
+    // uno acá mismo en vez de swapear `undefined`.
+    var ordenActual = actual.orden != null ? actual.orden : idx;
+    var ordenVecino = vecino.orden != null ? vecino.orden : vecinoIdx;
+    var arr = loadSemestresRaw().map(function (s) {
+      if (s.id === actual.id) return Object.assign({}, s, { orden: ordenVecino });
+      if (s.id === vecino.id) return Object.assign({}, s, { orden: ordenActual });
+      return s;
+    });
+    return saveSemestresRaw(arr);
   }
   function setSemestreActivo(id) {
     var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: s.id === id }); });
@@ -1666,18 +1704,27 @@
       var mark = qf(node, 'checkMark');
       if (item.kind === 'materia') {
         check.checked = !!item.hecho;
-        check.addEventListener('change', function () { toggleAgendaHecho(item.id, check.checked); });
+        // Mismo blindaje que el checkbox análogo del detalle de materia
+        // (ver eval-row): sin esto, el click depende únicamente del
+        // `if (ev.target === check) return` del handler de fila más abajo
+        // — stopPropagation() lo hace explícito en vez de implícito.
+        check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(item.id, check.checked); });
+        check.addEventListener('click', function (ev) { ev.stopPropagation(); });
         mark.textContent = item.hecho ? '✓' : '';
       } else {
         check.disabled = true; check.title = 'Los eventos personales no tienen estado de entrega';
       }
       var m = item.materiaId ? computeMateriaById(item.materiaId) : null;
-      qf(node, 'bar').setAttribute('style', barStyle(m ? m.strong : PERSONAL_COLOR));
+      // El riel sigue el color de materia/personal (misma identidad que
+      // el resto de la app: chip, Calendario, Horario) — la etiqueta ya
+      // tiene su propio chip con su propio color al lado, no compite acá.
+      qf(node, 'bar').setAttribute('style', barColorStyle(m ? m.strong : PERSONAL_COLOR));
       var titleEl = qf(node, 'titulo'); titleEl.textContent = item.titulo; titleEl.classList.toggle('done', !!item.hecho);
       var chip = qf(node, 'chip'); chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle()); chip.textContent = m ? truncate(m.nombre, 16) : 'Personal';
       qf(node, 'tipo').textContent = item.tipo;
       renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
+      setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);
       var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
       makeRowClickable(node, function (ev) {
@@ -2868,7 +2915,8 @@
     var list = document.getElementById('semestres-list');
     clear(list);
     var activoId = activeSemestreId();
-    semestresOrdenados().forEach(function (s) {
+    var ordenados = semestresOrdenados();
+    ordenados.forEach(function (s, idx) {
       var count = loadMateriasRaw().filter(function (m) { return m.semestreId === s.id; }).length;
       var node = tpl('semestre-row');
       var selectBtn = qf(node, 'selectBtn');
@@ -2884,6 +2932,27 @@
         if (!ok) { avisarError(); return; }
         closeAllModals();
         renderRoute();
+      });
+      // Subir/bajar (bloque D3) — swap de `orden` con el vecino, no
+      // reordena nada más. Deshabilitados en los extremos en vez de
+      // ocultos: el tamaño de toque no se mueve de lugar entre filas.
+      var subirBtn = qf(node, 'subirBtn');
+      var bajarBtn = qf(node, 'bajarBtn');
+      subirBtn.disabled = idx === 0;
+      bajarBtn.disabled = idx === ordenados.length - 1;
+      subirBtn.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        subirBtn.disabled = true;
+        var ok = await moverSemestre(s.id, -1);
+        if (!ok) avisarError();
+        renderSemestresModal();
+      });
+      bajarBtn.addEventListener('click', async function (ev) {
+        ev.stopPropagation();
+        bajarBtn.disabled = true;
+        var ok = await moverSemestre(s.id, 1);
+        if (!ok) avisarError();
+        renderSemestresModal();
       });
       var editBtn = qf(node, 'editBtn');
       editBtn.addEventListener('click', function (ev) {
@@ -2972,7 +3041,7 @@
     nombre = (nombre || '').trim();
     if (!nombre) return;
     var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: false }); });
-    arr.push({ id: uid(), nombre: nombre, activo: true });
+    arr.push({ id: uid(), nombre: nombre, activo: true, orden: proximoOrdenSemestre() });
     var btn = document.getElementById('btn-crear-semestre');
     setBtnBusy(btn, true, 'Creando…');
     var ok = await saveSemestresRaw(arr);

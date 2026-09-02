@@ -141,14 +141,11 @@ html[data-theme="oscuro"] .main{
     var(--c-bg);
 }
 
-/* Agenda: cada fila pasa de "renglón con separador" a "tarjeta propia con
-   riel de color", igual que el mockup. .bar4 ya existe en el template
-   (agenda-row) con el color de la materia puesto por JS (barStyle()) — acá
-   sólo se lo reposiciona para que haga de riel del borde izquierdo en vez
-   de barrita suelta junto al checkbox; cero cambios en runtime.js. */
+/* Agenda en tema oscuro: cada fila pasa de "renglón con separador" a
+   "tarjeta propia", igual que el mockup — el riel de color (.bar4) es una
+   sola regla compartida con el tema claro, ver más abajo. */
 html[data-theme="oscuro"] .agenda-list{background:none;box-shadow:none;display:flex;flex-direction:column;gap:8px}
-html[data-theme="oscuro"] .agenda-row{position:relative;background:var(--c-surface);border-radius:16px;padding:14px 16px 14px 19px;border-top:none}
-html[data-theme="oscuro"] .agenda-row .bar4{position:absolute;left:0;top:0;bottom:0;height:auto;border-radius:16px 0 0 16px}
+html[data-theme="oscuro"] .agenda-row{background:var(--c-surface);border-radius:16px;border-top:none}
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -232,6 +229,12 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .semestre-row-nombre{flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c-ink)}
 .semestre-row-select.is-active .semestre-row-nombre{color:#fff}
 .semestre-row-meta{font-size:12px;color:var(--c-ink3);flex:none}
+/* Subir/bajar (bloque D3) — mismo tamaño de toque que editar/eliminar
+   (30px), apilados en vez de lado a lado para no ensanchar la fila. */
+.semestre-row-reorder{display:flex;flex-direction:column;gap:2px;flex:none}
+.semestre-row-mini{width:30px;height:16px;border:none;border-radius:5px;background:var(--c-surfaceAlt);color:var(--c-ink2);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.semestre-row-mini:disabled{opacity:.35;cursor:default}
+.semestre-row-mini:not(:disabled):hover{background:var(--c-muted4)}
 .semestre-row-edit{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--c-surfaceAlt);color:var(--c-ink2);font-size:13px}
 /* 🗑 es un emoji a color, no un glifo de texto como ✎ — al mismo font-size
    se ve bastante más grande y pesado, achicado acá para que ambos íconos
@@ -559,7 +562,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-group-head .n{font-size:12px;color:var(--c-ink3)}
 .agenda-group-head .rule{flex:1;height:1px;background:var(--c-line-faint)}
 .agenda-list{overflow:hidden}
-.agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px;border-top:1px solid var(--c-line-faint)}
+.agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px 13px 26px;border-top:1px solid var(--c-line-faint);position:relative}
+/* Riel de color del borde izquierdo (bloque D1) — antes vivía en el flujo
+   flex como "barrita suelta junto al checkbox" (barStyle() en runtime.js
+   le fijaba width/height/radius por JS) y sólo en tema oscuro una regla
+   aparte intentaba reposicionarla como riel de card, pero perdía contra el
+   style inline en las propiedades que las dos tocaban (height, radius) —
+   quedaba una pastillita corta flotando en la esquina en vez de un borde
+   prolijo. Ahora barStyle() sólo pone el color (ver runtime.js) y toda la
+   geometría vive acá, una sola regla para los dos temas. */
+.agenda-row .bar4{position:absolute;left:8px;top:10px;bottom:10px;height:auto;width:4px;border-radius:999px}
 /* Mismo motivo que .eval-row de arriba: la fila vive envuelta en .swipe-row,
    así que la selección de "primera fila" pasa por el wrapper. */
 .agenda-list > .swipe-row:first-child .agenda-row{border-top:none}
@@ -568,7 +580,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-title.done{color:var(--c-ink3);text-decoration:line-through}
 .agenda-meta{display:flex;align-items:center;gap:8px}
 .agenda-meta .m{font-size:13px;color:var(--c-ink3)}
-.agenda-fecha{font-size:14px;color:var(--c-ink2);width:170px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.agenda-fecha-col{display:flex;flex-direction:column;gap:2px;width:170px;text-align:right;flex:none}
+.agenda-fecha{font-size:14px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
+.agenda-fecha-col .prox-countdown{align-self:flex-end}
 
 /* ---------- Calendario ---------- */
 .calendario-wrap{flex:1;min-height:0;display:flex;gap:0}
@@ -855,7 +869,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
      ANTES de que eso pase — fecha y badge pasan a su propia línea. */
   .agenda-row{flex-wrap:wrap;row-gap:6px;padding:13px 16px}
   .agenda-body{flex:1 1 180px}
-  .agenda-fecha{width:auto;text-align:left;margin-left:55px} /* 22px checkbox + 15px gap + 3px barra + 15px gap: alinea bajo el título */
+  .agenda-fecha-col{width:auto;text-align:left;align-items:flex-start;margin-left:37px} /* 22px checkbox + 15px gap: alinea bajo el título (la barra ya no ocupa espacio en el flujo, ver .agenda-row .bar4) */
+  .agenda-fecha-col .prox-countdown{align-self:flex-start}
   /* Varios .field dentro de un .field-row traen un width fijo puesto para
      desktop (ej. Código 130px, Créditos 112px en el modal de materia) que
      nunca cede — con el resto de los .field angostándose alrededor, "Nombre
@@ -1210,13 +1225,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
   /* ---------- Agenda ---------- */
   /* Filas más espaciadas (grid de 8px, dirección "Pro Edition") — el
-     margin-left de .agenda-fecha alinea esa columna bajo el título cuando
+     margin-left de .agenda-fecha-col alinea esa columna bajo el título cuando
      wrappea a su propia línea (ver .agenda-body flex-basis arriba): tiene
      que seguir siendo checkbox(22px) + gap para no perder esa alineación. */
   .agenda-groups{gap:16px}
-  .agenda-row{padding:16px;gap:16px}
+  .agenda-row{padding:16px 16px 16px 22px;gap:16px}
   .agenda-title{font-size:14.5px}
-  .agenda-fecha{margin-left:38px;font-size:12.5px}
+  .agenda-fecha-col{margin-left:38px}
+  .agenda-fecha{font-size:12.5px}
   .agenda-row > .badge{margin-left:auto}
 
   /* Swipe para marcar entregado. El verde vive en .swipe-action (fondo
@@ -1366,6 +1382,13 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     display:flex;justify-content:center}
   .sheet-grabber::after{content:'';width:38px;height:4.5px;border-radius:999px;background:var(--c-muted4)}
   .modal-backdrop.is-sheet .modal-head{padding-top:8px}
+
+  /* Fila de semestre a 375px: nombre + cantidad de materias + subir/bajar/
+     renombrar/eliminar en una sola línea es mucho para el ancho de un
+     celular chico. La cantidad de materias ya se ve al entrar al semestre
+     (Materias) — se saca de acá para dejarle el espacio a los botones,
+     que sí son la única forma de hacer esas acciones. */
+  .semestre-row-meta{display:none}
 
   .modal-backdrop.is-gate .modal{min-height:100dvh;border-radius:0}
 

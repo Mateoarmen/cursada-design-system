@@ -951,7 +951,10 @@
       <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
       <div class="bar4" data-f="bar"></div>
       <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="tipo"></span></div></div>
-      <span class="agenda-fecha" data-f="fecha"></span>
+      <div class="agenda-fecha-col">
+        <span class="agenda-fecha" data-f="fecha"></span>
+        <span class="prox-countdown mono hidden" data-f="countdown"></span>
+      </div>
       <span class="badge" data-f="badge"></span>
     </div>
   </div>
@@ -1016,6 +1019,10 @@
       <span class="semestre-row-nombre" data-f="nombre"></span>
     </button>
     <span class="semestre-row-meta" data-f="meta"></span>
+    <div class="semestre-row-reorder">
+      <button type="button" class="semestre-row-mini" data-f="subirBtn" title="Subir" aria-label="Subir semestre">↑</button>
+      <button type="button" class="semestre-row-mini" data-f="bajarBtn" title="Bajar" aria-label="Bajar semestre">↓</button>
+    </div>
     <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar semestre">✎</button>
     <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar semestre">🗑</button>
   </div>
