@@ -297,6 +297,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .topbar-crumb a{color:var(--c-accent)}
 .topbar-crumb .sep{color:var(--c-muted5);margin:0 2px}
 .topbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* Menú "+ Nuevo" de Inicio (bloque C3) — dropdown anchado al botón, mismo
+   componente en mobile y desktop (a diferencia del FAB/quick-sheet, que
+   son sólo mobile). 44px de alto por ítem: tamaño de toque cómodo. */
+.nuevo-menu-wrap{position:relative}
+.nuevo-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:190px;background:var(--c-surface);border-radius:14px;box-shadow:var(--c-shadow);padding:6px;display:flex;flex-direction:column;gap:2px;z-index:130}
+.nuevo-menu button{display:flex;align-items:center;width:100%;height:44px;padding:0 14px;border:none;background:transparent;border-radius:9px;font-size:14px;color:var(--c-ink);text-align:left;cursor:pointer}
+.nuevo-menu button:hover,.nuevo-menu button:focus-visible{background:var(--c-surfaceAlt);outline:none}
 .search-fake{height:34px;display:flex;align-items:center;padding:0 13px;border-radius:10px;font-size:13px;color:var(--c-ink3);background:var(--c-surfaceAlt)}
 .search-input{height:34px;padding:0 13px;border:none;border-radius:10px;font-size:13px;color:var(--c-ink);background:var(--c-surfaceAlt);width:220px;max-width:100%}
 .search-input:focus-visible{outline:none;box-shadow:var(--c-focus)}
@@ -359,6 +366,49 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .inicio-hello{font-family:var(--font-display);font-size:34px;font-weight:600;letter-spacing:-.025em;line-height:1.05}
 .inicio-date{font-size:14px;color:var(--c-ink2)}
 .inicio-note{font-size:14px;color:var(--c-ink2)}
+/* Tarjeta "Progreso del semestre" (bloque C1) — la de más peso visual de
+   Inicio: promedio grande + anillo de notas cargadas arriba, desglose por
+   materia (peor encaminada primero) abajo. */
+.progreso-semestre-top{display:flex;align-items:center;gap:28px;flex-wrap:wrap;padding:4px 0 8px}
+.progreso-semestre-promedio{display:flex;flex-direction:column;gap:2px}
+.progreso-semestre-promedio-val{font-family:var(--font-display);font-size:44px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.progreso-semestre-promedio-lbl{font-size:12.5px;color:var(--c-ink3)}
+.progreso-semestre-ring{margin-left:auto}
+.progreso-semestre-materias{display:flex;flex-direction:column}
+.progreso-semestre-materia-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px;border-top:1px solid var(--c-line-faint);font-size:13.5px;cursor:pointer;border-radius:8px}
+.progreso-semestre-materia-row:first-child{border-top:none}
+.progreso-semestre-materia-row:hover{background:var(--c-surfaceAlt)}
+.progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
+.progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
+.progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
+/* Card "Lo próximo": el ítem más cercano de proximos-list, destacado.
+   Borde en degradé vía el truco de padding+gradiente en el wrapper de
+   afuera (radio +2px) con el relleno sólido adentro (radio real) — ver
+   Cursada Mobile Pro.dc.html, sección Inicio. Oculto/mostrado por JS con
+   .style.display (mismo patrón que #riesgo-panel en renderInicio): sin
+   próximos, no hay hero que mostrar. Vale para los dos anchos (bloque C4):
+   en mobile es el primer elemento de #inicio (ver posicionarInicioHero en
+   runtime.js), en desktop se reubica dentro de la columna derecha de
+   #inicio-cols, con el mismo ancho que sus demás cards. */
+.inicio-hero{
+  display:flex;padding:1.5px;border-radius:calc(var(--r-card) + 2px);
+  background:linear-gradient(150deg,var(--c-accent),rgba(10,99,240,.15) 60%,rgba(255,255,255,.08));
+}
+.inicio-hero-inner{
+  flex:1;min-width:0;border-radius:calc(var(--r-card) + .5px);background:var(--c-surface);
+  padding:20px;display:flex;flex-direction:column;gap:14px;
+}
+.inicio-hero-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.inicio-hero-eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-accent)}
+.inicio-hero-body{display:flex;flex-direction:column;gap:4px;min-width:0}
+.inicio-hero-title{font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
+.inicio-hero-meta{font-size:13px;color:var(--c-ink2)}
+.inicio-hero-progress{display:flex;flex-direction:column;gap:8px}
+.inicio-hero-progress .bar-wrap{width:100%;height:6px;border-radius:999px;background:var(--c-line-faint);overflow:hidden}
+.inicio-hero-progress .bar-fill{height:100%;border-radius:999px}
+.inicio-hero-sub{font-size:12.5px;color:var(--c-ink3);line-height:1.4}
+.inicio-hero-actions{display:flex;gap:8px}
+.inicio-hero-actions .btn{flex:1;justify-content:center}
 .kpi-row{display:flex;gap:16px;flex-wrap:wrap}
 .kpi-card{flex:1;min-width:180px;padding:20px 22px;display:flex;flex-direction:column;gap:10px}
 /* 16px, no --r-card (20px): el mockup usa un radio más chico para las
@@ -384,6 +434,10 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .prox-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .prox-meta{display:flex;align-items:center;gap:8px}
 .prox-meta .m{font-size:13px;color:var(--c-ink3)}
+/* Countdown en vivo (bloque C2) — un solo setInterval para toda la vista
+   (ver iniciarCountdownGlobal en runtime.js), acá sólo el estilo del texto. */
+.prox-countdown{font-size:11.5px;color:var(--c-accent);font-weight:600}
+.prox-countdown.vencido{color:var(--c-danger)}
 .riesgo-row{display:flex;align-items:center;gap:15px;padding-top:14px;border-top:1px solid var(--c-line-faint)}
 .riesgo-row:first-child{border-top:none;padding-top:0}
 .riesgo-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
@@ -964,10 +1018,12 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
 /* Dirección "Pro Edition" (ver design-reference/DESIGN.md y Cursada Mobile
    Pro.dc.html) — fase 1: mobile. Mismo motivo que el bloque de arriba:
-   .inicio-hero/.horario-daysel/.horario-timeline son elementos persistentes
-   en el DOM (no sólo-mobile) cuyas únicas reglas viven dentro del @media de
-   abajo — sin este guard se verían sin estilo en cualquier ancho >760px. */
-.inicio-hero,.horario-daysel,.horario-timeline{display:none}
+   .horario-daysel/.horario-timeline son elementos persistentes en el DOM
+   (no sólo-mobile) cuyas únicas reglas viven dentro del @media de abajo —
+   sin este guard se verían sin estilo en cualquier ancho >760px.
+   .inicio-hero quedó afuera de esta lista a propósito (bloque C4): ahora
+   tiene sus propias reglas base (arriba) y se muestra en los dos anchos. */
+.horario-daysel,.horario-timeline{display:none}
 
 /* Base (todo ancho) de .perfil-hero: reemplaza el style="display:flex;
    align-items:center;gap:16px" inline que tenía antes esta fila (foto +
@@ -1117,32 +1173,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .riesgo-row{gap:12px}
   .riesgo-body b{font-size:14.5px}
   .accesos-row{gap:8px}
-
-  /* Card "Lo próximo": el ítem más cercano de proximos-list, destacado.
-     Borde en degradé vía el truco de padding+gradiente en el wrapper de
-     afuera (radio +2px) con el relleno sólido adentro (radio real) — ver
-     Cursada Mobile Pro.dc.html, sección Inicio. Oculto/mostrado por JS con
-     .style.display (mismo patrón que #riesgo-panel en renderInicio): sin
-     próximos, no hay hero que mostrar. */
-  .inicio-hero{
-    display:flex;padding:1.5px;border-radius:calc(var(--r-card) + 2px);
-    background:linear-gradient(150deg,var(--c-accent),rgba(10,99,240,.15) 60%,rgba(255,255,255,.08));
-  }
-  .inicio-hero-inner{
-    flex:1;min-width:0;border-radius:calc(var(--r-card) + .5px);background:var(--c-surface);
-    padding:20px;display:flex;flex-direction:column;gap:14px;
-  }
-  .inicio-hero-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .inicio-hero-eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-accent)}
-  .inicio-hero-body{display:flex;flex-direction:column;gap:4px;min-width:0}
-  .inicio-hero-title{font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
-  .inicio-hero-meta{font-size:13px;color:var(--c-ink2)}
-  .inicio-hero-progress{display:flex;flex-direction:column;gap:8px}
-  .inicio-hero-progress .bar-wrap{width:100%;height:6px;border-radius:999px;background:var(--c-line-faint);overflow:hidden}
-  .inicio-hero-progress .bar-fill{height:100%;border-radius:999px}
-  .inicio-hero-sub{font-size:12.5px;color:var(--c-ink3);line-height:1.4}
-  .inicio-hero-actions{display:flex;gap:8px}
-  .inicio-hero-actions .btn{flex:1;justify-content:center}
 
   /* ---------- Materias ---------- */
   .materia-card{padding:16px;gap:13px;border-radius:18px}

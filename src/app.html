@@ -187,7 +187,15 @@
           <input type="search" class="search-input" id="inicio-search" placeholder="Buscar materia o entrega" aria-label="Buscar materia o entrega" autocomplete="off">
           <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
           <button class="icon-btn icon-btn-bell" title="Notificaciones" aria-label="Notificaciones"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="bell-dot" aria-hidden="true"></span></button>
-          <button class="btn btn-primary" id="btn-inicio-nuevo">+ Nuevo</button>
+          <div class="nuevo-menu-wrap">
+            <button class="btn btn-primary" id="btn-inicio-nuevo" aria-haspopup="true" aria-expanded="false">+ Nuevo</button>
+            <div class="nuevo-menu hidden" id="nuevo-menu" role="menu" aria-label="Crear nuevo">
+              <button type="button" role="menuitem" id="nuevo-menu-materia">Materia</button>
+              <button type="button" role="menuitem" id="nuevo-menu-evaluacion">Evaluación</button>
+              <button type="button" role="menuitem" id="nuevo-menu-tarea">Tarea</button>
+              <button type="button" role="menuitem" id="nuevo-menu-nota">Cargar nota</button>
+            </div>
+          </div>
         </div>
       </header>
       <div class="view">
@@ -197,6 +205,29 @@
             <span class="inicio-date mono" id="inicio-date"></span>
           </div>
           <span class="inicio-note" id="inicio-note"></span>
+        </div>
+        <div class="card panel progreso-semestre-card" id="progreso-semestre-card">
+          <div class="panel-head">
+            <h2 class="panel-title">Progreso del semestre</h2>
+            <span class="panel-hint" id="progreso-semestre-delta"></span>
+          </div>
+          <div id="progreso-semestre-empty" class="hidden">
+            <div class="progreso-semestre-empty-inner">
+              <span class="t">Todavía no cargaste ninguna nota este semestre</span>
+              <span class="s">Cuando cargues la primera vas a ver tu promedio, cuánto llevás calificado y cómo viene cada materia.</span>
+              <button type="button" class="btn btn-primary" id="btn-progreso-semestre-cargar">Cargar primera nota</button>
+            </div>
+          </div>
+          <div id="progreso-semestre-content">
+            <div class="progreso-semestre-top">
+              <div class="progreso-semestre-promedio">
+                <span class="progreso-semestre-promedio-val" id="progreso-semestre-promedio"></span>
+                <span class="progreso-semestre-promedio-lbl">promedio del semestre</span>
+              </div>
+              <div class="progreso-semestre-ring" id="progreso-semestre-ring"></div>
+            </div>
+            <div class="progreso-semestre-materias" id="progreso-semestre-materias"></div>
+          </div>
         </div>
         <div class="inicio-hero" id="inicio-hero">
           <div class="inicio-hero-inner">
@@ -228,7 +259,7 @@
             </div>
             <div id="proximos-list"></div>
           </div>
-          <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:16px">
+          <div id="inicio-cols-right" style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:16px">
             <div class="card panel" id="riesgo-panel">
               <div class="panel-head" style="align-items:baseline">
                 <h2 class="panel-title">Materias en riesgo</h2>
@@ -843,6 +874,7 @@
     <div class="prox-body">
       <span class="prox-title" data-f="titulo"></span>
       <div class="prox-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="metaTxt"></span></div>
+      <span class="prox-countdown mono hidden" data-f="countdown"></span>
     </div>
     <span class="badge" data-f="badge"></span>
   </div>

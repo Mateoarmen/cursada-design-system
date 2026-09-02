@@ -815,7 +815,6 @@
   // ================================================================
   function computeKpis() {
     var materias = computeMateriasDelActivo();
-    var cursando = materias.filter(function (m) { return m.estado === 'cursando' || m.estado === 'recursando'; });
     var t = today();
     var agenda = agendaDeSemestre(activeSemestreId());
     var pendientes = agenda.filter(function (a) { return !a.hecho; });
@@ -828,11 +827,89 @@
     var estaSemana = pendientes.filter(function (a) { var d = diffDias(parseISODate(a.fecha), t); return d >= 0 && d <= 6; });
     var vencidas = pendientes.filter(function (a) { return parseISODate(a.fecha) < t; });
     return [
-      { label: 'Materias cursando', valor: String(cursando.length), sub: 'este semestre', tone: 'neutral' },
       { label: 'Próxima evaluación', valor: proxExamen ? (DIAS_CORTOS[proxExamen.d.getDay()] + ' ' + proxExamen.d.getDate()) : '—', sub: proxExamen ? (proxExamen.a.tipo + ' · ' + materiaNombre(proxExamen.a.materiaId)) : 'sin evaluaciones cargadas', tone: 'warning' },
       { label: 'Promedio general', valor: promedio != null ? promedio + '%' : '—', sub: 'normalizado · 3 escalas distintas', tone: 'success' },
       { label: 'Pendientes esta semana', valor: String(estaSemana.length), sub: vencidas.length ? (vencidas.length + (vencidas.length === 1 ? ' vencida de antes' : ' vencidas de antes')) : 'sin vencidas', tone: vencidas.length ? 'danger' : 'neutral' }
     ];
+  }
+
+  // Tarjeta "Progreso del semestre" (C1) — promedio del semestre activo +
+  // delta vs. el semestre cronológicamente anterior (mismo criterio que
+  // renderProgresoWidgetInicio: posición real en semestresOrdenados(), no
+  // "el anteúltimo del array"), cuántas evaluaciones del semestre ya tienen
+  // nota cargada, y un desglose por materia ordenado con las peor
+  // encaminadas primero (mismo espíritu que #riesgo-panel, pero acá se
+  // listan todas, no sólo las en riesgo).
+  function computeProgresoSemestreActivo() {
+    var materias = computeMateriasDelActivo();
+    var promedio = promedioNormalizado(materias);
+    var agenda = agendaDeSemestre(activeSemestreId());
+    var evaluacionesEsperadas = agenda.length;
+    var evaluacionesCalificadas = agenda.filter(function (a) { return a.nota != null; }).length;
+
+    var ordenados = semestresOrdenados();
+    var activoId = activeSemestreId();
+    var idxActivo = -1;
+    ordenados.forEach(function (s, i) { if (s.id === activoId) idxActivo = i; });
+    var anterior = idxActivo > 0 ? ordenados[idxActivo - 1] : null;
+    var deltaVsAnterior = null, nombreAnterior = null;
+    if (anterior) {
+      var promedioAnterior = promedioNormalizado(computeMaterias({ semestreId: anterior.id }));
+      if (promedio != null && promedioAnterior != null) {
+        deltaVsAnterior = promedio - promedioAnterior;
+        nombreAnterior = anterior.nombre;
+      }
+    }
+
+    var desglose = materias.slice().sort(function (a, b) {
+      var pa = a.actual == null ? 2 : (a.actual / a.esc.total);
+      var pb = b.actual == null ? 2 : (b.actual / b.esc.total);
+      return pa - pb;
+    });
+
+    return { promedio: promedio, deltaVsAnterior: deltaVsAnterior, nombreAnterior: nombreAnterior, evaluacionesEsperadas: evaluacionesEsperadas, evaluacionesCalificadas: evaluacionesCalificadas, materias: desglose };
+  }
+
+  function renderProgresoSemestre() {
+    var p = computeProgresoSemestreActivo();
+    var card = document.getElementById('progreso-semestre-card');
+    if (!p.materias.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+
+    var deltaEl = document.getElementById('progreso-semestre-delta');
+    if (p.deltaVsAnterior != null) {
+      var tone = p.deltaVsAnterior > 0 ? 'success' : (p.deltaVsAnterior < 0 ? 'danger' : 'neutral');
+      deltaEl.style.color = TONE[tone];
+      deltaEl.textContent = (p.deltaVsAnterior > 0 ? '▲ ' : p.deltaVsAnterior < 0 ? '▼ ' : '— ') + Math.abs(p.deltaVsAnterior) + ' pts vs. ' + p.nombreAnterior;
+    } else {
+      deltaEl.textContent = '';
+    }
+
+    var sinNotas = p.evaluacionesCalificadas === 0;
+    document.getElementById('progreso-semestre-empty').classList.toggle('hidden', !sinNotas);
+    document.getElementById('progreso-semestre-content').classList.toggle('hidden', sinNotas);
+    if (sinNotas) return;
+
+    document.getElementById('progreso-semestre-promedio').textContent = p.promedio != null ? p.promedio + '%' : '—';
+    var ring = document.getElementById('progreso-semestre-ring');
+    ring.setAttribute('style', ringStyle(p.evaluacionesCalificadas, TONE.success, 72, p.evaluacionesEsperadas || 1));
+    clear(ring);
+    var inner = el('div'); inner.setAttribute('style', ringInnerStyle(72, 7));
+    var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:16px;font-weight:700'; v1.textContent = p.evaluacionesCalificadas + '/' + p.evaluacionesEsperadas;
+    var v2 = el('span'); v2.style.cssText = 'font-size:9px;color:var(--c-ink3)'; v2.textContent = 'notas';
+    inner.appendChild(v1); inner.appendChild(v2);
+    ring.appendChild(inner);
+
+    var list = document.getElementById('progreso-semestre-materias');
+    clear(list);
+    p.materias.forEach(function (m) {
+      var row = el('div', 'progreso-semestre-materia-row');
+      var nombre = el('span'); nombre.textContent = m.nombre;
+      var valEl = el('span', 'mono'); valEl.style.color = TONE[m.tone]; valEl.textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
+      row.appendChild(nombre); row.appendChild(valEl);
+      makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
+      list.appendChild(row);
+    });
   }
 
   function renderInicio() {
@@ -842,6 +919,8 @@
     document.getElementById('inicio-date').textContent = DIAS_LARGOS[t.getDay()].toLowerCase() + ' ' + t.getDate() + ' de ' + MESES_LARGOS[t.getMonth()] + ' de ' + t.getFullYear();
     var agenda = agendaDeSemestre(activeSemestreId()).filter(function (a) { return !a.hecho; });
     document.getElementById('inicio-note').innerHTML = 'Tenés <b style="color:var(--c-ink)">' + agenda.length + '</b> ' + (agenda.length === 1 ? 'entrega pendiente' : 'entregas pendientes');
+
+    renderProgresoSemestre();
 
     var kpiRow = document.getElementById('kpi-row');
     clear(kpiRow);
@@ -887,18 +966,21 @@
         qf(node, 'metaTxt').textContent = (p.item.hora || '') + (p.item.hora ? ' · ' : '') + p.item.tipo;
         var badgeInfo = agendaBadgeInfo(p.item, t7);
         var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(badgeInfo.tone)); b.textContent = badgeInfo.label;
+        setCountdownEnNodo(qf(node, 'countdown'), p.item.fecha, p.item.hora, p.item.hecho);
       } else {
         qf(node, 'bar').setAttribute('style', barStyle(PERSONAL_COLOR));
         qf(node, 'titulo').textContent = p.item.titulo;
         var chip2 = qf(node, 'chip'); chip2.setAttribute('style', personalChipStyle()); chip2.textContent = 'Personal';
         qf(node, 'metaTxt').textContent = p.item.todoElDia ? 'Todo el día' : (p.item.hora || '');
         var b2 = qf(node, 'badge'); b2.setAttribute('style', badgeStyle('neutral')); b2.textContent = 'Personal';
+        setCountdownEnNodo(qf(node, 'countdown'), p.item.fecha, p.item.todoElDia ? '' : p.item.hora, false);
       }
       renderTagChipInto(qf(node, 'tag'), p.item.tagId);
       if (p.tipo === 'materia') makeRowClickable(node, function () { openEvaluacionModal({ editId: p.item.id }); }, 'Abrir ' + p.item.titulo);
       proxList.appendChild(node);
     });
 
+    posicionarInicioHero();
     renderInicioHero(proximos[0], t7);
 
     var riesgo = computeMateriasDelActivo().filter(function (m) { return m.tone === 'danger' || m.tone === 'warning'; });
@@ -928,11 +1010,30 @@
     renderProgresoWidgetInicio();
   }
 
-  // Card "Lo próximo" (mobile, dirección Pro Edition) — el mismo primer
-  // ítem de proximos-list ya ordenado por fecha, no un cálculo nuevo: sólo
-  // agrega el layout de card destacada + progreso de la materia si ya tiene
-  // notas cargadas. Botón "Ver en agenda" navega, no crea nada nuevo (no
-  // hay "posponer" en el modelo de datos, así que no se inventa acá).
+  // Reubica #inicio-hero según el ancho (bloque C4: "Lo próximo" pasa a
+  // verse también en desktop) — en vez de reglas CSS que lo muevan de
+  // contenedor (no se puede: son padres distintos), se mueve el nodo en el
+  // DOM. En mobile va antes de #kpi-row (primer elemento grande de la
+  // vista); en desktop entra como la primera card de la columna derecha de
+  // #inicio-cols, mismo ancho que Materias en riesgo/Progreso/Accesos.
+  // Idempotente: llamarla de nuevo sin haber cambiado de ancho no mueve nada.
+  function posicionarInicioHero() {
+    var hero = document.getElementById('inicio-hero');
+    if (esMobile()) {
+      var kpiRow = document.getElementById('kpi-row');
+      if (hero.nextElementSibling !== kpiRow) kpiRow.parentNode.insertBefore(hero, kpiRow);
+    } else {
+      var colDerecha = document.getElementById('inicio-cols-right');
+      if (colDerecha.firstElementChild !== hero) colDerecha.insertBefore(hero, colDerecha.firstElementChild);
+    }
+  }
+
+  // Card "Lo próximo" — el mismo primer ítem de proximos-list ya ordenado
+  // por fecha, no un cálculo nuevo: sólo agrega el layout de card destacada
+  // + progreso de la materia si ya tiene notas cargadas. Botón "Ver en
+  // agenda" navega, no crea nada nuevo (no hay "posponer" en el modelo de
+  // datos, así que no se inventa acá). Visible en mobile y desktop (bloque
+  // C4) — ver posicionarInicioHero() para dónde cae en cada ancho.
   function renderInicioHero(p, t7) {
     var hero = document.getElementById('inicio-hero');
     if (!p) { hero.style.display = 'none'; return; }
@@ -1050,6 +1151,62 @@
     if (diff === 1) return { tone: 'warning', label: 'Mañana' };
     if (diff <= 6) return { tone: 'neutral', label: 'Esta semana' };
     return { tone: 'neutral', label: 'Pendiente' };
+  }
+
+  // ---- Countdown en vivo (bloque C2/D2) ----
+  // Texto de cuenta regresiva a partir de fecha (+hora opcional). Sin hora
+  // sólo se puede hablar en días enteros ("en 3 d", "vence hoy"); con hora
+  // se baja a horas/minutos cuando falta menos de un día. Reusada por
+  // Inicio ("Próximos 7 días") y Agenda — un solo cálculo, nunca duplicado.
+  function formatCountdown(fecha, hora, ahora) {
+    var d = parseISODate(fecha);
+    if (!hora) {
+      var diasN = diffDias(d, today());
+      if (diasN < 0) return 'vencido';
+      if (diasN === 0) return 'vence hoy';
+      return 'en ' + diasN + ' d';
+    }
+    var partes = hora.split(':');
+    var objetivo = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number(partes[0]) || 0, Number(partes[1]) || 0);
+    var diffMs = objetivo - ahora;
+    if (diffMs <= 0) return 'vencido';
+    var totalMin = Math.ceil(diffMs / 60000);
+    var dias = Math.floor(totalMin / 1440);
+    var horas = Math.floor((totalMin % 1440) / 60);
+    var minutos = totalMin % 60;
+    if (dias >= 1) return 'en ' + dias + ' d ' + horas + ' h';
+    if (horas >= 1) return 'en ' + horas + ' h ' + minutos + ' m';
+    return 'en ' + minutos + ' m';
+  }
+  // Un solo setInterval para todos los countdowns visibles a la vez (Inicio
+  // y Agenda pueden tener el suyo en pantalla en momentos distintos, nunca
+  // los dos juntos porque son vistas separadas) — recorre el DOM en vez de
+  // guardar referencias, así no importa qué vista los pintó.
+  function tickCountdowns() {
+    var ahora = new Date();
+    document.querySelectorAll('[data-countdown-fecha]').forEach(function (nodo) {
+      var txt = formatCountdown(nodo.getAttribute('data-countdown-fecha'), nodo.getAttribute('data-countdown-hora') || '', ahora);
+      nodo.textContent = txt;
+      nodo.classList.toggle('vencido', txt === 'vencido');
+    });
+  }
+  var COUNTDOWN_INICIADO = false;
+  function iniciarCountdownGlobal() {
+    if (COUNTDOWN_INICIADO) return;
+    COUNTDOWN_INICIADO = true;
+    setInterval(tickCountdowns, 30000);
+  }
+  // Setea el countdown de un nodo y lo pinta al toque (no espera al primer
+  // tick del interval) — hecho:true lo deja vacío, un ítem ya
+  // entregado/rendido no cuenta regresiva hacia nada.
+  function setCountdownEnNodo(nodo, fecha, hora, hecho) {
+    if (hecho) { nodo.classList.add('hidden'); nodo.removeAttribute('data-countdown-fecha'); return; }
+    nodo.classList.remove('hidden');
+    nodo.setAttribute('data-countdown-fecha', fecha);
+    nodo.setAttribute('data-countdown-hora', hora || '');
+    var txt = formatCountdown(fecha, hora || '', new Date());
+    nodo.textContent = txt;
+    nodo.classList.toggle('vencido', txt === 'vencido');
   }
 
   // ================================================================
@@ -2060,6 +2217,37 @@
     return order.map(function (k) { return groups[k]; });
   }
 
+  // Menú "+ Nuevo" de Inicio (bloque C3) — 4 accesos directos a formularios
+  // ya existentes, ninguno nuevo: Materia (openMateriaModal), Evaluación y
+  // Tarea (openEvaluacionModal, la única diferencia es el tipo preseleccionado),
+  // Cargar nota (mismo modal de Evaluación, arranca con foco en el campo
+  // de nota — ver el flag opts.modoNota en openEvaluacionModal).
+  function toggleNuevoMenu(cerrar) {
+    var menu = document.getElementById('nuevo-menu');
+    var btn = document.getElementById('btn-inicio-nuevo');
+    var abrir = cerrar ? false : menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', !abrir);
+    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    if (abrir) { var first = menu.querySelector('button'); if (first) first.focus(); }
+  }
+  function bindNuevoMenu() {
+    var btn = document.getElementById('btn-inicio-nuevo');
+    var menu = document.getElementById('nuevo-menu');
+    btn.addEventListener('click', function (ev) { ev.stopPropagation(); toggleNuevoMenu(); });
+    document.getElementById('nuevo-menu-materia').addEventListener('click', function () { toggleNuevoMenu(true); openMateriaModal(null); });
+    document.getElementById('nuevo-menu-evaluacion').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({}); });
+    document.getElementById('nuevo-menu-tarea').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ tipoPreset: 'Tarea' }); });
+    document.getElementById('nuevo-menu-nota').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ modoNota: true }); });
+    document.addEventListener('click', function () { toggleNuevoMenu(true); });
+    menu.addEventListener('keydown', function (ev) {
+      var items = Array.prototype.slice.call(menu.querySelectorAll('button'));
+      var idx = items.indexOf(document.activeElement);
+      if (ev.key === 'Escape') { ev.preventDefault(); toggleNuevoMenu(true); btn.focus(); }
+      else if (ev.key === 'ArrowDown') { ev.preventDefault(); items[(idx + 1) % items.length].focus(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); items[(idx - 1 + items.length) % items.length].focus(); }
+    });
+  }
+
   function openMateriaModal(id) {
     var editing = !!id;
     var m = editing ? materiaRawById(id) : null;
@@ -2293,7 +2481,7 @@
       // ver README), pero si hay que elegir un default preferimos una del
       // semestre activo antes que una vieja al azar.
       evalMateriaId: ev ? ev.materiaId : (opts.materiaId || (computeMateriasDelActivo()[0] || computeMaterias()[0]).id),
-      evalTipo: ev ? (tipoEsPreset ? ev.tipo : 'Otro') : 'Parcial',
+      evalTipo: ev ? (tipoEsPreset ? ev.tipo : 'Otro') : (opts.tipoPreset || 'Parcial'),
       evalTipoCustom: ev && !tipoEsPreset ? ev.tipo : '',
       tagId: ev ? ev.tagId : null,
       tagNuevoAbierto: false,
@@ -2306,7 +2494,7 @@
     form.titulo.value = ev ? ev.titulo : '';
     form.fecha.value = ev ? ev.fecha : (opts.fecha || todayISO());
     form.hora.value = ev ? (ev.hora || '') : '';
-    form.hecho.value = ev && ev.hecho ? '1' : '';
+    form.hecho.value = ev ? (ev.hecho ? '1' : '') : (opts.modoNota ? '1' : '');
     form.nota.value = ev && ev.nota != null ? ev.nota : '';
     form.notas.value = ev ? (ev.notas || '') : '';
     renderModalEvalMaterias();
@@ -2314,6 +2502,10 @@
     renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
     openModal('modal-evaluacion');
     snapshotModalForm('modal-evaluacion');
+    // "Cargar nota" desde +Nuevo (bloque C3): mismo formulario que
+    // "Evaluación", sólo cambia el foco inicial — va directo al campo de
+    // nota en vez de al título.
+    if (opts.modoNota) { var notaInput = document.getElementById('eval-nota'); if (notaInput) notaInput.focus(); }
   }
 
   function renderModalEvalMaterias() {
@@ -2823,7 +3015,7 @@
     document.getElementById('btn-crear-semestre').addEventListener('click', function () { crearSemestre(document.getElementById('input-nuevo-semestre').value); });
     document.getElementById('input-nuevo-semestre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); crearSemestre(ev.target.value); } });
 
-    document.getElementById('btn-inicio-nuevo').addEventListener('click', function () { openMateriaModal(null); });
+    bindNuevoMenu();
     document.getElementById('inicio-search').addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       var q = e.target.value.trim();
@@ -2854,6 +3046,7 @@
     document.getElementById('acceso-materia').addEventListener('click', function () { openMateriaModal(null); });
     document.getElementById('acceso-entrega').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('acceso-evento').addEventListener('click', function () { openPersonalModal({}); });
+    document.getElementById('btn-progreso-semestre-cargar').addEventListener('click', function () { location.hash = '#agenda'; });
     document.getElementById('btn-agenda-nuevo').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('agenda-search').addEventListener('input', function (e) { STATE.agendaQuery = e.target.value; renderAgenda(); });
     document.getElementById('btn-cal-evento').addEventListener('click', function () { openPersonalModal({ fecha: STATE.calSelected }); });
@@ -3923,6 +4116,7 @@
     bindGlobalUI();
     bindAuthUI();
     bindProfileUI();
+    iniciarCountdownGlobal();
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();
     });
@@ -3939,6 +4133,12 @@
       onSignedOut();
     });
     window.addEventListener('hashchange', handleRoute);
+    // Reubica "Lo próximo" si se cruza el breakpoint de 760px sin navegar
+    // (redimensionar la ventana, girar el dispositivo) — ver
+    // posicionarInicioHero(). No hace falta re-renderizar todo Inicio.
+    window.addEventListener('resize', function () {
+      if (STATE.route.view === 'inicio' && document.getElementById('inicio-hero')) posicionarInicioHero();
+    });
 
     sb().auth.onAuthStateChange(function (event, session) {
       // Volviendo del link de recuperación de contraseña: Supabase establece
