@@ -44,6 +44,11 @@
   --r-control:10px; --r-card:20px; --r-chip:999px; --r-tile:12px; --r-modal:26px;
   --sidenav-w:236px;
 
+  /* Ícono de pin de ubicación (Horario, Cambio 3) como mask-image en vez de
+     un <svg> nuevo en el template — así hereda color vía currentColor sin
+     tocar runtime.js. */
+  --ico-pin:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E");
+
   /* Curvas de easing con más "punch" que las de CSS por default — las
      nativas (ease/ease-out) son demasiado débiles y hacen que todo se
      sienta un poco apagado. */
@@ -123,6 +128,18 @@ html[data-theme="oscuro"] .horario-day.is-on{box-shadow:0 8px 20px rgba(44,123,2
    superficie "recesada" de toda la app, a propósito, para que se lea como
    "detrás" del borde en degradé. */
 html[data-theme="oscuro"] .inicio-hero-inner{background:#171A21}
+
+/* Fondo "spotlight" del panel de contenido (Cambio 1 del rediseño visual,
+   ver Calendario en la referencia): degradé radial más luminoso hacia la
+   esquina superior derecha, oscureciéndose hacia el resto de la pantalla.
+   Sólo en .main (el sidenav mantiene su fondo sólido propio) y sólo en
+   tema oscuro — en claro .main sigue heredando --c-bg plano, sin foco. */
+html[data-theme="oscuro"] .main{
+  background:
+    radial-gradient(1300px 780px at 96% -8%, rgba(86,110,160,.28), transparent 60%),
+    radial-gradient(820px 620px at 82% 4%, rgba(44,123,255,.16), transparent 55%),
+    var(--c-bg);
+}
 
 /* Agenda: cada fila pasa de "renglón con separador" a "tarjeta propia con
    riel de color", igual que el mockup. .bar4 ya existe en el template
@@ -205,7 +222,7 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 /* Selector de semestre: contenedor de materias, ver README sección Semestres. */
 .semestre-switcher{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;height:36px;padding:0 10px;border-radius:10px;border:none;background:var(--c-surfaceAlt);font-size:12px;font-weight:600;color:var(--c-ink);text-align:left}
 .semestre-switcher-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.semestre-switcher .chev{color:var(--c-ink3);font-size:11px;flex:none}
+.semestre-switcher .chev{color:var(--c-ink3);flex:none;width:13px;height:13px}
 .semestre-row{display:flex;align-items:center;gap:8px}
 .semestre-row-select{flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:42px;padding:0 10px;border-radius:10px;border:none;background:var(--c-surfaceAlt);text-align:left}
 .semestre-row-select.is-active{background:var(--c-accent)}
@@ -227,12 +244,16 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
   display:flex;align-items:center;gap:11px;height:38px;padding:0 11px;border-radius:10px;
   font-size:14px;font-weight:500;letter-spacing:-.005em;color:var(--c-ink);background:transparent;border:none;width:100%;text-align:left;
 }
-.nav-item .mark{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.22);flex:none}
-html[data-theme="oscuro"] .nav-item .mark{background:rgba(255,255,255,.25)}
+/* Set de íconos lineales (Cambio 2 del rediseño visual, ver Materias/
+   Calendario/Horario en la referencia): trazo fino, sin relleno, un solo
+   color (currentColor) — mismo lenguaje visual en sidebar y topbar. .ico es
+   la base compartida por cualquier ícono suelto (topbar, botones); .nav-ico
+   la extiende para el tamaño específico del sidebar. */
+.ico{flex:none;display:block}
+.nav-item .nav-ico{width:18px;height:18px;color:var(--c-ink2)}
 .nav-item:hover:not(.is-active){background:var(--c-surfaceAlt)}
 .nav-item.is-active{font-weight:600;color:#fff;background:var(--c-accent)}
-.nav-item.is-active .mark{background:rgba(255,255,255,.9)}
-.nav-item[data-nav="agenda"] .mark{border-radius:2px;transform:rotate(45deg)}
+.nav-item.is-active .nav-ico{color:#fff}
 .sidenav-legend{display:flex;flex-direction:column;gap:9px;padding:0 10px}
 .sidenav-legend .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-ink3);font-weight:600}
 .legend-row{display:flex;align-items:center;gap:9px}
@@ -277,15 +298,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 15px;border-radius:var(--r-control);
   font-size:13px;font-weight:600;letter-spacing:-.005em;border:none;background:var(--c-surfaceAlt);color:var(--c-ink);
 }
+.btn .ico{width:14px;height:14px}
 .btn:hover{filter:brightness(.97)}
 .btn-primary{background:var(--c-accent);color:#fff}
 .btn-primary:hover{filter:brightness(1.06)}
 .btn-ghost{background:transparent;color:var(--c-ink2);font-weight:500}
 .btn-sm{height:30px;padding:0 12px;font-size:12px}
-.icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt)}
-/* ⌕ es un glifo fino, se pierde con el font-size heredado del body en un
-   botón de 34px. */
-.icon-btn.topbar-search{font-size:18px}
+.icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2)}
+.icon-btn .ico{width:17px;height:17px}
+.icon-btn-bell{position:relative}
+.icon-btn-bell .bell-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
 
 .seg{display:flex;background:var(--c-surfaceAlt);border-radius:10px;padding:2px;gap:2px}
 .seg-item{height:30px;padding:0 14px;border-radius:8px;font-size:13px;color:var(--c-ink2);display:flex;align-items:center;gap:7px;border:none;background:transparent}
@@ -528,6 +550,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .cal-side-add .hint{font-size:11px;color:var(--c-ink3);text-align:center;line-height:1.5}
 .cal-nav{display:flex;gap:6px}
 .cal-nav button{width:36px;height:36px;border:none;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--c-ink2);background:var(--c-surfaceAlt)}
+.cal-nav button .ico{width:16px;height:16px}
 
 /* ---------- Horario ---------- */
 .horario-grid-wrap{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -536,10 +559,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .hg-day-label{display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink2);font-weight:600}
 .hg-hour-label{display:flex;align-items:flex-start;justify-content:flex-end;padding-right:8px;font-size:10px;color:var(--c-muted6);font-variant-numeric:tabular-nums}
 .hg-cell{background:var(--c-surface);border:1px solid var(--c-line-faint);border-radius:8px}
-.hg-block{border-radius:12px;padding:9px 10px;display:flex;flex-direction:column;gap:3px;overflow:hidden;margin:1px;cursor:pointer;border:none;border-left-width:3px;border-left-style:solid}
+.hg-block{border-radius:12px;padding:9px 10px;display:flex;flex-direction:column;gap:3px;overflow:hidden;margin:1px;cursor:pointer;border:none;border-left-width:4px;border-left-style:solid}
 .hg-block .n{font-size:13px;font-weight:600;letter-spacing:-.005em;line-height:1.25}
 .hg-block .h{font-size:10px;opacity:.85;font-variant-numeric:tabular-nums}
-.hg-block .s{font-size:10px;margin-top:auto;opacity:.85}
+/* Ubicación con ícono de pin (Cambio 3 del rediseño visual): el pin se
+   pinta con mask-image (no <svg> nuevo en el template ni en runtime.js) para
+   heredar el color de la materia vía currentColor/background:currentColor,
+   igual que el resto del bloque. */
+.hg-block .s{font-size:10px;margin-top:auto;opacity:.85;display:flex;align-items:center;gap:3px}
+.hg-block .s:not(:empty)::before{content:'';flex:none;width:9px;height:9px;background:currentColor;
+  -webkit-mask:var(--ico-pin) center/contain no-repeat;mask:var(--ico-pin) center/contain no-repeat}
 
 /* ---------- Modales (sheet estilo Apple) ---------- */
 /* Antes esto era display:none <-> flex — un salto instantáneo que se siente
@@ -876,10 +905,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 .sidenav-user .who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .sidenav-user .who span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .sidenav-logout,.sidenav-settings{flex:none;width:26px;height:26px;border-radius:8px;border:none;background:transparent;color:var(--c-ink3);display:flex;align-items:center;justify-content:center;cursor:pointer}
-/* ⏻ y ⚙ no pesan igual al mismo font-size — el símbolo de apagado ya se ve
-   bien a 13px, la tuerca necesita más para no verse chica al lado. */
-.sidenav-logout{font-size:13px}
-.sidenav-settings{font-size:16px}
+.sidenav-logout .ico,.sidenav-settings .ico{width:15px;height:15px}
 .sidenav-logout:hover{background:var(--c-line-faint);color:var(--c-danger)}
 .sidenav-settings:hover{background:var(--c-line-faint);color:var(--c-ink)}
 #import-local-resumen{font-size:14px;font-weight:600;line-height:1.4}
@@ -1235,7 +1261,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   }
   .horario-timeline-block .n{font-size:16px;font-weight:600;letter-spacing:-.01em}
   .horario-timeline-block .h{font-size:13px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
-  .horario-timeline-block .s{font-size:13px;color:var(--c-ink3)}
+  .horario-timeline-block .s{font-size:13px;color:var(--c-ink3);display:flex;align-items:center;gap:5px}
+  .horario-timeline-block .s:not(:empty)::before{content:'';flex:none;width:11px;height:11px;background:currentColor;
+    -webkit-mask:var(--ico-pin) center/contain no-repeat;mask:var(--ico-pin) center/contain no-repeat}
   .horario-timeline-empty{padding:32px 0;text-align:center;font-size:13px;color:var(--c-ink3)}
 
   /* ---------- Modales: pantalla completa, entran desde la derecha ---------- */

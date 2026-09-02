@@ -2936,6 +2936,11 @@
       renderRoute();
     });
     document.getElementById('btn-imprimir').addEventListener('click', function () { window.print(); });
+    // El botón "Imprimir" propio del header de Horario (Cambio 3 del
+    // rediseño visual) reusa la acción real de arriba en vez de duplicar
+    // lógica — mismo patrón que #btn-perfil-logout/#btn-ajustes-logout con
+    // #btn-logout (ver skill cursada-conventions).
+    document.getElementById('btn-horario-imprimir').addEventListener('click', function () { document.getElementById('btn-imprimir').click(); });
   }
 
   // ================================================================

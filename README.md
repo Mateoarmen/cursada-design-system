@@ -1888,3 +1888,96 @@ repetirlo.
 - La vista Semana del calendario reutiliza la misma lógica de eventos que
   la vista Mes, sólo que sin recortar texto (hay más lugar) y sin el
   concepto de "días de otro mes" atenuados.
+
+## Rediseño visual: spotlight, set de íconos e Horario (3 capturas de referencia)
+
+Se pidieron tres cambios visuales combinados en un solo sistema coherente,
+cada uno con su propia captura de referencia (Calendario mes, Materias/
+Contabilidad II, Horario semanal): fondo con degradé "spotlight" en el
+panel de contenido, un set de íconos lineales para sidebar/topbar, y la
+vista de Horario ajustada al estándar de la tercera captura.
+
+### Cambio 1 — Fondo spotlight
+
+Nuevo bloque `html[data-theme="oscuro"] .main{background: radial-gradient(...), radial-gradient(...), var(--c-bg)}`
+en `styles.css`, junto al resto de reglas "Pro Edition" de tema oscuro. Dos
+capas radiales ancladas cerca de la esquina superior derecha (una más
+grande y tenue en azul-gris, otra más chica y saturada en el azul de marca)
+sobre el `--c-bg` sólido de siempre como última capa. Sólo `.main` — el
+`.sidenav` no se tocó, sigue con su fondo sólido `--c-sidenav`. Sólo tema
+oscuro, a pedido explícito (en claro `.main` sigue heredando `--c-bg` plano
+sin foco, sin regla nueva). `.topbar` ya tenía `backdrop-filter:blur(20px)`
+con fondo semitransparente — el degradé se ve correctamente atenuado/
+difuminado detrás suyo sin tocar esa regla.
+
+### Cambio 2 — Set de íconos lineales
+
+Se reemplazó el "mark" (punto de color, sin forma real) de cada ítem del
+sidebar por un ícono SVG inline propio por vista (grid para Inicio,
+book-open para Materias, clipboard-list para Agenda, calendar para
+Calendario, clock para Horario, trending-up para Progreso) — mismo
+lenguaje visual que Feather/Lucide (`viewBox 0 0 24 24`, `stroke:currentColor`,
+`fill:none`, sin dependencia nueva: son `<svg>` a mano en `app.html`, no una
+librería). Clase compartida `.ico` (tamaño/display base) + `.nav-ico`
+(tamaño específico del sidebar, 18px) en `styles.css`, reemplazando las
+reglas viejas de `.nav-item .mark` (incluido el caso especial de Agenda,
+que rotaba un cuadrado 45° — ya no hace falta, el ícono nuevo no necesita
+ese truco).
+
+Mismo criterio aplicado a los íconos sueltos de topbar/sidebar que ya
+existían como glifo de texto o `<span>` decorativo: el menú hamburguesa
+(`.topbar-menu`, siete vistas), la lupa de búsqueda (tres vistas), la
+campana de notificaciones de Inicio (antes sólo un punto rojo suelto, ahora
+campana lineal + el mismo punto como badge posicionado encima), las
+flechas de navegación del Calendario (`‹ ›` → chevrons), el chevron del
+selector de semestre, y el engranaje/apagado del pie del sidebar
+(Ajustes/Cerrar sesión). **No tocado, a propósito** (fuera del alcance
+acotado del pedido): el logo/isotipo de marca (`.sidenav-brand .mark` y
+equivalentes en onboarding/gate/auth), los íconos dentro de modales
+(cerrar `×`, editar/borrar semestre), y los puntos del tab bar mobile
+(`.tab .mark`) — el pedido hablaba del "sidebar", no de la barra de tabs de
+mobile, y tocarla no estaba pedido explícitamente.
+
+### Cambio 3 — Vista de Horario
+
+La mayoría de lo pedido ya estaba implementado (grilla Lun–Vie/Sáb con
+toggle, franja 8:00–22:00, encabezados de día en mayúsculas con
+letter-spacing, panel "Materias en la grilla" con punto + nombre, toggles
+verdes, tarjeta de perfil) — se ajustó lo que faltaba en vez de reescribir:
+
+- Borde izquierdo de los bloques de clase: `3px` → `4px` (sólo desktop;
+  el valor mobile de `2.5px` no se tocó, ya estaba afinado para esa
+  columna angosta).
+- Ubicación con ícono de pin: se agregó vía `mask-image` con
+  `background:currentColor` en `.hg-block .s::before` (y el equivalente
+  mobile, `.horario-timeline-block .s::before`) en vez de tocar el
+  `<template>` o `runtime.js` — el pin hereda el color de la materia
+  automáticamente porque ya vive dentro de un elemento cuyo `color` es
+  `b.m.strong` (mismo mecanismo que el resto del bloque). Nueva variable
+  `--ico-pin` en `:root` (data URI del SVG) para no repetirla en las dos
+  reglas.
+- Toggle Claro/Oscuro + botón "Imprimir" dentro del propio header de
+  Horario (la referencia los muestra ahí, no sólo en la barra global de
+  arriba): se agregó un segundo `.seg` con los mismos `data-theme-btn`
+  (el binding de `renderTema()`/`bindEvents()` ya itera con
+  `querySelectorAll('[data-theme-btn]')`, así que el toggle nuevo quedó
+  sincronizado sin tocar `runtime.js`) y un botón "Imprimir" nuevo
+  (`#btn-horario-imprimir`) que dispara el click del real (`#btn-imprimir`)
+  — mismo patrón de "un botón dispara el click de otro" que ya usan
+  `#btn-perfil-logout`/`#btn-ajustes-logout` con `#btn-logout` (única línea
+  agregada a `runtime.js` en todo este cambio). El `search-fake` con el
+  semestre activo que ya estaba en ese header se mantuvo (no estaba en la
+  referencia pero es información existente, sacarla no era parte del
+  pedido).
+
+### Qué no se tocó, a propósito (los tres cambios)
+
+- Ninguna lógica de datos, ruteo ni feature: todo lo de arriba es CSS +
+  markup estático + un único listener nuevo que reusa una acción existente.
+- Tema claro sigue funcional en las tres vistas de referencia (probado a
+  mano) — sin el degradé del Cambio 1 (fuera de alcance para claro) pero
+  con el set de íconos del Cambio 2 y el Horario del Cambio 3 igual.
+- El doble bloque de header (barra global `.app-toolbar` + `.topbar` por
+  vista) no se rediseñó como estructura — se mantiene como estaba en el
+  resto de la app; sólo Horario ganó los controles adicionales pedidos por
+  la referencia, sin sacarle nada a las demás vistas.
