@@ -1786,6 +1786,103 @@ punto bajo cada día era puramente decorativo, sin relación a si ese día
 tenía clases — se corrigió para que sólo se vea en los días con `porDia[
 dia].length`.
 
+## Segunda pasada de "Pro Edition": valores exactos del mockup
+
+La primera pasada (sección de arriba) cambió los tokens de fondo/superficie
+y se detuvo ahí — "parecido" al mockup, no la misma familia visual. Este
+pedido fue explícito: releer `Cursada Mobile Pro.dc.html` a nivel de
+**valores concretos** (color, blur, opacity, radio, box-shadow) antes de
+tocar nada, aplicar esa lista agrupada por tratamiento compartido (no
+selector por selector), y un solo ciclo de prueba al final. El resultado es
+un diff bastante más grande en `styles.css` — a propósito, es lo que se
+pidió.
+
+### La lectura del mockup, corregida
+
+`DESIGN.md` describe "glassmorphism" para las cards en su prosa, pero
+mirando los `div` reales del `.dc.html` pixel por pixel, **ninguna card de
+contenido tiene blur, borde, ni sombra** — es relleno sólido `#191C22`, sin
+más. El vidrio de verdad (translúcido + `backdrop-filter`) sólo aparece
+donde `DESIGN.md` lo dice explícitamente en la sección de Elevación: *"Modal
+windows and sidebars"* — nada más. Ese matiz cambió el resultado por
+completo: la primera pasada le había puesto vidrio a `.card` en general (mal
+leído), esta la saca de `.card` y la pone sólo en `.sidenav`/`.modal`/
+`.auth-card`.
+
+`DESIGN.md` también trae, en su YAML de arriba, una paleta M3 completa
+(`primary: '#adc6ff'`, `background: '#10131b'`, etc.) que **no coincide**
+con los colores reales del `.dc.html` (`#0F1116`/`#191C22`/`#2C7BFF`) ni con
+la prosa del mismo documento más abajo (que a su vez propone `#0A0A0C`/
+`#1C1C1E`/`#007AFF`, un tercer set). Los tres no son compatibles entre sí.
+Ante esa contradicción, se usó el `.dc.html` como fuente de verdad para
+cualquier valor concreto (es la ejecución real, no una exploración) y
+`DESIGN.md` sólo para principios donde el `.dc.html` no cubre la pantalla
+(Materias/Progreso/Ajustes/Perfil, glass de modal/sidebar).
+
+### Valores exactos aplicados (tema oscuro)
+
+| Token/regla | Antes (1ª pasada) | Ahora | De dónde sale |
+|---|---|---|---|
+| `--c-line` | `rgba(255,255,255,.1)` | `rgba(255,255,255,.08)` | borde del marco del teléfono / línea superior del tab bar en el `.dc.html` |
+| `--c-line-faint` | `rgba(255,255,255,.08)` | `rgba(255,255,255,.07)` | separador entre filas de una lista (prox-row, eval-row) en el `.dc.html` |
+| `--c-shadow` | sombra ambient en todas las `.card` | `none` | ninguna card de contenido del `.dc.html` tiene `box-shadow` |
+| `.card` (fondo/borde) | `rgba(255,255,255,.055)` + borde 1px | sin cambio de `.card` — vuelve a heredar `var(--c-surface)` opaco, sin borde | el `.card` "glass" de la 1ª pasada no tiene equivalente real en el mockup |
+| `.sidenav`/`.modal`/`.auth-card` | opacos | `background:rgba(11,14,22,.7)` (sidenav) / `rgba(25,28,34,.7)` (modal), `backdrop-filter:blur(30px) saturate(160%)`, borde `rgba(255,255,255,.08)` | `DESIGN.md`, Elevación: "70% opacity + backdrop-blur(30px)" para modales y sidebars — el único lugar donde el documento pide vidrio explícitamente |
+| `.topbar`/`.tabbar` (fondo) | `rgba(28,28,30,X)` | `rgba(15,17,22,X)` | quedó stale de cuando `--c-bg` era `#1C1C1E`; `rgb(15,17,22)` = `#0F1116` exacto, el bg nuevo |
+| `.fab` (sombra) | `rgba(10,99,240,.34)` (rgb de tema claro, hardcodeado) | `rgba(44,123,255,.42)` | sombra del botón "+" flotante de Agenda en el `.dc.html`, con el rgb del acento oscuro real |
+| `.horario-day.is-on` (sombra) | ninguna | `0 8px 20px rgba(44,123,255,.35)` | sombra de la celda "hoy" en la pantalla Horario del `.dc.html` |
+| `.kpi-card` (radio) | `20px` (heredado de `--r-card`, no tocado por ser mobile-only en la 1ª pasada) | `16px`, en cualquier ancho | radio de las tiles de KPI en Inicio, `.dc.html` |
+| `.inicio-hero-inner` (fondo) | `var(--c-surface)` (#191C22, igual que cualquier card) | `#171A21` | la card "Lo próximo" del mockup es la única superficie visiblemente más oscura que el resto — un tono "recesado" a propósito |
+| `--c-accent`, `--r-card`, `--r-control` | sin cambios | sin cambios | ya coincidían con el mockup (pedido explícito de no tocarlos) |
+
+### Agenda: de lista con separadores a tarjeta por ítem
+
+El cambio estructural más grande. El mockup no dibuja la Agenda como una
+lista continua con líneas divisorias — cada ítem es su propia card
+(`background:#191C22;border-radius:16px`) con un riel de color de 3px en el
+borde izquierdo (el color de la materia; ítems vencidos usan directamente
+el rojo de esa materia, no un rojo "de estado" aparte — confirmado mirando
+los hex exactos de cada fila del mockup).
+
+Se logró sin tocar `runtime.js`: `.bar4` ya existe en el template
+`agenda-row` y ya lo pinta `barStyle()` con el color de la materia (o gris
+para personal) — es el mismo elemento que ya usa `prox-row` en Inicio. Acá
+sólo se lo reposiciona con CSS (`position:absolute;left:0;top:0;bottom:0`)
+para que haga de riel del borde en vez de barrita suelta junto al
+checkbox; `prox-row` sigue usando `.bar4` sin tocar porque el selector nuevo
+es `.agenda-row .bar4`, no `.bar4` a secas. `.agenda-list` pasa de ser una
+sola card con filas adentro a un contenedor `flex` transparente con
+`gap:8px` entre tarjetas.
+
+Detalle (`eval-list`) y Próximos 7 días (`prox-row`) **no** se tocaron —
+el mockup los muestra como lista con separador, no como tarjetas
+individuales, así que ya estaban bien tal cual.
+
+### Por qué el diff quedó agrupado en un solo bloque
+
+Casi todos los cambios de esta pasada (vidrio, sombras corregidas, Agenda)
+viven en un único bloque nuevo en `styles.css`, justo después del token de
+tema oscuro — no uno por selector disperso por el archivo. Los únicos
+cambios fuera de ese bloque son los que ya existían en otro lugar y sólo
+necesitaban un valor corregido (`.topbar`/`.tabbar`, `.kpi-card`), para no
+dejar dos declaraciones de la misma regla en dos lugares distintos del
+archivo peleándose por orden de cascada — eso pasó una vez durante esta
+misma pasada (ver comentario en el CSS) y quedó documentado para no
+repetirlo.
+
+### Qué no se tocó, a propósito
+
+- `--c-accent` y `--r-card`/`--r-control`: pedido explícito de no tocarlos,
+  ya coincidían.
+- Tema claro: ninguna regla de esta pasada lo alcanza (todo vive bajo
+  `html[data-theme="oscuro"]`), verificado a mano.
+- `runtime.js`: cero cambios — el único candidato (colorear el riel de
+  Agenda) ya tenía el dato puesto por código existente (`.bar4`).
+- Calendario, Materias (grilla/tabla), Progreso, Ajustes, Perfil: sin
+  mockup propio — heredan el tratamiento (fondo, `.card` opaco sin sombra,
+  vidrio en sus modales) de los mismos tokens/reglas de arriba, sin CSS
+  adicional por vista.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que
