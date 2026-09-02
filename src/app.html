@@ -169,11 +169,6 @@
       <button class="nav-item" data-nav="inicio" style="width:auto;height:34px;font-size:12px;font-weight:700;font-family:var(--font-display)">cursada</button>
       <span class="mono" id="toolbar-view-label" style="font-size:12px;color:var(--c-ink3)"></span>
       <div class="grow"></div>
-      <div class="seg" id="theme-toggle">
-        <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-        <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
-      </div>
-      <div class="sep"></div>
       <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>
     </div>
 
@@ -181,6 +176,7 @@
     <section class="view-screen" id="inicio">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Inicio</h1></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
@@ -293,6 +289,7 @@
     <section class="view-screen hidden" id="materias">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Materias</h1><span class="meta mono" id="materias-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
@@ -342,6 +339,7 @@
     <section class="view-screen hidden" id="detalle">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
         <div class="topbar-actions">
           <button class="btn" id="btn-detalle-editar">Editar materia</button>
@@ -404,22 +402,32 @@
     <section class="view-screen hidden" id="agenda">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Agenda</h1><span class="meta mono" id="agenda-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
           <input type="search" class="search-input" id="agenda-search" placeholder="Buscar en la agenda" aria-label="Buscar en la agenda" autocomplete="off">
           <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
-          <select class="btn" id="agenda-filtro-materia" aria-label="Filtrar por materia" style="font-weight:500"><option value="">Todas las materias</option></select>
-          <select class="btn" id="agenda-filtro-estado" aria-label="Filtrar por estado" style="font-weight:500">
-            <option value="">Todos los estados</option>
-            <option value="pendiente">Pendientes</option>
-            <option value="hecho">Entregados/rendidos</option>
-          </select>
           <button class="btn btn-primary" id="btn-agenda-nuevo">+ Nuevo</button>
         </div>
       </header>
+      <!-- Los dos <select> de filtro vivían en .topbar-actions — con
+           flex-wrap:nowrap en mobile eso desbordaba la topbar (bug real,
+           visto probando en 375px: terminaban ~150px afuera de la
+           pantalla). Mismo lugar/patrón que .materias-toolbar en Materias:
+           una fila propia debajo del header, no adentro de la topbar. -->
       <div class="view">
-        <div class="filtros-row" id="agenda-filtros"></div>
+        <div class="agenda-toolbar">
+          <div class="filtros-row" id="agenda-filtros"></div>
+          <div class="agenda-selects">
+            <select class="btn" id="agenda-filtro-materia" aria-label="Filtrar por materia" style="font-weight:500"><option value="">Todas las materias</option></select>
+            <select class="btn" id="agenda-filtro-estado" aria-label="Filtrar por estado" style="font-weight:500">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendientes</option>
+              <option value="hecho">Entregados/rendidos</option>
+            </select>
+          </div>
+        </div>
         <div class="agenda-groups" id="agenda-groups"></div>
       </div>
     </section>
@@ -428,19 +436,28 @@
     <section class="view-screen hidden" id="calendario">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-        <div style="display:flex;align-items:center;gap:14px">
+        <span class="topbar-brand" aria-hidden="true"></span>
+        <div class="cal-header-nav" style="display:flex;align-items:center">
           <h1 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:none" id="cal-month-label"></h1>
           <div class="cal-nav"><button id="cal-prev" aria-label="Mes/semana anterior"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button><button id="cal-next" aria-label="Mes/semana siguiente"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button></div>
           <button class="mono" id="cal-today-label" style="font-size:12px;color:var(--c-ink3);background:none;border:none;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;flex:none" title="Volver a hoy"></button>
         </div>
         <div class="topbar-actions">
-          <div class="seg" id="cal-view-toggle">
-            <button type="button" class="seg-item is-on" data-cal-view="mes">Mes</button>
-            <button type="button" class="seg-item" data-cal-view="semana">Semana</button>
-          </div>
           <button class="btn btn-primary" id="btn-cal-evento">+ Evento personal</button>
         </div>
       </header>
+      <!-- Mes/Semana no es decorativo (cambia STATE.calViewMode y qué se
+           renderiza, ver runtime.js) — a diferencia de Materias, en mobile
+           no se puede esconder. Vive en su propia fila fuera de
+           .topbar-actions porque adentro, con flex-wrap:nowrap en mobile,
+           desbordaba la topbar (bug real, visto probando en 375px: el
+           .seg terminaba casi entero fuera de la pantalla). -->
+      <div class="cal-toolbar">
+        <div class="seg" id="cal-view-toggle">
+          <button type="button" class="seg-item is-on" data-cal-view="mes">Mes</button>
+          <button type="button" class="seg-item" data-cal-view="semana">Semana</button>
+        </div>
+      </div>
       <div class="calendario-wrap">
         <div class="calendario-main">
           <!-- Mobile (≤760px) + vista Semana: tira de 7 días en vez de la
@@ -465,13 +482,10 @@
     <section class="view-screen hidden" id="horario">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Horario semanal</h1><span class="meta mono" id="horario-meta"></span></span>
         <div class="topbar-actions">
           <span class="search-fake">Semestre 2 · 2026</span>
-          <div class="seg" id="horario-theme-toggle">
-            <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-            <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
-          </div>
           <button class="btn" id="btn-horario-imprimir"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimir</button>
           <button class="btn btn-primary" id="btn-horario-editar">+ Nueva materia</button>
         </div>
@@ -492,6 +506,7 @@
     <section class="view-screen hidden" id="progreso">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Progreso</h1></span>
       </header>
       <div class="view">
@@ -810,6 +825,14 @@
     </div>
     <form id="form-ajustes">
       <div class="modal-body pad-lg">
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Tema</span>
+          <div class="seg" id="ajustes-theme-toggle">
+            <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
+            <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
+            <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
+          </div>
+        </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Meta de carrera</span>
           <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>

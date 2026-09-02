@@ -43,6 +43,13 @@
 
   --r-control:10px; --r-card:20px; --r-chip:999px; --r-tile:12px; --r-modal:26px;
   --sidenav-w:236px;
+  /* Alto de la fila compacta de .topbar en mobile (sin el safe-area-inset
+     del notch/Dynamic Island, que se suma aparte con env() donde se use).
+     Fuente única — así cualquier elemento nuevo que necesite ubicarse justo
+     debajo de la topbar (ej. un overlay fixed) calcula
+     calc(var(--topbar-h) + env(safe-area-inset-top)) en vez de adivinar
+     "52px" a mano y desincronizarse si esto cambia. */
+  --topbar-h:52px;
 
   /* Ícono de pin de ubicación (Horario, Cambio 3) como mask-image en vez de
      un <svg> nuevo en el template — así hereda color vía currentColor sin
@@ -57,6 +64,7 @@
   --ease-drawer:cubic-bezier(.32,.72,0,1);    /* cajones/drawers estilo iOS */
 }
 
+html[data-theme="claro"]{color-scheme:light}
 html[data-theme="oscuro"]{
   color-scheme:dark;
   /* Dirección "Pro Edition" — valores tomados directamente de
@@ -554,6 +562,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .mini-day .box{height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;text-align:center;padding:0 8px;background:var(--c-surfaceAlt);color:var(--c-muted5)}
 
 /* ---------- Agenda ---------- */
+.agenda-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.agenda-selects{display:flex;gap:8px;flex-wrap:wrap}
 .agenda-groups{display:flex;flex-direction:column;gap:22px}
 .agenda-group{display:flex;flex-direction:column;gap:10px}
 .agenda-group-head{display:flex;align-items:center;gap:10px}
@@ -585,6 +595,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-fecha-col .prox-countdown{align-self:flex-end}
 
 /* ---------- Calendario ---------- */
+.cal-header-nav{gap:14px}
+.cal-toolbar{padding:10px 34px 0}
 .calendario-wrap{flex:1;min-height:0;display:flex;gap:0}
 .calendario-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 .cal-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0}
@@ -857,6 +869,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 @media(max-width:900px){
   .view{padding:18px 16px}
   .topbar{padding:0 16px}
+  .cal-toolbar{padding:10px 16px 0}
   .detalle-cols{flex-direction:column}
   .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line)}
   .calendario-wrap{flex-direction:column}
@@ -1063,10 +1076,17 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar .topbar-menu{display:flex;flex:none;width:38px;height:38px;margin-left:-4px;font-size:16px}
   .topbar .topbar-menu:active{background:var(--c-line-faint)}
   .topbar.is-searching .topbar-menu{display:none}
+  /* Marca "cursada" en la topbar mobile — antes sólo vivía en .sidenav-brand
+     (visible sólo con el cajón abierto), así que la topbar fija de cada
+     vista quedaba sin ningún logo (bug real, reportado probando en 375px).
+     Mismo lenguaje visual que .sidenav-brand .mark, a menor tamaño. */
+  .topbar .topbar-brand{display:flex;flex:none;width:22px;height:22px;border-radius:7px;background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));align-items:center;justify-content:center}
+  .topbar .topbar-brand::after{content:'';width:10px;height:10px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;transform:rotate(45deg)}
+  .topbar.is-searching .topbar-brand{display:none}
 
   .topbar{
     position:sticky;top:0;z-index:30;
-    min-height:0;height:calc(52px + env(safe-area-inset-top));
+    min-height:0;height:calc(var(--topbar-h) + env(safe-area-inset-top));
     padding:env(safe-area-inset-top) 12px 0;
     flex-wrap:nowrap;gap:6px;
   }
@@ -1079,15 +1099,15 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar-actions .icon-btn,.topbar-actions .btn{height:38px}
   .topbar-actions .icon-btn{width:38px}
   .topbar-actions .search-fake{display:none}
-  /* Claro/Oscuro + Imprimir propios del header de Horario (Cambio 3, sólo
-     desktop por diseño): en mobile el .topbar es una fila fija y compacta
-     (52px) — sin ocultarlos acá se apretaban contra el título "Horario
-     semanal" (bug real, visto probando en 375px). El tema en mobile ya no
-     tiene control propio (el toggle global vive en .app-toolbar, oculto en
-     este breakpoint desde antes de este rediseño) y el botón real de
-     Imprimir (#btn-imprimir) tampoco se expone en mobile — consistente con
-     el resto de las vistas, ninguna pierde funcionalidad real. */
-  #horario-theme-toggle,#btn-horario-imprimir{display:none}
+  /* Imprimir propio del header de Horario (sólo desktop por diseño): en
+     mobile el .topbar es una fila fija y compacta (52px) — sin ocultarlo
+     acá se apretaba contra el título "Horario semanal" (bug real, visto
+     probando en 375px). El botón real de Imprimir (#btn-imprimir) tampoco
+     se expone en mobile — consistente con el resto de las vistas, ninguna
+     pierde funcionalidad real. El tema (Sistema/Claro/Oscuro) vive sólo en
+     Ajustes → ahí ya es accesible en cualquier ancho, no necesita control
+     propio acá. */
+  #btn-horario-imprimir{display:none}
 
   .topbar-search{display:flex}
   .search-input{display:none}
@@ -1160,7 +1180,35 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     -webkit-overflow-scrolling:touch;padding-bottom:2px}
   .filtros-row::-webkit-scrollbar,.materias-toolbar::-webkit-scrollbar{display:none}
   .filtros-row > *,.materias-toolbar > *{flex:none}
+  /* .agenda-selects: mismo criterio, pero acá el ancho lo da el texto de
+     la opción elegida de cada <select> nativo (puede ser un nombre de
+     materia largo) — con max-width se recorta en vez de forzar scroll
+     horizontal de toda la fila por un solo <select> largo. */
+  .agenda-selects select{max-width:150px}
+  /* .agenda-toolbar en fila (flex-wrap) hacía que .filtros-row, con
+     flex:none heredado de la regla de arriba, se dimensionara por su
+     contenido (6 pills, ~520px) en vez de encogerse al ancho disponible —
+     su propio overflow-x:auto nunca llegaba a activarse porque la caja ya
+     era más ancha que la pantalla (bug real, visto probando en 375px: la
+     fila entera de pills se salía). En columna, .filtros-row estira al
+     100% del ancho del toolbar (align-items:stretch) y ahí sí su scroll
+     interno funciona. */
+  .agenda-toolbar{flex-direction:column;align-items:stretch}
+  .agenda-toolbar > .filtros-row{width:100%;min-width:0}
   .pill,.chip-materia,.agenda-group-head .t,.agenda-group-head .n{white-space:nowrap}
+  /* .cal-header-nav (mes + flechas + "hoy") vive en la topbar como un div
+     suelto, no como .topbar-title — así que no hereda el flex:1/overflow
+     que .topbar-title recibe más arriba en este mismo media. Achicar sólo
+     el gap decorativo (no los botones de .cal-nav: esos son touch target,
+     44px a propósito, no se tocan) alcanza para que entre junto al ☰ y la
+     marca sin desbordar (probado en 375px, antes se salía de la topbar). */
+  /* !important porque font-size vive en el style= inline del <h1> (varias
+     otras propiedades del componente están ahí) — un inline style le gana
+     a cualquier regla externa sin !important, mismo motivo documentado
+     para .lp-header-signin en landing.html. */
+  .cal-header-nav{gap:4px}
+  .cal-header-nav #cal-month-label{font-size:13px!important}
+  .cal-toolbar{padding:10px 14px 0}
 
   /* ---------- Inicio ---------- */
   .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}
@@ -1481,5 +1529,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
 /* .topbar-menu sólo existe para mobile (el ☰ de cada .topbar, ver arriba):
    en desktop el ☰ real sigue siendo #btn-menu dentro de .app-toolbar. Sin
-   este .icon-btn base se ve igual en cualquier ancho (display:flex). */
-@media(min-width:761px){.topbar .topbar-menu{display:none}}
+   este .icon-btn base se ve igual en cualquier ancho (display:flex).
+   .topbar-brand es un <span> vacío sin estilo propio fuera del media de
+   arriba, así que no necesitaría este guard por el gap documentado en la
+   skill de convenciones — pero se lo dejamos igual, mismo criterio que
+   .topbar-menu, para que un cambio futuro en .topbar-brand no reabra ese
+   gap sin querer. */
+@media(min-width:761px){.topbar .topbar-menu,.topbar .topbar-brand{display:none}}

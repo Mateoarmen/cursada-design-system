@@ -51,6 +51,13 @@
 
   --r-control:10px; --r-card:20px; --r-chip:999px; --r-tile:12px; --r-modal:26px;
   --sidenav-w:236px;
+  /* Alto de la fila compacta de .topbar en mobile (sin el safe-area-inset
+     del notch/Dynamic Island, que se suma aparte con env() donde se use).
+     Fuente única — así cualquier elemento nuevo que necesite ubicarse justo
+     debajo de la topbar (ej. un overlay fixed) calcula
+     calc(var(--topbar-h) + env(safe-area-inset-top)) en vez de adivinar
+     "52px" a mano y desincronizarse si esto cambia. */
+  --topbar-h:52px;
 
   /* Ícono de pin de ubicación (Horario, Cambio 3) como mask-image en vez de
      un <svg> nuevo en el template — así hereda color vía currentColor sin
@@ -65,6 +72,7 @@
   --ease-drawer:cubic-bezier(.32,.72,0,1);    /* cajones/drawers estilo iOS */
 }
 
+html[data-theme="claro"]{color-scheme:light}
 html[data-theme="oscuro"]{
   color-scheme:dark;
   /* Dirección "Pro Edition" — valores tomados directamente de
@@ -562,6 +570,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .mini-day .box{height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;text-align:center;padding:0 8px;background:var(--c-surfaceAlt);color:var(--c-muted5)}
 
 /* ---------- Agenda ---------- */
+.agenda-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.agenda-selects{display:flex;gap:8px;flex-wrap:wrap}
 .agenda-groups{display:flex;flex-direction:column;gap:22px}
 .agenda-group{display:flex;flex-direction:column;gap:10px}
 .agenda-group-head{display:flex;align-items:center;gap:10px}
@@ -593,6 +603,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-fecha-col .prox-countdown{align-self:flex-end}
 
 /* ---------- Calendario ---------- */
+.cal-header-nav{gap:14px}
+.cal-toolbar{padding:10px 34px 0}
 .calendario-wrap{flex:1;min-height:0;display:flex;gap:0}
 .calendario-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 .cal-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0}
@@ -865,6 +877,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 @media(max-width:900px){
   .view{padding:18px 16px}
   .topbar{padding:0 16px}
+  .cal-toolbar{padding:10px 16px 0}
   .detalle-cols{flex-direction:column}
   .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line)}
   .calendario-wrap{flex-direction:column}
@@ -1071,10 +1084,17 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar .topbar-menu{display:flex;flex:none;width:38px;height:38px;margin-left:-4px;font-size:16px}
   .topbar .topbar-menu:active{background:var(--c-line-faint)}
   .topbar.is-searching .topbar-menu{display:none}
+  /* Marca "cursada" en la topbar mobile — antes sólo vivía en .sidenav-brand
+     (visible sólo con el cajón abierto), así que la topbar fija de cada
+     vista quedaba sin ningún logo (bug real, reportado probando en 375px).
+     Mismo lenguaje visual que .sidenav-brand .mark, a menor tamaño. */
+  .topbar .topbar-brand{display:flex;flex:none;width:22px;height:22px;border-radius:7px;background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));align-items:center;justify-content:center}
+  .topbar .topbar-brand::after{content:'';width:10px;height:10px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;transform:rotate(45deg)}
+  .topbar.is-searching .topbar-brand{display:none}
 
   .topbar{
     position:sticky;top:0;z-index:30;
-    min-height:0;height:calc(52px + env(safe-area-inset-top));
+    min-height:0;height:calc(var(--topbar-h) + env(safe-area-inset-top));
     padding:env(safe-area-inset-top) 12px 0;
     flex-wrap:nowrap;gap:6px;
   }
@@ -1087,15 +1107,15 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar-actions .icon-btn,.topbar-actions .btn{height:38px}
   .topbar-actions .icon-btn{width:38px}
   .topbar-actions .search-fake{display:none}
-  /* Claro/Oscuro + Imprimir propios del header de Horario (Cambio 3, sólo
-     desktop por diseño): en mobile el .topbar es una fila fija y compacta
-     (52px) — sin ocultarlos acá se apretaban contra el título "Horario
-     semanal" (bug real, visto probando en 375px). El tema en mobile ya no
-     tiene control propio (el toggle global vive en .app-toolbar, oculto en
-     este breakpoint desde antes de este rediseño) y el botón real de
-     Imprimir (#btn-imprimir) tampoco se expone en mobile — consistente con
-     el resto de las vistas, ninguna pierde funcionalidad real. */
-  #horario-theme-toggle,#btn-horario-imprimir{display:none}
+  /* Imprimir propio del header de Horario (sólo desktop por diseño): en
+     mobile el .topbar es una fila fija y compacta (52px) — sin ocultarlo
+     acá se apretaba contra el título "Horario semanal" (bug real, visto
+     probando en 375px). El botón real de Imprimir (#btn-imprimir) tampoco
+     se expone en mobile — consistente con el resto de las vistas, ninguna
+     pierde funcionalidad real. El tema (Sistema/Claro/Oscuro) vive sólo en
+     Ajustes → ahí ya es accesible en cualquier ancho, no necesita control
+     propio acá. */
+  #btn-horario-imprimir{display:none}
 
   .topbar-search{display:flex}
   .search-input{display:none}
@@ -1168,7 +1188,35 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     -webkit-overflow-scrolling:touch;padding-bottom:2px}
   .filtros-row::-webkit-scrollbar,.materias-toolbar::-webkit-scrollbar{display:none}
   .filtros-row > *,.materias-toolbar > *{flex:none}
+  /* .agenda-selects: mismo criterio, pero acá el ancho lo da el texto de
+     la opción elegida de cada <select> nativo (puede ser un nombre de
+     materia largo) — con max-width se recorta en vez de forzar scroll
+     horizontal de toda la fila por un solo <select> largo. */
+  .agenda-selects select{max-width:150px}
+  /* .agenda-toolbar en fila (flex-wrap) hacía que .filtros-row, con
+     flex:none heredado de la regla de arriba, se dimensionara por su
+     contenido (6 pills, ~520px) en vez de encogerse al ancho disponible —
+     su propio overflow-x:auto nunca llegaba a activarse porque la caja ya
+     era más ancha que la pantalla (bug real, visto probando en 375px: la
+     fila entera de pills se salía). En columna, .filtros-row estira al
+     100% del ancho del toolbar (align-items:stretch) y ahí sí su scroll
+     interno funciona. */
+  .agenda-toolbar{flex-direction:column;align-items:stretch}
+  .agenda-toolbar > .filtros-row{width:100%;min-width:0}
   .pill,.chip-materia,.agenda-group-head .t,.agenda-group-head .n{white-space:nowrap}
+  /* .cal-header-nav (mes + flechas + "hoy") vive en la topbar como un div
+     suelto, no como .topbar-title — así que no hereda el flex:1/overflow
+     que .topbar-title recibe más arriba en este mismo media. Achicar sólo
+     el gap decorativo (no los botones de .cal-nav: esos son touch target,
+     44px a propósito, no se tocan) alcanza para que entre junto al ☰ y la
+     marca sin desbordar (probado en 375px, antes se salía de la topbar). */
+  /* !important porque font-size vive en el style= inline del <h1> (varias
+     otras propiedades del componente están ahí) — un inline style le gana
+     a cualquier regla externa sin !important, mismo motivo documentado
+     para .lp-header-signin en landing.html. */
+  .cal-header-nav{gap:4px}
+  .cal-header-nav #cal-month-label{font-size:13px!important}
+  .cal-toolbar{padding:10px 14px 0}
 
   /* ---------- Inicio ---------- */
   .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}
@@ -1489,8 +1537,13 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
 /* .topbar-menu sólo existe para mobile (el ☰ de cada .topbar, ver arriba):
    en desktop el ☰ real sigue siendo #btn-menu dentro de .app-toolbar. Sin
-   este .icon-btn base se ve igual en cualquier ancho (display:flex). */
-@media(min-width:761px){.topbar .topbar-menu{display:none}}
+   este .icon-btn base se ve igual en cualquier ancho (display:flex).
+   .topbar-brand es un <span> vacío sin estilo propio fuera del media de
+   arriba, así que no necesitaría este guard por el gap documentado en la
+   skill de convenciones — pero se lo dejamos igual, mismo criterio que
+   .topbar-menu, para que un cambio futuro en .topbar-brand no reabra ese
+   gap sin querer. */
+@media(min-width:761px){.topbar .topbar-menu,.topbar .topbar-brand{display:none}}
 
 </style>
 </head>
@@ -1666,11 +1719,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <button class="nav-item" data-nav="inicio" style="width:auto;height:34px;font-size:12px;font-weight:700;font-family:var(--font-display)">cursada</button>
       <span class="mono" id="toolbar-view-label" style="font-size:12px;color:var(--c-ink3)"></span>
       <div class="grow"></div>
-      <div class="seg" id="theme-toggle">
-        <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-        <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
-      </div>
-      <div class="sep"></div>
       <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>
     </div>
 
@@ -1678,6 +1726,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen" id="inicio">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Inicio</h1></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
@@ -1790,6 +1839,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen hidden" id="materias">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Materias</h1><span class="meta mono" id="materias-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
@@ -1839,6 +1889,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen hidden" id="detalle">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-crumb"><a href="#materias">Materias</a><span class="sep">/</span><b id="detalle-crumb"></b></span>
         <div class="topbar-actions">
           <button class="btn" id="btn-detalle-editar">Editar materia</button>
@@ -1901,22 +1952,32 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen hidden" id="agenda">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Agenda</h1><span class="meta mono" id="agenda-count"></span></span>
         <div class="topbar-actions">
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
           <input type="search" class="search-input" id="agenda-search" placeholder="Buscar en la agenda" aria-label="Buscar en la agenda" autocomplete="off">
           <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
-          <select class="btn" id="agenda-filtro-materia" aria-label="Filtrar por materia" style="font-weight:500"><option value="">Todas las materias</option></select>
-          <select class="btn" id="agenda-filtro-estado" aria-label="Filtrar por estado" style="font-weight:500">
-            <option value="">Todos los estados</option>
-            <option value="pendiente">Pendientes</option>
-            <option value="hecho">Entregados/rendidos</option>
-          </select>
           <button class="btn btn-primary" id="btn-agenda-nuevo">+ Nuevo</button>
         </div>
       </header>
+      <!-- Los dos <select> de filtro vivían en .topbar-actions — con
+           flex-wrap:nowrap en mobile eso desbordaba la topbar (bug real,
+           visto probando en 375px: terminaban ~150px afuera de la
+           pantalla). Mismo lugar/patrón que .materias-toolbar en Materias:
+           una fila propia debajo del header, no adentro de la topbar. -->
       <div class="view">
-        <div class="filtros-row" id="agenda-filtros"></div>
+        <div class="agenda-toolbar">
+          <div class="filtros-row" id="agenda-filtros"></div>
+          <div class="agenda-selects">
+            <select class="btn" id="agenda-filtro-materia" aria-label="Filtrar por materia" style="font-weight:500"><option value="">Todas las materias</option></select>
+            <select class="btn" id="agenda-filtro-estado" aria-label="Filtrar por estado" style="font-weight:500">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendientes</option>
+              <option value="hecho">Entregados/rendidos</option>
+            </select>
+          </div>
+        </div>
         <div class="agenda-groups" id="agenda-groups"></div>
       </div>
     </section>
@@ -1925,19 +1986,28 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen hidden" id="calendario">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-        <div style="display:flex;align-items:center;gap:14px">
+        <span class="topbar-brand" aria-hidden="true"></span>
+        <div class="cal-header-nav" style="display:flex;align-items:center">
           <h1 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:none" id="cal-month-label"></h1>
           <div class="cal-nav"><button id="cal-prev" aria-label="Mes/semana anterior"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button><button id="cal-next" aria-label="Mes/semana siguiente"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button></div>
           <button class="mono" id="cal-today-label" style="font-size:12px;color:var(--c-ink3);background:none;border:none;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;flex:none" title="Volver a hoy"></button>
         </div>
         <div class="topbar-actions">
-          <div class="seg" id="cal-view-toggle">
-            <button type="button" class="seg-item is-on" data-cal-view="mes">Mes</button>
-            <button type="button" class="seg-item" data-cal-view="semana">Semana</button>
-          </div>
           <button class="btn btn-primary" id="btn-cal-evento">+ Evento personal</button>
         </div>
       </header>
+      <!-- Mes/Semana no es decorativo (cambia STATE.calViewMode y qué se
+           renderiza, ver runtime.js) — a diferencia de Materias, en mobile
+           no se puede esconder. Vive en su propia fila fuera de
+           .topbar-actions porque adentro, con flex-wrap:nowrap en mobile,
+           desbordaba la topbar (bug real, visto probando en 375px: el
+           .seg terminaba casi entero fuera de la pantalla). -->
+      <div class="cal-toolbar">
+        <div class="seg" id="cal-view-toggle">
+          <button type="button" class="seg-item is-on" data-cal-view="mes">Mes</button>
+          <button type="button" class="seg-item" data-cal-view="semana">Semana</button>
+        </div>
+      </div>
       <div class="calendario-wrap">
         <div class="calendario-main">
           <!-- Mobile (≤760px) + vista Semana: tira de 7 días en vez de la
@@ -1962,13 +2032,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen hidden" id="horario">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Horario semanal</h1><span class="meta mono" id="horario-meta"></span></span>
         <div class="topbar-actions">
           <span class="search-fake">Semestre 2 · 2026</span>
-          <div class="seg" id="horario-theme-toggle">
-            <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-            <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
-          </div>
           <button class="btn" id="btn-horario-imprimir"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimir</button>
           <button class="btn btn-primary" id="btn-horario-editar">+ Nueva materia</button>
         </div>
@@ -1989,6 +2056,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <section class="view-screen hidden" id="progreso">
       <header class="topbar">
         <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
         <span class="topbar-title"><h1 class="t">Progreso</h1></span>
       </header>
       <div class="view">
@@ -2307,6 +2375,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     </div>
     <form id="form-ajustes">
       <div class="modal-body pad-lg">
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Tema</span>
+          <div class="seg" id="ajustes-theme-toggle">
+            <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
+            <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
+            <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
+          </div>
+        </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Meta de carrera</span>
           <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
@@ -5427,8 +5503,19 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   // ================================================================
   // THEME
   // ================================================================
+  // El control (único, en Ajustes) guarda una PREFERENCIA de 3 valores:
+  // 'sistema' (default) | 'claro' | 'oscuro'. 'sistema' no es un tema en sí
+  // — se resuelve en el tema efectivo ('claro'/'oscuro') según
+  // prefers-color-scheme, y se re-resuelve solo si el SO cambia de tema en
+  // vivo (sin recargar), vía el listener de matchMedia más abajo.
+  var THEME_PREF = 'sistema';
+  function sistemaPrefiereOscuro() {
+    try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
+  }
+  function temaEfectivo(pref) { return pref === 'sistema' ? (sistemaPrefiereOscuro() ? 'oscuro' : 'claro') : pref; }
   function applyTheme(mode) {
-    document.documentElement.setAttribute('data-theme', mode);
+    THEME_PREF = mode;
+    document.documentElement.setAttribute('data-theme', temaEfectivo(mode));
     document.querySelectorAll('[data-theme-btn]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-theme-btn') === mode); });
     try { localStorage.setItem('cursada:theme', mode); } catch (e) {}
     renderRoute();
@@ -5436,7 +5523,13 @@ if (typeof module !== 'undefined') module.exports = CURSADA_SEED;
   function initTheme() {
     var saved = null;
     try { saved = localStorage.getItem('cursada:theme'); } catch (e) {}
-    applyTheme(saved === 'oscuro' ? 'oscuro' : 'claro');
+    applyTheme(saved === 'claro' || saved === 'oscuro' || saved === 'sistema' ? saved : 'sistema');
+    try {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var onCambioSistema = function () { if (THEME_PREF === 'sistema') applyTheme('sistema'); };
+      if (mq.addEventListener) mq.addEventListener('change', onCambioSistema);
+      else if (mq.addListener) mq.addListener(onCambioSistema);
+    } catch (e) {}
   }
 
   // ================================================================

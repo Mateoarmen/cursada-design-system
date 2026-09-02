@@ -2794,8 +2794,19 @@
   // ================================================================
   // THEME
   // ================================================================
+  // El control (único, en Ajustes) guarda una PREFERENCIA de 3 valores:
+  // 'sistema' (default) | 'claro' | 'oscuro'. 'sistema' no es un tema en sí
+  // — se resuelve en el tema efectivo ('claro'/'oscuro') según
+  // prefers-color-scheme, y se re-resuelve solo si el SO cambia de tema en
+  // vivo (sin recargar), vía el listener de matchMedia más abajo.
+  var THEME_PREF = 'sistema';
+  function sistemaPrefiereOscuro() {
+    try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
+  }
+  function temaEfectivo(pref) { return pref === 'sistema' ? (sistemaPrefiereOscuro() ? 'oscuro' : 'claro') : pref; }
   function applyTheme(mode) {
-    document.documentElement.setAttribute('data-theme', mode);
+    THEME_PREF = mode;
+    document.documentElement.setAttribute('data-theme', temaEfectivo(mode));
     document.querySelectorAll('[data-theme-btn]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-theme-btn') === mode); });
     try { localStorage.setItem('cursada:theme', mode); } catch (e) {}
     renderRoute();
@@ -2803,7 +2814,13 @@
   function initTheme() {
     var saved = null;
     try { saved = localStorage.getItem('cursada:theme'); } catch (e) {}
-    applyTheme(saved === 'oscuro' ? 'oscuro' : 'claro');
+    applyTheme(saved === 'claro' || saved === 'oscuro' || saved === 'sistema' ? saved : 'sistema');
+    try {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var onCambioSistema = function () { if (THEME_PREF === 'sistema') applyTheme('sistema'); };
+      if (mq.addEventListener) mq.addEventListener('change', onCambioSistema);
+      else if (mq.addListener) mq.addListener(onCambioSistema);
+    } catch (e) {}
   }
 
   // ================================================================

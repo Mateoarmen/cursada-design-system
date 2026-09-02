@@ -13,19 +13,19 @@
 <div style="font-family:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;color:#12161C;background:#FFFFFF;overflow-x:hidden">
 
   <header class="lp-header" data-header id="header">
-    <div class="lp-header-inner" style="max-width:1240px;height:100%;margin:0 auto;display:flex;align-items:center;gap:32px">
-      <a href="#top" style="display:flex;align-items:center;gap:9px;color:#12161C;text-decoration:none;flex:none">
+    <div class="lp-header-inner" style="max-width:1240px;height:100%;margin:0 auto;display:flex;align-items:center">
+      <a href="#top" class="lp-header-brand" style="display:flex;align-items:center;gap:9px;color:#12161C;text-decoration:none;flex:none">
         <span class="lp-mark lp-mark-hdr" style="width:26px;height:26px;border-radius:9px;background:linear-gradient(180deg,#2C7BFF,#0847B4);display:flex;align-items:center;justify-content:center"></span>
-        <span style="font-size:19px;font-weight:600;letter-spacing:-.02em">cursada</span>
+        <span class="lp-header-brand-text" style="font-size:19px;font-weight:600;letter-spacing:-.02em">cursada</span>
       </a>
       <nav aria-label="Secciones" class="lp-header-nav" style="align-items:center;gap:22px;flex:1;min-width:0">
         <a href="#funciones" class="lp-navlink" style="height:44px;display:flex;align-items:center;font-size:14px;font-weight:500;color:#55565B;text-decoration:none">Funciones</a>
         <a href="#nota" class="lp-navlink" style="height:44px;display:flex;align-items:center;font-size:14px;font-weight:500;color:#55565B;text-decoration:none">Cómo calcula tu nota</a>
         <a href="#preguntas" class="lp-navlink" style="height:44px;display:flex;align-items:center;font-size:14px;font-weight:500;color:#55565B;text-decoration:none">Preguntas</a>
       </nav>
-      <div style="display:flex;align-items:center;gap:10px;flex:none;margin-left:auto">
-        <a href="Cursada.html" class="lp-signin lp-header-signin" style="height:38px;align-items:center;padding:0 14px;border-radius:10px;font-size:14px;font-weight:500;color:#12161C;text-decoration:none;white-space:nowrap">Iniciar sesión</a>
-        <a href="Cursada.html" class="lp-cta-sm" style="height:36px;display:flex;align-items:center;padding:0 18px;border-radius:10px;background:#0A63F0;color:#FFFFFF;font-size:14px;font-weight:600;letter-spacing:-.01em;text-decoration:none;white-space:nowrap">Crear mi cuenta</a>
+      <div class="lp-header-actions" style="display:flex;align-items:center;gap:10px;flex:none;margin-left:auto">
+        <a href="Cursada.html" class="lp-signin lp-header-signin" style="height:38px;align-items:center;padding:0 14px;border-radius:10px;font-size:14px;font-weight:500;color:#12161C;text-decoration:none;white-space:nowrap"><span class="lp-txt-l">Iniciar sesión</span><span class="lp-txt-s">Ingresar</span></a>
+        <a href="Cursada.html" class="lp-cta-sm" style="height:36px;display:flex;align-items:center;padding:0 18px;border-radius:10px;background:#0A63F0;color:#FFFFFF;font-size:14px;font-weight:600;letter-spacing:-.01em;text-decoration:none;white-space:nowrap"><span class="lp-txt-l">Crear mi cuenta</span><span class="lp-txt-s">Crear cuenta</span></a>
       </div>
     </div>
   </header>
@@ -524,20 +524,41 @@
      botones, todo en una fila) tampoco traía breakpoint — a 375px el nav
      del medio se pisaba con los botones. Se esconde el nav (Funciones/Cómo
      calcula/Preguntas siguen alcanzables scrolleando, y se repiten en el
-     footer) y "Iniciar sesión" (queda sólo el CTA principal), no se agregó
-     un menú hamburguesa nuevo — el diseño no especificaba ninguno y hubiera
-     sido inventar UI que no estaba pedida. */
-  .lp-header-inner{padding:0 32px}
-  /* display:flex de estos dos vive acá (no en el style= inline, como el
-     resto de sus propiedades) para que el media query de abajo pueda
-     pisarlo con display:none — un inline style le gana a cualquier regla
-     de hoja de estilo, así que si display siguiera inline el breakpoint
-     nunca podría ocultarlos (mismo motivo por el que grid-template-columns
-     de .lp-funcs-grid tampoco quedó en el style= inline, más arriba). */
+     footer); "Iniciar sesión" y "Crear mi cuenta" se achican en vez de
+     esconderse — un visitante mobile que ya tiene cuenta necesita poder
+     entrar sin tener que buscar el link en el footer. No se agregó un menú
+     hamburguesa nuevo — el diseño no especificaba ninguno y hubiera sido
+     inventar UI que no estaba pedida. */
+  .lp-header-inner{padding:0 32px;gap:32px}
+  /* display:flex de estos vive acá (no en el style= inline, como el resto
+     de sus propiedades) para que el media query de abajo pueda pisarlo con
+     display:none — un inline style le gana a cualquier regla de hoja de
+     estilo, así que si display siguiera inline el breakpoint nunca podría
+     ocultarlos (mismo motivo por el que grid-template-columns de
+     .lp-funcs-grid tampoco quedó en el style= inline, más arriba). Mismo
+     motivo para el padding/font-size de .lp-signin y .lp-cta-sm más abajo:
+     esas propiedades quedaron en el style= inline del botón (spacing propio
+     del componente), así que el breakpoint necesita !important para poder
+     achicarlas — no hay forma de ganarle a un inline style sin eso. */
   .lp-header-nav,.lp-header-signin{display:flex}
+  /* .lp-txt-s ("Ingresar"/"Crear cuenta") es la versión corta de estos dos
+     mismos links, sólo para el header compacto de mobile — a 320-375px ni
+     shrinkeando gap/padding/tipografía entraban "Iniciar sesión" + "Crear
+     mi cuenta" enteros (probado: seguía desbordando ~40px incluso al
+     mínimo razonable). En vez de inventar un menú hamburguesa nuevo, se
+     acorta el texto — mismo destino, mismo componente, nada nuevo. */
+  .lp-txt-s{display:none}
   @media (max-width:700px){
-    .lp-header-inner{padding:0 20px}
-    .lp-header-nav,.lp-header-signin{display:none}
+    .lp-header-inner{padding:0 12px;gap:6px}
+    .lp-header-nav{display:none}
+    .lp-header-brand{gap:6px!important}
+    .lp-header-brand .lp-mark-hdr{width:22px!important;height:22px!important}
+    .lp-header-brand-text{font-size:16px!important}
+    .lp-header-actions{gap:6px!important}
+    .lp-header-signin{padding:0 10px!important;font-size:13px!important}
+    .lp-cta-sm{padding:0 14px!important;font-size:13px!important;height:34px!important}
+    .lp-txt-l{display:none}
+    .lp-txt-s{display:inline}
   }
 
   @media (prefers-reduced-motion:reduce){
