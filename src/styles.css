@@ -358,16 +358,30 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .switch.is-on .knob{transform:translateX(18px)}
 .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 
-/* ---------- checkbox lp-toggle (redondo, como el check de la hoja de evaluación) ---------- */
-.lp-toggle{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
-.lp-cb-wrap{position:relative;width:22px;height:22px;flex:none}
-.lp-tg{
-  position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--c-muted4);background:transparent;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;pointer-events:none;
-  transition:background 120ms ease,border-color 120ms ease;
+/* ---------- tick de "hecho" (redondo, como el check de la hoja de evaluación) ----------
+   Fase 4: antes era un <input type=checkbox> con un <span> visual encima
+   (pointer-events:none para que el click pasara al input real) — un botón
+   real es más simple y más robusto: un solo elemento interactivo, sin
+   ambigüedad de a quién le llega el click, Enter/Espacio gratis por ser
+   <button>, y área de toque real de 28px (antes 22px) sin agrandar el
+   círculo visual. */
+.lp-toggle-btn{
+  position:relative;width:28px;height:28px;flex:none;border-radius:50%;
+  border:1.5px solid var(--c-muted4);background:transparent;padding:0;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;
+  cursor:pointer;transition:background 120ms ease,border-color 120ms ease;
 }
-.lp-toggle:checked + .lp-tg{background:var(--c-success);border-color:var(--c-success)}
-.lp-toggle:disabled + .lp-tg{opacity:.5}
+.lp-toggle-btn.is-on{background:var(--c-success);border-color:var(--c-success)}
+.lp-toggle-btn:disabled{opacity:.5;cursor:default}
+.lp-toggle-btn:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+
+/* ---------- Fase 4: menú chico del tick de una evaluación ---------- */
+.tick-menu{position:fixed;z-index:140;min-width:180px;background:var(--c-surface);border-radius:14px;box-shadow:var(--c-shadow);padding:6px;display:none;flex-direction:column;gap:2px}
+.tick-menu.is-open{display:flex}
+.tick-menu button{display:flex;align-items:center;width:100%;height:42px;padding:0 14px;border:none;background:transparent;border-radius:9px;font-size:14px;color:var(--c-ink);text-align:left;cursor:pointer}
+.tick-menu button:hover,.tick-menu button:focus-visible{background:var(--c-surfaceAlt);outline:none}
+.tick-menu-nota-form{display:flex;gap:6px;padding:4px 8px 6px;align-items:center}
+.tick-menu-nota-form input{flex:1;min-width:0;height:36px;border-radius:8px;border:1px solid var(--c-line);padding:0 10px;font-size:14px;background:var(--c-surfaceAlt);color:var(--c-ink)}
 
 /* ---------- card ---------- */
 .card{background:var(--c-surface);border:none;border-radius:var(--r-card);box-shadow:var(--c-shadow)}

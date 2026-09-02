@@ -1424,10 +1424,7 @@
     evals.forEach(function (a) {
       var node = tpl('eval-row');
       node.title = 'Editar este ítem';
-      var check = qf(node, 'check'); check.checked = !!a.hecho;
-      check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(a.id, check.checked); });
-      check.addEventListener('click', function (ev) { ev.stopPropagation(); });
-      var mark = qf(node, 'checkMark'); mark.textContent = a.hecho ? '✓' : '';
+      wireTickButton(qf(node, 'check'), a);
       var titulo = qf(node, 'titulo'); titulo.textContent = a.titulo; titulo.classList.toggle('done', !!a.hecho);
       qf(node, 'metaTxt').textContent = a.tipo + ' · ' + formatFechaAgenda(a.fecha, a.hora) + (a.nota != null ? ' · ' + valU(a.nota, m.esc) : '');
       renderTagChipInto(qf(node, 'tag'), a.tagId);
@@ -1764,16 +1761,8 @@
     items.forEach(function (item) {
       var node = tpl('agenda-row');
       var check = qf(node, 'check');
-      var mark = qf(node, 'checkMark');
       if (item.kind === 'materia') {
-        check.checked = !!item.hecho;
-        // Mismo blindaje que el checkbox análogo del detalle de materia
-        // (ver eval-row): sin esto, el click depende únicamente del
-        // `if (ev.target === check) return` del handler de fila más abajo
-        // — stopPropagation() lo hace explícito en vez de implícito.
-        check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(item.id, check.checked); });
-        check.addEventListener('click', function (ev) { ev.stopPropagation(); });
-        mark.textContent = item.hecho ? '✓' : '';
+        wireTickButton(check, { id: item.id, kind: item.itemKind, hecho: item.hecho, nota: item.nota, notaMaxima: item.notaMaxima, titulo: item.titulo });
       } else {
         check.disabled = true; check.title = 'Los eventos personales no tienen estado de entrega';
       }
@@ -1790,8 +1779,9 @@
       setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);
       var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
-      makeRowClickable(node, function (ev) {
-        if (ev.target === check) return;
+      // El tick ya corta la propagación en su propio click (wireTickButton)
+      // — no hace falta comparar ev.target acá.
+      makeRowClickable(node, function () {
         if (item.kind === 'materia') openEvaluacionModal({ editId: item.id }); else openPersonalModal({ editId: item.id });
       }, 'Editar ' + item.titulo);
       // Swipe para marcar entregado + long-press para el menú contextual —
@@ -2306,6 +2296,51 @@
     menu.style.bottom = 'auto';
     menu.classList.add('is-open');
   }
+  // ---- Fase 4: tick de "hecho" (agenda-row/eval-row) ----
+  // Tarea → toggle directo. Evaluación → menú chico ("Esperando nota"/
+  // "Cargar nota"), a diferencia de #row-menu (mobile-only, 4 acciones de
+  // toda la fila): funciona en cualquier ancho y sólo tiene que ver con el
+  // tick, no con el resto de la fila.
+  var TICK_MENU_ITEM = null;
+  function closeTickMenu() {
+    document.getElementById('tick-menu').classList.remove('is-open');
+    document.getElementById('tick-menu-nota-form').classList.add('hidden');
+    document.getElementById('tick-menu-esperando').classList.remove('hidden');
+    document.getElementById('tick-menu-cargar').classList.remove('hidden');
+    TICK_MENU_ITEM = null;
+  }
+  function openTickMenuAt(btnEl, item) {
+    closeQuickSheet(); closeRowMenu();
+    TICK_MENU_ITEM = item;
+    document.getElementById('tick-menu-nota-form').classList.add('hidden');
+    document.getElementById('tick-menu-esperando').classList.remove('hidden');
+    document.getElementById('tick-menu-cargar').classList.remove('hidden');
+    var menu = document.getElementById('tick-menu');
+    var r = btnEl.getBoundingClientRect();
+    var margin = 8, menuW = 180, menuHEstimate = 92;
+    var left = Math.min(window.innerWidth - menuW - margin, r.left);
+    menu.style.left = Math.max(margin, left) + 'px';
+    if (r.bottom + margin + menuHEstimate < window.innerHeight) { menu.style.top = (r.bottom + margin) + 'px'; menu.style.bottom = 'auto'; }
+    else { menu.style.bottom = (window.innerHeight - r.top + margin) + 'px'; menu.style.top = 'auto'; }
+    menu.classList.add('is-open');
+  }
+  // Pinta y ata el tick de una fila (agenda-row/eval-row) — `item` es la
+  // fila cruda de agenda ({id, kind, hecho, nota, notaMaxima, titulo}).
+  function wireTickButton(btn, item) {
+    var esEval = item.kind === 'evaluacion';
+    btn.classList.toggle('is-on', !!item.hecho);
+    btn.textContent = item.hecho ? '✓' : '';
+    btn.setAttribute('aria-pressed', String(!!item.hecho));
+    btn.setAttribute('aria-label', esEval
+      ? ('Opciones de nota para ' + item.titulo)
+      : (item.hecho ? ('Marcar ' + item.titulo + ' como pendiente') : ('Marcar ' + item.titulo + ' como completada')));
+    btn.onclick = function (ev) {
+      ev.stopPropagation();
+      if (esEval) openTickMenuAt(btn, item);
+      else toggleAgendaHecho(item.id, !item.hecho);
+    };
+  }
+
   // Estado ocupado de un botón mientras espera una llamada a Supabase — hay
   // red de por medio ahora, así que un guardado puede tardar un instante.
   function setBtnBusy(btn, busy, busyLabel) {
@@ -3407,6 +3442,46 @@
       if (sheet.classList.contains('is-open') && !sheet.contains(e.target) && e.target !== btnFab && !btnFab.contains(e.target)) closeQuickSheet();
       var menu = document.getElementById('row-menu');
       if (menu.classList.contains('is-open') && !menu.contains(e.target)) closeRowMenu();
+      var tickMenu = document.getElementById('tick-menu');
+      if (tickMenu.classList.contains('is-open') && !tickMenu.contains(e.target) && !e.target.classList.contains('lp-toggle-btn')) closeTickMenu();
+    });
+    document.getElementById('tick-menu-esperando').addEventListener('click', async function () {
+      var item = TICK_MENU_ITEM;
+      closeTickMenu();
+      if (!item) return;
+      var arr = loadAgendaRaw();
+      arr.forEach(function (a) { if (a.id === item.id) { a.hecho = true; a.nota = null; } });
+      var ok = await saveAgendaRaw(arr);
+      if (!ok) avisarError();
+      renderRoute();
+    });
+    document.getElementById('tick-menu-cargar').addEventListener('click', function () {
+      var item = TICK_MENU_ITEM;
+      if (!item) return;
+      document.getElementById('tick-menu-esperando').classList.add('hidden');
+      document.getElementById('tick-menu-cargar').classList.add('hidden');
+      document.getElementById('tick-menu-nota-form').classList.remove('hidden');
+      var input = document.getElementById('tick-menu-nota-input');
+      input.max = item.notaMaxima != null ? item.notaMaxima : '';
+      input.value = item.nota != null ? item.nota : '';
+      input.focus(); input.select();
+    });
+    document.getElementById('tick-menu-nota-input').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('tick-menu-nota-guardar').click(); }
+    });
+    document.getElementById('tick-menu-nota-guardar').addEventListener('click', async function () {
+      var item = TICK_MENU_ITEM;
+      if (!item) return;
+      var input = document.getElementById('tick-menu-nota-input');
+      if (input.value === '') { input.focus(); return; }
+      var v = Number(input.value);
+      if (item.notaMaxima != null) v = Math.max(0, Math.min(v, item.notaMaxima));
+      closeTickMenu();
+      var arr = loadAgendaRaw();
+      arr.forEach(function (a) { if (a.id === item.id) { a.nota = v; a.hecho = true; } });
+      var ok = await saveAgendaRaw(arr);
+      if (!ok) avisarError();
+      renderRoute();
     });
 
     // ---- Mobile: buscador que se expande en el header ----

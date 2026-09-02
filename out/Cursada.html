@@ -366,16 +366,30 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .switch.is-on .knob{transform:translateX(18px)}
 .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 
-/* ---------- checkbox lp-toggle (redondo, como el check de la hoja de evaluación) ---------- */
-.lp-toggle{position:absolute;opacity:0;width:22px;height:22px;margin:0;cursor:pointer}
-.lp-cb-wrap{position:relative;width:22px;height:22px;flex:none}
-.lp-tg{
-  position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--c-muted4);background:transparent;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;pointer-events:none;
-  transition:background 120ms ease,border-color 120ms ease;
+/* ---------- tick de "hecho" (redondo, como el check de la hoja de evaluación) ----------
+   Fase 4: antes era un <input type=checkbox> con un <span> visual encima
+   (pointer-events:none para que el click pasara al input real) — un botón
+   real es más simple y más robusto: un solo elemento interactivo, sin
+   ambigüedad de a quién le llega el click, Enter/Espacio gratis por ser
+   <button>, y área de toque real de 28px (antes 22px) sin agrandar el
+   círculo visual. */
+.lp-toggle-btn{
+  position:relative;width:28px;height:28px;flex:none;border-radius:50%;
+  border:1.5px solid var(--c-muted4);background:transparent;padding:0;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;
+  cursor:pointer;transition:background 120ms ease,border-color 120ms ease;
 }
-.lp-toggle:checked + .lp-tg{background:var(--c-success);border-color:var(--c-success)}
-.lp-toggle:disabled + .lp-tg{opacity:.5}
+.lp-toggle-btn.is-on{background:var(--c-success);border-color:var(--c-success)}
+.lp-toggle-btn:disabled{opacity:.5;cursor:default}
+.lp-toggle-btn:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+
+/* ---------- Fase 4: menú chico del tick de una evaluación ---------- */
+.tick-menu{position:fixed;z-index:140;min-width:180px;background:var(--c-surface);border-radius:14px;box-shadow:var(--c-shadow);padding:6px;display:none;flex-direction:column;gap:2px}
+.tick-menu.is-open{display:flex}
+.tick-menu button{display:flex;align-items:center;width:100%;height:42px;padding:0 14px;border:none;background:transparent;border-radius:9px;font-size:14px;color:var(--c-ink);text-align:left;cursor:pointer}
+.tick-menu button:hover,.tick-menu button:focus-visible{background:var(--c-surfaceAlt);outline:none}
+.tick-menu-nota-form{display:flex;gap:6px;padding:4px 8px 6px;align-items:center}
+.tick-menu-nota-form input{flex:1;min-width:0;height:36px;border-radius:8px;border:1px solid var(--c-line);padding:0 10px;font-size:14px;background:var(--c-surfaceAlt);color:var(--c-ink)}
 
 /* ---------- card ---------- */
 .card{background:var(--c-surface);border:none;border-radius:var(--r-card);box-shadow:var(--c-shadow)}
@@ -2122,6 +2136,18 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <button type="button" id="row-menu-materia">Ver la materia</button>
     <button type="button" id="row-menu-eliminar" class="danger">Eliminar</button>
   </div>
+  <!-- Fase 4: menú chico del tick de una evaluación (desktop y mobile, a
+       diferencia de #row-menu que es sólo mobile) — "Esperando nota" o
+       "Cargar nota", esta última muta el mismo popover a un input chico en
+       vez de abrir el modal entero. -->
+  <div class="tick-menu" id="tick-menu" aria-label="Marcar evaluación">
+    <button type="button" id="tick-menu-esperando">Esperando nota</button>
+    <button type="button" id="tick-menu-cargar">Cargar nota</button>
+    <div class="tick-menu-nota-form hidden" id="tick-menu-nota-form">
+      <input type="number" id="tick-menu-nota-input" step="0.1" min="0" aria-label="Nota obtenida">
+      <button type="button" class="btn btn-sm btn-primary" id="tick-menu-nota-guardar">Guardar</button>
+    </div>
+  </div>
   <nav class="tabbar" id="tabbar" aria-label="Navegación principal">
     <button class="tab" data-nav="inicio" aria-label="Inicio" title="Inicio"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
     <button class="tab" data-nav="materias" aria-label="Materias" title="Materias"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></button>
@@ -2578,7 +2604,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   <div class="swipe-row">
     <div class="swipe-action">✓ Listo</div>
     <div class="eval-row">
-      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <button type="button" class="lp-toggle-btn" data-f="check"></button>
       <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
       <span class="chip hidden" data-f="tag"></span>
       <span class="badge" data-f="badge"></span>
@@ -2594,7 +2620,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   <div class="swipe-row">
     <div class="swipe-action">✓ Listo</div>
     <div class="agenda-row">
-      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <button type="button" class="lp-toggle-btn" data-f="check"></button>
       <div class="bar4" data-f="bar"></div>
       <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="tipo"></span></div></div>
       <div class="agenda-fecha-col">
@@ -4291,10 +4317,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
     evals.forEach(function (a) {
       var node = tpl('eval-row');
       node.title = 'Editar este ítem';
-      var check = qf(node, 'check'); check.checked = !!a.hecho;
-      check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(a.id, check.checked); });
-      check.addEventListener('click', function (ev) { ev.stopPropagation(); });
-      var mark = qf(node, 'checkMark'); mark.textContent = a.hecho ? '✓' : '';
+      wireTickButton(qf(node, 'check'), a);
       var titulo = qf(node, 'titulo'); titulo.textContent = a.titulo; titulo.classList.toggle('done', !!a.hecho);
       qf(node, 'metaTxt').textContent = a.tipo + ' · ' + formatFechaAgenda(a.fecha, a.hora) + (a.nota != null ? ' · ' + valU(a.nota, m.esc) : '');
       renderTagChipInto(qf(node, 'tag'), a.tagId);
@@ -4631,16 +4654,8 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
     items.forEach(function (item) {
       var node = tpl('agenda-row');
       var check = qf(node, 'check');
-      var mark = qf(node, 'checkMark');
       if (item.kind === 'materia') {
-        check.checked = !!item.hecho;
-        // Mismo blindaje que el checkbox análogo del detalle de materia
-        // (ver eval-row): sin esto, el click depende únicamente del
-        // `if (ev.target === check) return` del handler de fila más abajo
-        // — stopPropagation() lo hace explícito en vez de implícito.
-        check.addEventListener('change', function (ev) { ev.stopPropagation(); toggleAgendaHecho(item.id, check.checked); });
-        check.addEventListener('click', function (ev) { ev.stopPropagation(); });
-        mark.textContent = item.hecho ? '✓' : '';
+        wireTickButton(check, { id: item.id, kind: item.itemKind, hecho: item.hecho, nota: item.nota, notaMaxima: item.notaMaxima, titulo: item.titulo });
       } else {
         check.disabled = true; check.title = 'Los eventos personales no tienen estado de entrega';
       }
@@ -4657,8 +4672,9 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
       setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);
       var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
-      makeRowClickable(node, function (ev) {
-        if (ev.target === check) return;
+      // El tick ya corta la propagación en su propio click (wireTickButton)
+      // — no hace falta comparar ev.target acá.
+      makeRowClickable(node, function () {
         if (item.kind === 'materia') openEvaluacionModal({ editId: item.id }); else openPersonalModal({ editId: item.id });
       }, 'Editar ' + item.titulo);
       // Swipe para marcar entregado + long-press para el menú contextual —
@@ -5173,6 +5189,51 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
     menu.style.bottom = 'auto';
     menu.classList.add('is-open');
   }
+  // ---- Fase 4: tick de "hecho" (agenda-row/eval-row) ----
+  // Tarea → toggle directo. Evaluación → menú chico ("Esperando nota"/
+  // "Cargar nota"), a diferencia de #row-menu (mobile-only, 4 acciones de
+  // toda la fila): funciona en cualquier ancho y sólo tiene que ver con el
+  // tick, no con el resto de la fila.
+  var TICK_MENU_ITEM = null;
+  function closeTickMenu() {
+    document.getElementById('tick-menu').classList.remove('is-open');
+    document.getElementById('tick-menu-nota-form').classList.add('hidden');
+    document.getElementById('tick-menu-esperando').classList.remove('hidden');
+    document.getElementById('tick-menu-cargar').classList.remove('hidden');
+    TICK_MENU_ITEM = null;
+  }
+  function openTickMenuAt(btnEl, item) {
+    closeQuickSheet(); closeRowMenu();
+    TICK_MENU_ITEM = item;
+    document.getElementById('tick-menu-nota-form').classList.add('hidden');
+    document.getElementById('tick-menu-esperando').classList.remove('hidden');
+    document.getElementById('tick-menu-cargar').classList.remove('hidden');
+    var menu = document.getElementById('tick-menu');
+    var r = btnEl.getBoundingClientRect();
+    var margin = 8, menuW = 180, menuHEstimate = 92;
+    var left = Math.min(window.innerWidth - menuW - margin, r.left);
+    menu.style.left = Math.max(margin, left) + 'px';
+    if (r.bottom + margin + menuHEstimate < window.innerHeight) { menu.style.top = (r.bottom + margin) + 'px'; menu.style.bottom = 'auto'; }
+    else { menu.style.bottom = (window.innerHeight - r.top + margin) + 'px'; menu.style.top = 'auto'; }
+    menu.classList.add('is-open');
+  }
+  // Pinta y ata el tick de una fila (agenda-row/eval-row) — `item` es la
+  // fila cruda de agenda ({id, kind, hecho, nota, notaMaxima, titulo}).
+  function wireTickButton(btn, item) {
+    var esEval = item.kind === 'evaluacion';
+    btn.classList.toggle('is-on', !!item.hecho);
+    btn.textContent = item.hecho ? '✓' : '';
+    btn.setAttribute('aria-pressed', String(!!item.hecho));
+    btn.setAttribute('aria-label', esEval
+      ? ('Opciones de nota para ' + item.titulo)
+      : (item.hecho ? ('Marcar ' + item.titulo + ' como pendiente') : ('Marcar ' + item.titulo + ' como completada')));
+    btn.onclick = function (ev) {
+      ev.stopPropagation();
+      if (esEval) openTickMenuAt(btn, item);
+      else toggleAgendaHecho(item.id, !item.hecho);
+    };
+  }
+
   // Estado ocupado de un botón mientras espera una llamada a Supabase — hay
   // red de por medio ahora, así que un guardado puede tardar un instante.
   function setBtnBusy(btn, busy, busyLabel) {
@@ -6274,6 +6335,46 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
       if (sheet.classList.contains('is-open') && !sheet.contains(e.target) && e.target !== btnFab && !btnFab.contains(e.target)) closeQuickSheet();
       var menu = document.getElementById('row-menu');
       if (menu.classList.contains('is-open') && !menu.contains(e.target)) closeRowMenu();
+      var tickMenu = document.getElementById('tick-menu');
+      if (tickMenu.classList.contains('is-open') && !tickMenu.contains(e.target) && !e.target.classList.contains('lp-toggle-btn')) closeTickMenu();
+    });
+    document.getElementById('tick-menu-esperando').addEventListener('click', async function () {
+      var item = TICK_MENU_ITEM;
+      closeTickMenu();
+      if (!item) return;
+      var arr = loadAgendaRaw();
+      arr.forEach(function (a) { if (a.id === item.id) { a.hecho = true; a.nota = null; } });
+      var ok = await saveAgendaRaw(arr);
+      if (!ok) avisarError();
+      renderRoute();
+    });
+    document.getElementById('tick-menu-cargar').addEventListener('click', function () {
+      var item = TICK_MENU_ITEM;
+      if (!item) return;
+      document.getElementById('tick-menu-esperando').classList.add('hidden');
+      document.getElementById('tick-menu-cargar').classList.add('hidden');
+      document.getElementById('tick-menu-nota-form').classList.remove('hidden');
+      var input = document.getElementById('tick-menu-nota-input');
+      input.max = item.notaMaxima != null ? item.notaMaxima : '';
+      input.value = item.nota != null ? item.nota : '';
+      input.focus(); input.select();
+    });
+    document.getElementById('tick-menu-nota-input').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('tick-menu-nota-guardar').click(); }
+    });
+    document.getElementById('tick-menu-nota-guardar').addEventListener('click', async function () {
+      var item = TICK_MENU_ITEM;
+      if (!item) return;
+      var input = document.getElementById('tick-menu-nota-input');
+      if (input.value === '') { input.focus(); return; }
+      var v = Number(input.value);
+      if (item.notaMaxima != null) v = Math.max(0, Math.min(v, item.notaMaxima));
+      closeTickMenu();
+      var arr = loadAgendaRaw();
+      arr.forEach(function (a) { if (a.id === item.id) { a.nota = v; a.hecho = true; } });
+      var ok = await saveAgendaRaw(arr);
+      if (!ok) avisarError();
+      renderRoute();
     });
 
     // ---- Mobile: buscador que se expande en el header ----

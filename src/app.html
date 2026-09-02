@@ -553,6 +553,18 @@
     <button type="button" id="row-menu-materia">Ver la materia</button>
     <button type="button" id="row-menu-eliminar" class="danger">Eliminar</button>
   </div>
+  <!-- Fase 4: menú chico del tick de una evaluación (desktop y mobile, a
+       diferencia de #row-menu que es sólo mobile) — "Esperando nota" o
+       "Cargar nota", esta última muta el mismo popover a un input chico en
+       vez de abrir el modal entero. -->
+  <div class="tick-menu" id="tick-menu" aria-label="Marcar evaluación">
+    <button type="button" id="tick-menu-esperando">Esperando nota</button>
+    <button type="button" id="tick-menu-cargar">Cargar nota</button>
+    <div class="tick-menu-nota-form hidden" id="tick-menu-nota-form">
+      <input type="number" id="tick-menu-nota-input" step="0.1" min="0" aria-label="Nota obtenida">
+      <button type="button" class="btn btn-sm btn-primary" id="tick-menu-nota-guardar">Guardar</button>
+    </div>
+  </div>
   <nav class="tabbar" id="tabbar" aria-label="Navegación principal">
     <button class="tab" data-nav="inicio" aria-label="Inicio" title="Inicio"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
     <button class="tab" data-nav="materias" aria-label="Materias" title="Materias"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></button>
@@ -1009,7 +1021,7 @@
   <div class="swipe-row">
     <div class="swipe-action">✓ Listo</div>
     <div class="eval-row">
-      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <button type="button" class="lp-toggle-btn" data-f="check"></button>
       <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
       <span class="chip hidden" data-f="tag"></span>
       <span class="badge" data-f="badge"></span>
@@ -1025,7 +1037,7 @@
   <div class="swipe-row">
     <div class="swipe-action">✓ Listo</div>
     <div class="agenda-row">
-      <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
+      <button type="button" class="lp-toggle-btn" data-f="check"></button>
       <div class="bar4" data-f="bar"></div>
       <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="tipo"></span></div></div>
       <div class="agenda-fecha-col">
