@@ -2005,3 +2005,60 @@ solo cambio — confirmado a mano en ambos. Sirve de recordatorio para el
 resto de este rediseño: salvo el degradé del Cambio 1 (explícitamente sólo
 oscuro), toda regla nueva de esta pasada es compartida entre temas por
 default a menos que se documente lo contrario.
+
+### Segunda corrección: degradé también en claro, grilla de Calendario, tab bar mobile
+
+Tres pedidos más del usuario sobre el mismo rediseño:
+
+**Degradé en claro.** El Cambio 1 original era explícitamente sólo oscuro
+(pedido así desde el principio, referencia en oscuro). El usuario pidió
+después el mismo tratamiento en claro, aclarando "sin el fondo negro pero
+sí el estilo". Se agregó una regla base en `.main` (sin scope de tema, así
+que rige en claro por default) con la misma composición de dos radiales
+pero con tinte muy sutil (`rgba(130,160,210,.32)` y azul de marca al `.14`)
+sobre `--c-bg` claro — el gris de base no tiene el mismo margen que el
+negro para un degradé marcado sin lavar el contraste con las cards
+blancas. La regla oscura original sigue intacta y la sigue pisando por
+especificidad (`html[data-theme="oscuro"] .main`).
+
+**Grilla de Calendario "suelta".** `.cal-cell` tenía fondo + borde + radio
+propios por celda (42 a la vez) con `gap:8px` entre ellas — se leía como
+celdas flotando por separado, no como una grilla. Se rehizo al estilo
+Apple Calendar: el marco (borde fino + radio + `overflow:hidden` para
+recortar esquinas) pasó a vivir en `.cal-grid` (el contenedor), y cada
+`.cal-cell` sólo aporta un hairline (`border-right`/`border-bottom` en
+`--c-line-faint2`, el mismo tono que ya separaba filas en el resto de la
+app) — sin borde en la última columna/fila (`:nth-child(7n)`/
+`:nth-last-child(-n+7)`, no hace falta JS porque el total de celdas
+siempre es múltiplo de 7). `.cal-weekdays` pasó a `gap:0` también para que
+sus columnas sigan alineadas con las de la grilla de abajo. "Hoy" pasó de
+`border-color` a `box-shadow:inset` (ya no hay un borde propio de 4 lados
+que recolorear) y "seleccionado" a `outline-offset:-2px` (offset positivo
+quedaba recortado por el nuevo `overflow:hidden` del contenedor en las
+celdas de borde).
+
+**Tab bar mobile: más fina, íconos del sidebar, sin nombres.** Los 5
+botones de `.tabbar` tenían una forma dibujada por CSS (punto/cuadrado/
+rombo/rectángulo) + el nombre de la vista debajo. Se reemplazó por los
+mismos `<svg>` que ya usa el sidebar (Cambio 2 — literalmente el mismo
+markup, sin duplicar el set de íconos en otro lugar), sin texto visible
+(queda como `aria-label`/`title` para accesibilidad). Sin la línea de
+texto, cada tab bajó de 50px a 44px y el padding de la barra de 6px a 5px
+— unos 8px menos de alto en total. Ese mismo delta de 8px se restó de
+todos los offsets que reservan espacio para la tab bar/FAB en mobile
+(`.fab` bottom 72→64px, `.quick-sheet` bottom 136→128px, `.view`
+padding-bottom 112→104px, `#horario .view` 96→88px) para que el contenido
+no quede ni corto de espacio ni con un hueco de más al fondo.
+
+Al probarlo en 375px salió un bug real: el toggle Claro/Oscuro + botón
+Imprimir que se habían agregado al header propio de Horario (Cambio 3,
+pensados para desktop) no tenían guard de mobile — en la fila fija de
+52px del `.topbar` mobile se apretaban contra el título "Horario semanal".
+Se ocultan en `@media(max-width:760px)` (`#horario-theme-toggle`,
+`#btn-horario-imprimir` — se le puso id al `.seg` nuevo para poder
+apuntarle sin tocar los demás `.seg` de la app, como el Mes/Semana de
+Calendario, que sí sigue visible en mobile). No se pierde funcionalidad
+real: en mobile no había forma de cambiar de tema desde ningún lado antes
+de este rediseño tampoco (el toggle global vive en `.app-toolbar`, oculto
+en mobile desde antes), y el botón de Imprimir real no se expone en mobile
+en ninguna otra vista.
