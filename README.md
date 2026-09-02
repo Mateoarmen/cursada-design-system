@@ -2062,3 +2062,159 @@ real: en mobile no había forma de cambiar de tema desde ningún lado antes
 de este rediseño tampoco (el toggle global vive en `.app-toolbar`, oculto
 en mobile desde antes), y el botón de Imprimir real no se expone en mobile
 en ninguna otra vista.
+
+## Bloque A — código/créditos, fecha de nacimiento, teléfono, universidad, etiquetas
+
+Primer bloque de una tanda grande de mejoras, arrancada con una auditoría
+completa (schema real de Supabase + búsqueda de todos los usos en código)
+antes de tocar nada, y un plan bloque por bloque acordado antes de empezar.
+
+**Código y créditos de materia, afuera de todo.** `cod`/`creditos` salieron
+de columnas, formulario, tarjetas, tabla, detalle, filtros, búsquedas y
+seed. En los ~15 lugares donde el código se usaba como identificador visual
+corto (chip, tile, avatar de Detalle) se reemplazó por `nombre` truncado o
+por `materiaAbrev()` (primera palabra, 4 letras) para los espacios muy
+angostos (tile cuadrado, columna de Horario en mobile) que antes usaban el
+prefijo del código.
+
+**Conflicto real encontrado en la auditoría, no inventado:** `materia.creditos`
+alimentaba una meta de "créditos hacia el título" ya existente (Ajustes +
+widget de Inicio + sección Progreso), que el pedido original no mencionaba.
+Se frenó y se preguntó antes de borrar la columna — la decisión fue sacar
+esa meta por completo (queda sólo la meta por cantidad de materias, que no
+depende de créditos) en vez de conservar la columna oculta.
+
+**Edad → fecha de nacimiento.** Selects de día/mes/año (no `<input
+type="date">`: el pedido pedía explícitamente algo usable en mobile sin
+tener que navegar 20 años atrás en un calendario nativo). La edad se
+consulta con una vista, `profiles_con_edad` (`extract(year from age(...))`,
+calculada al leer — nunca se desactualiza sola). La vista se creó primero
+sin `security_invoker` por descuido propio y quedó filtrando profiles de
+cualquier usuario saltándose RLS — se encontró con el advisor de seguridad
+de Supabase antes de dar el bloque por cerrado, `alter view ... set
+(security_invoker = true)` lo corrigió.
+
+**Teléfono con país.** Selector de país (bandera + prefijo, `+598` por
+default) + `libphonenumber-js` cargado por CDN (`bundle/
+libphonenumber-js.min.js`, mismo patrón que ya usaba `@supabase/
+supabase-js`) para formatear mientras se escribe y validar contra el país
+elegido. Se guarda en `telefono_e164` + `telefono_pais` por separado. Si el
+CDN no carga, degrada a guardar el número tal cual lo escribió el usuario
+en vez de romper el formulario.
+
+**Universidad reemplaza a facultad** (confirmado explícitamente: no son dos
+campos separados). Tabla `universities` nueva, lectura pública, 5 filas
+precargadas (ORT, UCU, UM, UdelaR, UDE) + "Otra" en texto libre por perfil
+(`university_other`, nunca se inserta en la tabla global). Los perfiles que
+ya tenían `facultad` cargada se migraron a `university_other` antes de
+borrar la columna, para no perder ese dato.
+
+**Etiquetas de eventos**, tabla `event_tags` nueva (RLS por usuario, `kind`
+académico/personal, `color` reusando la misma paleta `ACCENTS` que ya usan
+las materias — no un sistema de color nuevo). Selector con creación inline
+en los modales de Evaluación y Evento personal, que de paso reemplaza un
+selector de "Categoría" que ya existía en el modal de evento personal pero
+estaba deshabilitado y no hacía nada (Trabajo/Salud tenían `title="No
+disponible"`). Gestión de renombrar/eliminar desde Ajustes. Un solo
+`renderTagChipInto()` para los 5 lugares donde se muestra un chip de tag.
+
+**El trigger `handle_new_user()` de Supabase** (vive en la base, no en este
+repo) insertaba `edad`/`facultad`/`telefono` directo desde los metadatos de
+`signUp()` — se reescribió para los campos nuevos, preservando
+`SECURITY DEFINER` y `search_path` tal cual estaban (`create or replace
+function` no toca los permisos ya otorgados sobre la función, sólo el
+cuerpo).
+
+## Bloque C — pantalla de Inicio
+
+**Tarjeta "Progreso del semestre"**, la de más peso visual de Inicio,
+reemplaza la KPI "Materias cursando". Promedio del semestre + delta contra
+el semestre anterior (mismo criterio ya establecido en
+`semestresOrdenados()`: posición real, nunca "el anteúltimo"), anillo de
+notas cargadas sobre evaluaciones esperadas (`ringStyle()`, reusado, no un
+componente nuevo), y desglose por materia ordenado con la peor encaminada
+primero (mismo criterio de ordenar por `actual/total` que ya usaba
+`riesgo-panel`, aplicado acá a la lista completa en vez de sólo a las en
+riesgo). Estado vacío con CTA a Agenda en vez de un 0 — se probó
+explícitamente creando un semestre con una materia sin evaluaciones para
+verificar que el estado vacío se vea bien y no un placeholder roto.
+
+**Countdown en vivo** (`formatCountdown()`, `setCountdownEnNodo()`,
+`iniciarCountdownGlobal()`) — un solo `setInterval` de 30s para toda la
+app, arrancado una vez en el bootstrap, no uno por tarjeta. Sin hora sólo
+habla en días ("en 3 d", "vence hoy"); con hora baja a horas/minutos.
+Diseñada desde el principio para reusarse en Agenda (bloque D2) sin
+duplicar la función, cosa que efectivamente pasó.
+
+**"+ Nuevo" con 4 opciones.** No son 4 modales nuevos — Materia abre
+`openMateriaModal`, Evaluación y Tarea abren el mismo `openEvaluacionModal`
+(sólo cambia `tipoPreset`), y Cargar nota abre el mismo modal de Evaluación
+con `hecho` precargado en "Entregado/rendido" y el foco inicial en el campo
+de nota en vez del título. Dropdown propio (`.nuevo-menu`), no el
+`quick-sheet`/FAB existente — ese es sólo mobile y este botón vive también
+en desktop.
+
+**"Lo próximo" en desktop.** No se puede mover un nodo entre contenedores
+CSS distintos sólo con media queries (son padres diferentes: fuera de
+`.inicio-cols` en mobile, dentro de la columna derecha en desktop) — se
+resolvió reubicando el nodo por JS según `esMobile()`
+(`posicionarInicioHero()`, llamada en cada render de Inicio y en un
+listener de `resize` liviano para el caso de cruzar el breakpoint sin
+navegar). Sus estilos, que antes vivían enteros dentro del `@media
+(max-width:760px)`, se subieron a la hoja base — si no, se verían sin
+formato en desktop (mismo tipo de bug que ya documentó el rediseño mobile
+más arriba).
+
+## Bloque D — Agenda y semestres
+
+**Línea de color del evento, rediseñada.** El bug real (no estético, de
+especificidad CSS): `barStyle()` fijaba `width`/`height`/`border-radius`
+por `style` inline, y una regla sólo de tema oscuro trataba de convertir esa
+barra en un riel de borde izquierdo pisando esas mismas propiedades — el
+inline le ganaba en `height` y `border-radius` (no en `position`, que sí
+tomaba), así que quedaba una pastillita corta de 36px flotando en la
+esquina en vez de un borde prolijo de punta a punta. Se separó en dos: JS
+(`barColorStyle()`) sólo pone el color, la geometría entera vive en una
+única regla CSS que ahora corre en los dos temas, no sólo en oscuro. El
+riel sigue el color de materia/personal (misma identidad que el chip, el
+Calendario y Horario) — la etiqueta ya tiene su propio chip de color al
+lado, no compite con el riel.
+
+**El tick de "hecho" en desktop no se pudo reproducir.** Se probó con
+clicks de mouse reales (no sintéticos) en tres anchos de desktop distintos
+(703px, 900px, 1200px) contra el checkbox real de una fila de Agenda, y en
+los tres casos el toggle funcionó y persistió — incluso encontrando en el
+camino un bug real pero *del entorno de prueba* (el emulador de viewport
+del browser de este entorno pierde la correspondencia de coordenadas del
+click después de usar la acción de scroll con viewports grandes
+emulados — se esquivó haciendo `scrollIntoView()` por JS en vez de scroll
+de mouse simulado). No se descarta que el bug reportado sea real en algún
+navegador o condición específica no reproducida acá. Se blindó de todos
+modos el checkbox de `agenda-row` con `stopPropagation()` en `click` y
+`change`, igual que ya tenía el checkbox análogo de `eval-row` (detalle de
+materia) — hoy dependía sólo del `if (ev.target === check) return` del
+handler de la fila; con esto queda explícito, no implícito.
+
+**Countdown en Agenda**: mismo `formatCountdown()`/`setCountdownEnNodo()`
+del bloque C2, sin duplicar. La columna de fecha (`.agenda-fecha`) se
+envolvió en `.agenda-fecha-col` para poder apilar la fecha y el countdown
+— eso corrió el cálculo de `margin-left` que alinea esa columna bajo el
+título cuando la fila wrappea en mobile (antes contaba el ancho de la barra
+de color, que dejó de ocupar espacio en el flujo al pasar a
+`position:absolute`; se recalculó a mano, no se copió el valor viejo).
+
+**Reordenar semestres.** Columna `orden` nueva (migración con backfill por
+`created_at` existente, partido por usuario). Botones subir/bajar hacen un
+swap de `orden` con el vecino inmediato en `semestresOrdenados()`, no un
+renumerado global — más simple y no puede desincronizar el orden de nadie
+más. `semestresOrdenados()` pasó de ordenar por `created_at` a ordenar por
+`orden` (con `created_at` de respaldo para filas sin `orden` — no debería
+pasar después del backfill, pero por las dudas); esto también cambia,
+correctamente, qué cuenta como "semestre anterior" para el delta de
+Progreso — ahora es el anterior en el orden que el usuario eligió, no el
+cronológico. Botones deshabilitados (no ocultos) en los extremos, para que
+el tamaño de toque no se mueva de lugar entre filas. En el modal de
+Semestres a 375px, mostrar nombre + cantidad de materias + 4 botones de
+acción en una sola fila queda muy justo — se sacó la cantidad de materias
+(ya se ve al entrar al semestre) sólo en mobile para darle el espacio a los
+botones, que son la única forma de hacer esas acciones.
