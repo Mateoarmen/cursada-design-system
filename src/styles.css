@@ -272,7 +272,19 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .sidenav-user .who span{font-size:11px;color:var(--c-ink3)}
 .sidenav-toggles{display:flex;flex-direction:column;gap:8px;padding:0 8px}
 
-.main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
+/* Fondo "spotlight" (Cambio 1, ver también la regla oscura más abajo, junto
+   al resto de tokens de tema oscuro): mismo estilo en los dos temas —
+   degradé radial más luminoso hacia la esquina superior derecha,
+   oscureciéndose/apagándose hacia el resto — sin que claro herede el negro
+   del oscuro, con su propio tinte muy sutil sobre --c-bg claro (#EDEDF0).
+   Esta regla de acá es la base (rige en claro); la de html[data-theme=
+   "oscuro"] .main la pisa por especificidad en oscuro. */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;
+  background:
+    radial-gradient(1300px 780px at 96% -8%, rgba(130,160,210,.32), transparent 60%),
+    radial-gradient(820px 620px at 82% 4%, rgba(10,99,240,.14), transparent 55%),
+    var(--c-bg);
+}
 .topbar{
   min-height:62px;flex:none;background:rgba(245,245,247,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--c-line);
   display:flex;align-items:center;justify-content:space-between;padding:10px 34px;gap:10px 16px;flex-wrap:wrap;

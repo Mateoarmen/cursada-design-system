@@ -1899,16 +1899,24 @@ vista de Horario ajustada al estándar de la tercera captura.
 
 ### Cambio 1 — Fondo spotlight
 
-Nuevo bloque `html[data-theme="oscuro"] .main{background: radial-gradient(...), radial-gradient(...), var(--c-bg)}`
-en `styles.css`, junto al resto de reglas "Pro Edition" de tema oscuro. Dos
-capas radiales ancladas cerca de la esquina superior derecha (una más
-grande y tenue en azul-gris, otra más chica y saturada en el azul de marca)
-sobre el `--c-bg` sólido de siempre como última capa. Sólo `.main` — el
-`.sidenav` no se tocó, sigue con su fondo sólido `--c-sidenav`. Sólo tema
-oscuro, a pedido explícito (en claro `.main` sigue heredando `--c-bg` plano
-sin foco, sin regla nueva). `.topbar` ya tenía `backdrop-filter:blur(20px)`
-con fondo semitransparente — el degradé se ve correctamente atenuado/
-difuminado detrás suyo sin tocar esa regla.
+Dos capas radiales ancladas cerca de la esquina superior derecha (una más
+grande y tenue, otra más chica y con más tinte de acento) sobre el
+`--c-bg` sólido de siempre como última capa. Sólo `.main` — el `.sidenav`
+no se tocó, sigue con su fondo sólido `--c-sidenav`. `.topbar` ya tenía
+`backdrop-filter:blur(20px)` con fondo semitransparente — el degradé se ve
+correctamente atenuado/difuminado detrás suyo sin tocar esa regla.
+
+Primera pasada: sólo en `html[data-theme="oscuro"] .main` (pedido
+explícito original, con la referencia en oscuro). El usuario después pidió
+el mismo tratamiento en claro — "sin el fondo negro pero sí el estilo" — así
+que se agregó una regla base en `.main` (sin scope de tema, rige por
+default en claro) con la misma composición de dos radiales pero con tinte
+muy sutil (`rgba(130,160,210,.32)` / azul de marca al `.14`) sobre
+`--c-bg` claro (`#EDEDF0`), en vez de repetir los valores oscuros — a
+diferencia del negro, el gris claro de base no tiene margen para un
+degradé tan marcado sin lavar el contraste con las cards blancas. La regla
+oscura seguía siendo válida, con más especificidad (`html[data-theme=
+"oscuro"] .main`) la pisa en ese tema; no se tocó.
 
 ### Cambio 2 — Set de íconos lineales
 
