@@ -552,6 +552,15 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .detalle-sim-aviso{padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.45}
 .detalle-sim-slider-tag{flex:none;font-size:10px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--c-ink3);width:56px}
 .detalle-sim-escala-aviso{font-size:11px;color:var(--c-ink3)}
+
+/* ---------- Fase 3: modo lectura del modal de evaluación/tarea ---------- */
+.modal-view-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.modal-view-titulo{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-.015em;margin:10px 0 4px}
+.modal-view-grid{display:flex;gap:24px;flex-wrap:wrap;margin-top:6px}
+.modal-view-grid .col{display:flex;flex-direction:column;gap:4px}
+.modal-view-grid .lbl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3);font-weight:600}
+.modal-view-grid .val{font-size:14px;font-weight:600}
+.modal-view-notas{font-size:13px;color:var(--c-ink2);line-height:1.5;margin-top:4px}
 .eval-list{display:flex;flex-direction:column}
 .eval-row{display:flex;align-items:center;gap:15px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
 /* Cada fila vive envuelta en .swipe-row (ver template eval-row en app.html —

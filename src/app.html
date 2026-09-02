@@ -671,6 +671,31 @@
         </div>
       </div>
     </div>
+    <!-- Fase 3: modo lectura — se muestra primero al EDITAR un ítem
+         existente (nunca al crear uno nuevo, ahí no hay nada que "ver"
+         todavía). "Editar" recién ahí revela el <form> de siempre. -->
+    <div class="modal-body pad-lg hidden" id="modal-eval-view-step">
+      <div class="modal-view-head">
+        <span class="badge" id="modal-eval-view-badge"></span>
+        <span id="modal-eval-view-chip"></span>
+      </div>
+      <h3 class="modal-view-titulo" id="modal-eval-view-titulo"></h3>
+      <div class="modal-view-grid">
+        <div class="col"><span class="lbl">Fecha</span><span class="val mono" id="modal-eval-view-fecha"></span></div>
+        <div class="col" id="modal-eval-view-hora-col"><span class="lbl">Hora</span><span class="val mono" id="modal-eval-view-hora"></span></div>
+        <div class="col hidden" id="modal-eval-view-notamax-col"><span class="lbl">Nota máxima</span><span class="val mono" id="modal-eval-view-notamax"></span></div>
+        <div class="col hidden" id="modal-eval-view-nota-col"><span class="lbl">Nota obtenida</span><span class="val mono" id="modal-eval-view-nota"></span></div>
+      </div>
+      <div id="modal-eval-view-tag"></div>
+      <p class="modal-view-notas hidden" id="modal-eval-view-notas"></p>
+    </div>
+    <div class="modal-foot hidden" id="modal-eval-view-foot">
+      <button type="button" class="remove-link" id="btn-evaluacion-eliminar-view">Eliminar</button>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button type="button" class="btn" data-close-modal>Cerrar</button>
+        <button type="button" class="btn btn-primary" id="btn-eval-view-editar">Editar</button>
+      </div>
+    </div>
     <form id="form-evaluacion">
       <div class="modal-body pad-lg">
         <div class="field">

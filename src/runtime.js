@@ -1611,7 +1611,8 @@
   // STATE.editing.evaluacionId (sólo tiene sentido con el modal abierto),
   // acá no hay modal de por medio.
   async function eliminarEvaluacionId(id) {
-    if (!confirm('¿Eliminar esta evaluación?')) return;
+    var item = agendaRawById(id);
+    if (!confirm('¿Eliminar esta ' + (item && item.kind === 'tarea' ? 'tarea' : 'evaluación') + '?')) return;
     var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
     if (!ok) avisarError();
     renderRoute();
@@ -2617,6 +2618,10 @@
     }
     STATE.editing = {
       evaluacionId: opts.editId || null,
+      // Fase 3: editar uno existente siempre arranca en modo lectura
+      // ('ver'); crear uno nuevo va directo a elegir kind o al form (nunca
+      // hay nada que "ver" todavía en una creación).
+      modo: ev ? 'ver' : (kind ? 'form' : 'elegir-kind'),
       kind: kind,
       evalMateriaId: ev ? ev.materiaId : materiaDefault,
       evalTipo: ev ? (tipoEsPreset ? ev.tipo : 'Otro') : 'Parcial',
@@ -2645,6 +2650,7 @@
     renderModalEvalMaterias();
     renderModalEvalTipos();
     renderModalEvalKindStep();
+    renderModalEvalVisibility();
     renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
     openModal('modal-evaluacion');
     snapshotModalForm('modal-evaluacion');
@@ -2654,17 +2660,10 @@
     if (opts.modoNota) { var notaInput = document.getElementById('eval-nota'); if (notaInput) notaInput.focus(); }
   }
 
-  // Picker Tarea/Evaluación (paso 1 de la creación) + título dinámico del
-  // modal — el <form> entero queda escondido hasta que se elige un kind.
+  // Picker Tarea/Evaluación (paso 1 de la creación, STATE.editing.modo ===
+  // 'elegir-kind') — sólo pinta y ata el click de las cards; a quién le
+  // toca mostrarse (picker/lectura/form) lo decide renderModalEvalVisibility().
   function renderModalEvalKindStep() {
-    var step = document.getElementById('modal-eval-kind-step');
-    var formEl = document.getElementById('form-evaluacion');
-    var chosen = !!STATE.editing.kind;
-    step.classList.toggle('hidden', chosen);
-    formEl.classList.toggle('hidden', !chosen);
-    var editando = !!STATE.editing.evaluacionId;
-    var label = STATE.editing.kind === 'tarea' ? 'tarea' : (STATE.editing.kind === 'evaluacion' ? 'evaluación' : '');
-    document.getElementById('modal-evaluacion-title').textContent = editando ? ('Editar ' + label) : (label ? ('Nueva ' + label) : '¿Qué querés agregar?');
     document.querySelectorAll('#modal-eval-kind-cards .seg-card').forEach(function (btn) {
       var k = btn.getAttribute('data-kind');
       btn.classList.toggle('is-on', STATE.editing.kind === k);
@@ -2672,6 +2671,7 @@
         btn._boundKind = true;
         btn.addEventListener('click', function () {
           STATE.editing.kind = k;
+          STATE.editing.modo = 'form';
           if (k === 'evaluacion' && STATE.editing.evalNotaMaxima == null) {
             var m = computeMateriaById(STATE.editing.evalMateriaId);
             STATE.editing.evalNotaMaxima = m ? m.esc.total : null;
@@ -2680,10 +2680,61 @@
           form.notaMaxima.value = STATE.editing.evalNotaMaxima != null ? STATE.editing.evalNotaMaxima : '';
           form.nota.max = STATE.editing.evalNotaMaxima != null ? STATE.editing.evalNotaMaxima : '';
           renderModalEvalFieldsVisibility();
-          renderModalEvalKindStep();
+          renderModalEvalVisibility();
         });
       }
     });
+  }
+
+  // Fase 3: único punto que decide cuál de los 3 estados del modal se ve
+  // (elegir-kind / ver / form) y el título — evita que la lógica de
+  // mostrar/ocultar quede repartida entre el picker, el botón "Editar" y
+  // openEvaluacionModal.
+  function renderModalEvalVisibility() {
+    var modo = STATE.editing.modo;
+    document.getElementById('modal-eval-kind-step').classList.toggle('hidden', modo !== 'elegir-kind');
+    document.getElementById('modal-eval-view-step').classList.toggle('hidden', modo !== 'ver');
+    document.getElementById('modal-eval-view-foot').classList.toggle('hidden', modo !== 'ver');
+    document.getElementById('form-evaluacion').classList.toggle('hidden', modo !== 'form');
+    var editando = !!STATE.editing.evaluacionId;
+    var label = STATE.editing.kind === 'tarea' ? 'tarea' : (STATE.editing.kind === 'evaluacion' ? 'evaluación' : '');
+    var labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+    document.getElementById('modal-evaluacion-title').textContent =
+      modo === 'ver' ? labelCap : (editando ? ('Editar ' + label) : (label ? ('Nueva ' + label) : '¿Qué querés agregar?'));
+    if (modo === 'ver') renderModalEvalViewContent();
+  }
+
+  // Contenido del modo lectura — materia, fecha/hora, nota máxima/obtenida
+  // (sólo evaluación), etiqueta y notas libres. Pensado para escanearse de
+  // un vistazo, sin abrir el form.
+  function renderModalEvalViewContent() {
+    var ev = agendaRawById(STATE.editing.evaluacionId);
+    if (!ev) return;
+    var m = computeMateriaById(ev.materiaId);
+    var isEval = ev.kind === 'evaluacion';
+    var escRef = m ? m.esc : { tipo: 'puntos' };
+    var info = agendaBadgeInfo(ev, today());
+    var badge = document.getElementById('modal-eval-view-badge');
+    badge.setAttribute('style', badgeStyle(info.tone));
+    badge.textContent = info.label;
+    var chip = document.getElementById('modal-eval-view-chip');
+    if (m) { chip.setAttribute('style', chipStyle(m.colorId)); chip.textContent = m.nombre; }
+    else { chip.removeAttribute('style'); chip.textContent = ''; }
+    document.getElementById('modal-eval-view-titulo').textContent = ev.titulo;
+    var d = parseISODate(ev.fecha);
+    document.getElementById('modal-eval-view-fecha').textContent = DIAS_LARGOS[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES_LARGOS[d.getMonth()];
+    document.getElementById('modal-eval-view-hora-col').classList.toggle('hidden', !ev.hora);
+    document.getElementById('modal-eval-view-hora').textContent = ev.hora || '';
+    document.getElementById('modal-eval-view-notamax-col').classList.toggle('hidden', !isEval);
+    document.getElementById('modal-eval-view-nota-col').classList.toggle('hidden', !isEval);
+    if (isEval) {
+      document.getElementById('modal-eval-view-notamax').textContent = val(ev.notaMaxima, escRef);
+      document.getElementById('modal-eval-view-nota').textContent = ev.nota != null ? val(ev.nota, escRef) : 'Sin calificar';
+    }
+    renderTagChipInto(document.getElementById('modal-eval-view-tag'), ev.tagId);
+    var notasEl = document.getElementById('modal-eval-view-notas');
+    notasEl.classList.toggle('hidden', !ev.notas);
+    notasEl.textContent = ev.notas || '';
   }
 
   // Muestra/esconde los campos que sólo aplican a evaluación (tipo, nota
@@ -2824,6 +2875,16 @@
       STATE.editing.evalNotaMaxima = this.value === '' ? null : Number(this.value);
       document.getElementById('eval-nota').max = this.value || '';
     });
+    document.getElementById('btn-eval-view-editar').addEventListener('click', function () {
+      STATE.editing.modo = 'form';
+      renderModalEvalVisibility();
+    });
+    // Mismo patrón que #btn-perfil-logout/#btn-ajustes-logout (ver
+    // cursada-conventions): dispara el click del botón real en vez de
+    // duplicar el confirm()/la lógica de borrado acá.
+    document.getElementById('btn-evaluacion-eliminar-view').addEventListener('click', function () {
+      document.getElementById('btn-evaluacion-eliminar').click();
+    });
     document.getElementById('form-evaluacion').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
@@ -2865,7 +2926,7 @@
     });
     document.getElementById('btn-evaluacion-eliminar').addEventListener('click', async function () {
       if (!STATE.editing.evaluacionId) return;
-      if (!confirm('¿Eliminar esta evaluación?')) return;
+      if (!confirm('¿Eliminar esta ' + (STATE.editing.kind === 'tarea' ? 'tarea' : 'evaluación') + '?')) return;
       var id = STATE.editing.evaluacionId;
       var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
       if (!ok) avisarError();
