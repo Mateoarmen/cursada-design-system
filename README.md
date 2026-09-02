@@ -1695,6 +1695,97 @@ color hasta el valor actual pintado por JS vía un `linear-gradient` inline
 para porcentaje/puntos — coherente con la precisión que ya usa `fmt()` para
 mostrar esos números.
 
+## Dirección visual "Pro Edition" (refinamiento, no reescritura)
+
+Pedido: adaptar el tema oscuro a una nueva dirección ("Pro Edition" —
+glassmorphism sutil, fondo más orgánico, grid de 8px, sombras ambient) a
+partir de tres referencias en `design-reference/`: `DESIGN.md` (tokens),
+`Cursada Mobile Pro.dc.html` (4 frames de celular pixel-exactos) y
+`github.md` (mapeo pantalla → clases reales). El acento (`--c-accent`) y los
+radios (`--r-card`/`--r-control`) ya coincidían con la dirección nueva —
+no se tocaron. Mobile primero, después el mismo tratamiento a desktop y al
+resto de las vistas sin mockup propio.
+
+### El lever fue el token, no cada componente
+
+En vez de escribir CSS nueva por vista, se editaron los tokens de
+`html[data-theme="oscuro"]` (`--c-bg`, `--c-surface`, `--c-sidenav`,
+`--c-line`, `--c-shadow`) y se agregó una regla `html[data-theme="oscuro"]
+.card{background:...;border:...}`. Como casi todas las superficies de la
+app (`.kpi-card`, `.panel`, `.materia-card`, `.detalle-col`, `.detalle-head`,
+`.mini-horario`) ya combinan la clase `.card` con su variante, este cambio
+de ~10 líneas alcanzó Inicio, Materias, Detalle, Agenda, Progreso, y los
+modales (que usan `var(--c-surface)` sin la clase `.card` — quedan opacos a
+propósito, ver más abajo) sin tocar una sola vista de forma individual. Es
+la razón por la que la fase 3 ("extrapolar a Materias/Progreso/Ajustes/
+Perfil") no necesitó CSS propia: la heredan gratis.
+
+Sólo tema oscuro — el claro no es parte de esta dirección (ni el prompt ni
+`design-reference/` lo mencionan) y no se tocó.
+
+### Glass sin `backdrop-filter`
+
+`DESIGN.md` pide vidrio esmerilado (blur real) en las tarjetas. Se
+implementó sólo con relleno translúcido (`rgba(255,255,255,.055)`) + borde
+hairline (`rgba(255,255,255,.08)`), sin `backdrop-filter`, por dos motivos:
+el fondo detrás de una tarjeta es un color plano sin textura (blur real no
+cambia nada visible ahí, a diferencia de `.topbar`/`.tabbar`, que sí lo usan
+porque contenido de verdad scrollea debajo), y Materias puede tener varias
+tarjetas en pantalla a la vez — el costo de GPU de blur por tarjeta no se
+justificaba por un resultado visualmente idéntico. Los modales (`.modal`,
+`.auth-card`) no llevan la clase `.card`, así que quedan con el
+`var(--c-surface)` sólido de siempre — vidrio ahí (útil cuando sí hay
+contenido detrás, un backdrop con blur) queda para una pasada futura.
+
+### Inicio: card "Lo próximo", con datos reales — no la copia del mockup
+
+El mockup muestra un texto de "con 6,2 exonerás" que depende de una
+proyección de exoneración que la app no calcula hoy (`computeMateria()` no
+tiene ese campo) — inventar esa fórmula era lógica de negocio nueva, fuera
+del alcance de "cambio visual". La card en cambio reusa el primer ítem de
+`proximos` (mismo array ya ordenado que arma la lista de abajo, sin
+recalcular nada) con `agendaBadgeInfo()`, y si es una materia, la barra
+fina y el subtítulo reusan `m.actual`/`m.esc.total`/`m.riesgoTxt`/
+`m.aprobTxt`, ya computados por `computeMateria()`. El botón secundario del
+mockup ("Posponer") tampoco tiene equivalente en el modelo de datos — no
+hay snooze en Cursada — así que se reemplazó por "Ver en agenda" (navega,
+no inventa una función nueva). Se oculta con `.style.display` (mismo patrón
+que `#riesgo-panel` en `renderInicio()`) cuando no hay nada en los próximos
+7 días.
+
+### Detalle: anillo más grueso sólo en mobile
+
+"Ring reforzado" se resolvió como grosor, no diámetro (`ringInnerStyle`
+pasa de 13 a 16px de trazo con `esMobile()`, mismo tamaño de 140px) — un
+anillo más grande hubiera reflowado el resto de la card sin necesidad.
+
+### Agenda/Detalle: gap de 8px, con la alineación recalculada
+
+`.agenda-row`/`.eval-row` pasaron de `gap:12px` a `gap:16px` (múltiplo de
+8). El `margin-left` de `.agenda-fecha`/`.eval-row > .badge` que alinea esa
+columna bajo el título cuando la fila wrappea es `checkbox(22px) + gap` —
+con el gap nuevo pasa de 34px a 38px. Quedó documentado en el CSS porque no
+es evidente por qué ese número específico.
+
+### Horario mobile: día seleccionado + timeline, no la grilla
+
+Mismo motivo que el weekstrip de Calendario: la grilla Lun–Sáb no entra
+legible en ~330px de columna real. `renderHorario()` ahora también llama a
+`renderHorarioMobile(dias, porDia, cols)`, que arma un selector de día
+(`#horario-daysel`) y una lista vertical del día elegido (`#horario-
+timeline`) a partir del mismo `porDia` que ya arma la grilla — no hay query
+nueva. El CSS decide cuál de los dos ancla se ve según el ancho (mismo
+criterio que `.weekstrip`), así que ambos se arman siempre.
+
+`STATE.horarioDia` (nuevo, guarda el día 1–6 tipo `Date.getDay()`) arranca
+en el día de hoy si cae dentro de la semana visible, si no en lunes —
+y se re-valida en cada render: si "Mostrar sábado" se apaga mientras sábado
+estaba seleccionado, cae al default en vez de quedar en un día que ya no
+existe. Bug encontrado probando (no hipotético): la primera versión del
+punto bajo cada día era puramente decorativo, sin relación a si ese día
+tenía clases — se corrigió para que sólo se vea en los días con `porDia[
+dia].length`.
+
 ## Ver también
 
 - La vista Semana del calendario reutiliza la misma lógica de eventos que

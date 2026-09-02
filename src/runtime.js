@@ -676,6 +676,7 @@
     mostrarEvaluaciones: true,
     materiasOcultasCal: {},
     mostrarSabado: true,
+    horarioDia: null,
     editing: {}
   };
 
@@ -879,6 +880,8 @@
       proxList.appendChild(node);
     });
 
+    renderInicioHero(proximos[0], t7);
+
     var riesgo = computeMateriasDelActivo().filter(function (m) { return m.tone === 'danger' || m.tone === 'warning'; });
     var riesgoPanel = document.getElementById('riesgo-panel');
     var riesgoList = document.getElementById('riesgo-list');
@@ -904,6 +907,47 @@
     }
 
     renderProgresoWidgetInicio();
+  }
+
+  // Card "Lo próximo" (mobile, dirección Pro Edition) — el mismo primer
+  // ítem de proximos-list ya ordenado por fecha, no un cálculo nuevo: sólo
+  // agrega el layout de card destacada + progreso de la materia si ya tiene
+  // notas cargadas. Botón "Ver en agenda" navega, no crea nada nuevo (no
+  // hay "posponer" en el modelo de datos, así que no se inventa acá).
+  function renderInicioHero(p, t7) {
+    var hero = document.getElementById('inicio-hero');
+    if (!p) { hero.style.display = 'none'; return; }
+    hero.style.display = '';
+    var badgeEl = document.getElementById('inicio-hero-badge');
+    var progressWrap = document.getElementById('inicio-hero-progress');
+    var secondary = document.getElementById('inicio-hero-secondary');
+    var primary = document.getElementById('inicio-hero-primary');
+    progressWrap.classList.add('hidden');
+    secondary.classList.add('hidden');
+
+    if (p.tipo === 'materia') {
+      var m = computeMateriaById(p.item.materiaId);
+      var badgeInfo = agendaBadgeInfo(p.item, t7);
+      badgeEl.setAttribute('style', badgeStyle(badgeInfo.tone)); badgeEl.textContent = badgeInfo.label;
+      document.getElementById('inicio-hero-title').textContent = p.item.titulo;
+      document.getElementById('inicio-hero-meta').textContent = (m ? m.nombre + ' · ' : '') + (p.item.hora ? p.item.hora + ' · ' : '') + p.item.tipo;
+      if (m && m.actual != null) {
+        progressWrap.classList.remove('hidden');
+        var pct = Math.max(0, Math.min(100, (m.actual / m.esc.total) * 100));
+        document.getElementById('inicio-hero-bar').setAttribute('style', css({ width: pct + '%', background: TONE[m.tone] }));
+        document.getElementById('inicio-hero-sub').textContent = m.riesgoTxt || ('Vas aprobando · aprobás con ' + m.aprobTxt + '.');
+      }
+      primary.textContent = 'Abrir materia';
+      primary.onclick = function () { openEvaluacionModal({ editId: p.item.id }); };
+      secondary.classList.remove('hidden');
+      secondary.onclick = function () { location.hash = '#agenda'; };
+    } else {
+      badgeEl.setAttribute('style', badgeStyle('neutral')); badgeEl.textContent = 'Personal';
+      document.getElementById('inicio-hero-title').textContent = p.item.titulo;
+      document.getElementById('inicio-hero-meta').textContent = p.item.todoElDia ? 'Todo el día' : (p.item.hora || '');
+      primary.textContent = 'Ver en agenda';
+      primary.onclick = function () { location.hash = '#agenda'; };
+    }
   }
 
   // ================================================================
@@ -1106,9 +1150,12 @@
     document.getElementById('detalle-cursada').textContent = m.horario;
 
     var escBadge = document.getElementById('detalle-escala-badge'); escBadge.textContent = m.escalaTxt;
+    // Trazo más grueso en mobile (dirección Pro Edition, "ring reforzado")
+    // — mismo diámetro, sólo cambia el grosor del anillo.
+    var ringThick = esMobile() ? 16 : 13;
     document.getElementById('detalle-ring').setAttribute('style', ringStyle(m.actual, TONE[m.tone], 140, m.esc.total));
     var ringInner = document.getElementById('detalle-ring-inner');
-    ringInner.setAttribute('style', ringInnerStyle(140, 13));
+    ringInner.setAttribute('style', ringInnerStyle(140, ringThick));
     clear(ringInner);
     var v1 = el('span'); v1.className = 'mono'; v1.style.cssText = 'font-size:34px;font-weight:600;line-height:1'; v1.textContent = m.notaTxt;
     var v2 = el('span'); v2.className = 'mono'; v2.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v2.textContent = 'aprueba ' + m.aprobTxt;
@@ -1810,6 +1857,59 @@
         makeRowClickable(node, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
         grid.appendChild(node);
       });
+    });
+
+    renderHorarioMobile(dias, porDia, cols);
+  }
+
+  // Día seleccionado + timeline vertical (mobile, dirección Pro Edition) —
+  // reemplaza la grilla Lun–Sáb, ilegible a ~330px de columna real. Se arma
+  // siempre (mismo criterio que renderWeekstrip() en Calendario), el CSS
+  // decide cuál de los dos (grilla o timeline) se ve según el ancho.
+  function renderHorarioMobile(dias, porDia, cols) {
+    if (STATE.horarioDia == null || STATE.horarioDia < 1 || STATE.horarioDia > cols) {
+      var dow = today().getDay();
+      STATE.horarioDia = (dow >= 1 && dow <= cols) ? dow : 1;
+    }
+
+    var daysel = document.getElementById('horario-daysel');
+    clear(daysel);
+    dias.forEach(function (dd, i) {
+      var dayNum = i + 1;
+      var btn = el('button', 'horario-day');
+      btn.type = 'button';
+      btn.classList.toggle('is-on', STATE.horarioDia === dayNum);
+      var wd = el('span', 'wd'); wd.textContent = dd;
+      btn.appendChild(wd);
+      var dot = el('span', 'dot');
+      if (!(porDia[dayNum] && porDia[dayNum].length)) dot.style.visibility = 'hidden';
+      btn.appendChild(dot);
+      btn.setAttribute('aria-label', dd);
+      btn.addEventListener('click', function () { STATE.horarioDia = dayNum; renderHorario(); });
+      daysel.appendChild(btn);
+    });
+
+    var timeline = document.getElementById('horario-timeline');
+    clear(timeline);
+    var bloquesDia = (porDia[STATE.horarioDia] || []).slice().sort(function (a, b) { return a.ini - b.ini; });
+    if (!bloquesDia.length) {
+      var empty = el('div', 'horario-timeline-empty');
+      empty.textContent = 'No tenés clases este día.';
+      timeline.appendChild(empty);
+      return;
+    }
+    bloquesDia.forEach(function (b) {
+      var row = el('div', 'horario-timeline-row');
+      var hora = el('span', 'horario-timeline-hora'); hora.textContent = horaTexto(b.ini);
+      var block = el('div', 'horario-timeline-block');
+      block.style.background = b.m.soft; block.style.borderLeftColor = b.m.strong; block.style.color = b.m.strong;
+      var n = el('span', 'n'); n.textContent = b.m.nombre;
+      var h = el('span', 'h'); h.textContent = horaTexto(b.ini) + ' – ' + horaTexto(b.fin);
+      var s = el('span', 's'); s.textContent = b.m.salon || 'Sin salón asignado';
+      block.appendChild(n); block.appendChild(h); block.appendChild(s);
+      makeRowClickable(block, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
+      row.appendChild(hora); row.appendChild(block);
+      timeline.appendChild(row);
     });
   }
 

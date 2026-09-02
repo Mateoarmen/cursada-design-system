@@ -54,17 +54,33 @@
 
 html[data-theme="oscuro"]{
   color-scheme:dark;
-  --c-bg:#1C1C1E; --c-surface:#2C2C2E; --c-sidenav:#1C1C1E; --c-surfaceAlt:rgba(255,255,255,.08);
+  /* Dirección "Pro Edition" (ver design-reference/DESIGN.md y Cursada
+     Mobile Pro.dc.html) — fondo más orgánico/navy que el gris puro de
+     antes, superficie con más profundidad, y sombra ambient en vez de la
+     ausencia total de sombra que tenía el tema oscuro. El acento y los
+     radios ya estaban alineados con esta dirección, no cambiaron. Sólo
+     tema oscuro — el claro no es parte de esta dirección. */
+  --c-bg:#0F1116; --c-surface:#191C22; --c-sidenav:#0B0E16; --c-surfaceAlt:rgba(255,255,255,.08);
   --c-ink:#F5F5F7; --c-ink2:rgba(235,235,245,.6); --c-ink3:rgba(235,235,245,.45);
-  --c-line:rgba(255,255,255,.09); --c-line-faint:rgba(255,255,255,.08); --c-line-faint2:rgba(255,255,255,.06);
+  --c-line:rgba(255,255,255,.1); --c-line-faint:rgba(255,255,255,.08); --c-line-faint2:rgba(255,255,255,.06);
   --c-muted4:rgba(255,255,255,.2); --c-muted5:#48484A; --c-muted6:#636366;
   /* Azul de marca, aclarado para que rinda sobre fondos oscuros (mismo tono
      que usa el degradé del isotipo: #2C7BFF → #0A63F0). */
   --c-accent:#2C7BFF;
   --c-accent-to:#0A63F0;
   --acc-azul-soft:rgba(44,123,255,.22); --acc-azul-strong:#2C7BFF;
-  --c-shadow:none;
+  --c-shadow:0 20px 48px -16px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
   --c-overlay:rgba(0,0,0,.5);
+}
+/* Tarjetas: relleno translúcido + borde hairline en vez de var(--c-line)
+   sólido ("glass" — ver DESIGN.md, Elevation & Depth). Sin backdrop-filter
+   a propósito: el fondo detrás es un color plano sin textura (blur real no
+   aporta nada visible ahí) y en grillas con muchas tarjetas a la vez
+   (Materias) el costo de GPU de blur por tarjeta no se justifica por ese
+   cero de diferencia visual. */
+html[data-theme="oscuro"] .card{
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.08);
 }
 
 *{box-sizing:border-box}
@@ -843,6 +859,13 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
    ========================================================================= */
 .tabbar,.fab,.quick-sheet,.row-menu,.weekstrip,.swipe-action{display:none}
 
+/* Dirección "Pro Edition" (ver design-reference/DESIGN.md y Cursada Mobile
+   Pro.dc.html) — fase 1: mobile. Mismo motivo que el bloque de arriba:
+   .inicio-hero/.horario-daysel/.horario-timeline son elementos persistentes
+   en el DOM (no sólo-mobile) cuyas únicas reglas viven dentro del @media de
+   abajo — sin este guard se verían sin estilo en cualquier ancho >760px. */
+.inicio-hero,.horario-daysel,.horario-timeline{display:none}
+
 /* Base (todo ancho) de .perfil-hero: reemplaza el style="display:flex;
    align-items:center;gap:16px" inline que tenía antes esta fila (foto +
    botón). En mobile, la regla de abajo la vuelve columna con !important —
@@ -985,6 +1008,32 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .riesgo-body b{font-size:14.5px}
   .accesos-row{gap:8px}
 
+  /* Card "Lo próximo": el ítem más cercano de proximos-list, destacado.
+     Borde en degradé vía el truco de padding+gradiente en el wrapper de
+     afuera (radio +2px) con el relleno sólido adentro (radio real) — ver
+     Cursada Mobile Pro.dc.html, sección Inicio. Oculto/mostrado por JS con
+     .style.display (mismo patrón que #riesgo-panel en renderInicio): sin
+     próximos, no hay hero que mostrar. */
+  .inicio-hero{
+    display:flex;padding:1.5px;border-radius:calc(var(--r-card) + 2px);
+    background:linear-gradient(150deg,var(--c-accent),rgba(10,99,240,.15) 60%,rgba(255,255,255,.08));
+  }
+  .inicio-hero-inner{
+    flex:1;min-width:0;border-radius:calc(var(--r-card) + .5px);background:var(--c-surface);
+    padding:20px;display:flex;flex-direction:column;gap:14px;
+  }
+  .inicio-hero-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .inicio-hero-eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-accent)}
+  .inicio-hero-body{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .inicio-hero-title{font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
+  .inicio-hero-meta{font-size:13px;color:var(--c-ink2)}
+  .inicio-hero-progress{display:flex;flex-direction:column;gap:8px}
+  .inicio-hero-progress .bar-wrap{width:100%;height:6px;border-radius:999px;background:var(--c-line-faint);overflow:hidden}
+  .inicio-hero-progress .bar-fill{height:100%;border-radius:999px}
+  .inicio-hero-sub{font-size:12.5px;color:var(--c-ink3);line-height:1.4}
+  .inicio-hero-actions{display:flex;gap:8px}
+  .inicio-hero-actions .btn{flex:1;justify-content:center}
+
   /* ---------- Materias ---------- */
   .materia-card{padding:16px;gap:13px;border-radius:18px}
   .mc-name .n{font-size:16.5px}
@@ -1008,9 +1057,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .callout b,.callout span{font-size:13.5px}
   .detalle-actions .btn{flex:1 1 auto;justify-content:center}
   .eval-body .t{font-size:14.5px}
-  .eval-row{gap:12px;flex-wrap:wrap;row-gap:6px}
+  /* Filas más espaciadas (grid de 8px) — mismo criterio que .agenda-row: el
+     margin-left del badge tiene que seguir siendo checkbox(22px) + gap. */
+  .eval-row{gap:16px;flex-wrap:wrap;row-gap:8px}
   .eval-body{flex:1 1 170px}
-  .eval-row > .badge{margin-left:34px}
+  .eval-row > .badge{margin-left:38px}
   .mini-horario{padding:16px;border-radius:18px}
   .mini-days{flex:none;overflow-x:auto;scrollbar-width:none;gap:8px}
   .mini-days::-webkit-scrollbar{display:none}
@@ -1018,10 +1069,14 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .mini-day .box{height:48px!important;font-size:10.5px!important}
 
   /* ---------- Agenda ---------- */
+  /* Filas más espaciadas (grid de 8px, dirección "Pro Edition") — el
+     margin-left de .agenda-fecha alinea esa columna bajo el título cuando
+     wrappea a su propia línea (ver .agenda-body flex-basis arriba): tiene
+     que seguir siendo checkbox(22px) + gap para no perder esa alineación. */
   .agenda-groups{gap:16px}
-  .agenda-row{padding:12px 14px;gap:12px}
+  .agenda-row{padding:16px;gap:16px}
   .agenda-title{font-size:14.5px}
-  .agenda-fecha{margin-left:34px;font-size:12.5px}
+  .agenda-fecha{margin-left:38px;font-size:12.5px}
   .agenda-row > .badge{margin-left:auto}
 
   /* Swipe para marcar entregado. El verde vive en .swipe-action (fondo
@@ -1091,6 +1146,36 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hg-block .h,.hg-block .s{display:none}
   #horario .view{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+  /* La grilla Lun–Sáb no entra legible en ~330px de columna real (probado:
+     nombre de materia cortado a 3-4 caracteres) — en mobile se reemplaza por
+     día seleccionado + timeline vertical de ese día (ver Cursada Mobile
+     Pro.dc.html, sección Horario). renderHorario() arma los dos siempre
+     (mismo criterio que .weekstrip en Calendario); acá sólo se decide cuál
+     de los dos ancla mostrar. */
+  .horario-grid-wrap{display:none}
+  .horario-daysel{display:flex;gap:6px;margin-bottom:4px}
+  .horario-day{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    height:56px;border:none;border-radius:14px;background:var(--c-surfaceAlt);color:var(--c-ink);
+  }
+  .horario-day .wd{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--c-ink3)}
+  .horario-day .dot{width:5px;height:5px;border-radius:50%;background:var(--c-ink3);opacity:.5}
+  .horario-day.is-on{background:var(--c-accent);color:#fff}
+  .horario-day.is-on .wd{color:rgba(255,255,255,.8)}
+  .horario-day.is-on .dot{background:#fff;opacity:1}
+  .horario-timeline{display:flex;flex-direction:column;gap:0;overflow-y:auto}
+  .horario-timeline-row{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--c-line-faint)}
+  .horario-timeline-row:first-child{border-top:none}
+  .horario-timeline-hora{width:46px;flex:none;font-size:12.5px;color:var(--c-ink3);font-variant-numeric:tabular-nums;padding-top:2px}
+  .horario-timeline-block{
+    flex:1;min-width:0;border-radius:0 14px 14px 0;border-left:3px solid;
+    padding:13px 15px;display:flex;flex-direction:column;gap:5px;
+  }
+  .horario-timeline-block .n{font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .horario-timeline-block .h{font-size:13px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
+  .horario-timeline-block .s{font-size:13px;color:var(--c-ink3)}
+  .horario-timeline-empty{padding:32px 0;text-align:center;font-size:13px;color:var(--c-ink3)}
 
   /* ---------- Modales: pantalla completa, entran desde la derecha ---------- */
   .modal-backdrop{padding:0;background:var(--c-bg);align-items:stretch;overflow:hidden}

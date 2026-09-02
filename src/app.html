@@ -186,6 +186,26 @@
           </div>
           <span class="inicio-note" id="inicio-note"></span>
         </div>
+        <div class="inicio-hero" id="inicio-hero">
+          <div class="inicio-hero-inner">
+            <div class="inicio-hero-head">
+              <span class="inicio-hero-eyebrow">Lo próximo</span>
+              <span class="badge" id="inicio-hero-badge"></span>
+            </div>
+            <div class="inicio-hero-body">
+              <span class="inicio-hero-title" id="inicio-hero-title"></span>
+              <span class="inicio-hero-meta" id="inicio-hero-meta"></span>
+            </div>
+            <div class="inicio-hero-progress hidden" id="inicio-hero-progress">
+              <div class="bar-wrap"><div class="bar-fill" id="inicio-hero-bar"></div></div>
+              <span class="inicio-hero-sub" id="inicio-hero-sub"></span>
+            </div>
+            <div class="inicio-hero-actions">
+              <button type="button" class="btn btn-primary" id="inicio-hero-primary"></button>
+              <button type="button" class="btn btn-ghost hidden" id="inicio-hero-secondary">Ver en agenda</button>
+            </div>
+          </div>
+        </div>
         <div class="kpi-row" id="kpi-row"></div>
         <div class="inicio-cols">
           <div class="card panel" style="flex:1.55;min-width:340px">
@@ -409,6 +429,11 @@
         </div>
       </header>
       <div class="view">
+        <!-- Mobile (≤760px): día seleccionado + timeline en vez de la
+             grilla Lun–Sáb (ver renderHorario() en runtime.js). Ocultos por
+             defecto (ver styles.css) — invisibles fuera de ese breakpoint. -->
+        <div class="horario-daysel" id="horario-daysel"></div>
+        <div class="horario-timeline" id="horario-timeline"></div>
         <div class="horario-grid-wrap">
           <div class="horario-grid" id="horario-grid"></div>
         </div>
