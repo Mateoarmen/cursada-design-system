@@ -4,7 +4,18 @@
 (function () {
   'use strict';
   var TABLES = {
-    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', edad: 21, facultad: 'Ingeniería', carrera: 'Sistemas', telefono: '111', foto_url: null, creditos_carrera: 240, materias_carrera: 40, margen_riesgo: 1.5 }],
+    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: 'uni-ort', university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5 }],
+    universities: [
+      { id: 'uni-ort', nombre: 'ORT Uruguay', created_at: '2026-08-30T00:00:00Z' },
+      { id: 'uni-ucu', nombre: 'UCU – Universidad Católica del Uruguay', created_at: '2026-08-30T00:00:00Z' },
+      { id: 'uni-um', nombre: 'UM – Universidad de Montevideo', created_at: '2026-08-30T00:00:00Z' },
+      { id: 'uni-udelar', nombre: 'UdelaR', created_at: '2026-08-30T00:00:00Z' },
+      { id: 'uni-ude', nombre: 'UDE – Universidad de la Empresa', created_at: '2026-08-30T00:00:00Z' }
+    ],
+    event_tags: [
+      { id: 'tag-1', user_id: 'test-user-id-000', name: 'Difícil', kind: 'academico', color: 'coral', created_at: '2026-08-01T00:00:00Z' },
+      { id: 'tag-2', user_id: 'test-user-id-000', name: 'Familia', kind: 'personal', color: 'turquesa', created_at: '2026-08-01T00:00:00Z' }
+    ],
     semestres: [
       { id: 'sem-1', user_id: 'test-user-id-000', nombre: '2do cuatrimestre 2026', activo: true, created_at: '2026-08-01T00:00:00Z' },
       { id: 'sem-0', user_id: 'test-user-id-000', nombre: '1er cuatrimestre 2026', activo: false, created_at: '2026-02-01T00:00:00Z' }
@@ -18,7 +29,7 @@
       { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', cod: 'HIS', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', creditos: 4, salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
     ],
     agenda: [
-      { id: 'ag-1', user_id: 'test-user-id-000', materia_id: 'mat-1', tipo: 'parcial', titulo: 'Primer parcial', fecha: todayPlus(2), hora: '08:00', hecho: true, nota: 10, notas: '' },
+      { id: 'ag-1', user_id: 'test-user-id-000', materia_id: 'mat-1', tipo: 'parcial', titulo: 'Primer parcial', fecha: todayPlus(2), hora: '08:00', hecho: true, nota: 10, notas: '', tag_id: 'tag-1' },
       { id: 'ag-2', user_id: 'test-user-id-000', materia_id: 'mat-2', tipo: 'tp', titulo: 'Entrega TP3', fecha: todayPlus(2), hora: '23:59', hecho: true, nota: 12, notas: '' },
       { id: 'ag-3', user_id: 'test-user-id-000', materia_id: 'mat-3', tipo: 'final', titulo: 'Recuperatorio de laboratorio', fecha: todayPlus(5), hora: '14:00', hecho: false, nota: null, notas: '' },
       { id: 'ag-4', user_id: 'test-user-id-000', materia_id: 'mat-4', tipo: 'tp', titulo: 'Entrega proyecto final', fecha: todayPlus(9), hora: '20:00', hecho: false, nota: null, notas: '' },
@@ -27,7 +38,7 @@
       { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', tipo: 'final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, notas: '' }
     ],
     personal: [
-      { id: 'p-1', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(0), hora: '19:00', todo_el_dia: false },
+      { id: 'p-1', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(0), hora: '19:00', todo_el_dia: false, tag_id: 'tag-2' },
       { id: 'p-3', user_id: 'test-user-id-000', titulo: 'Llamar al dentista', fecha: todayPlus(0), hora: '11:00', todo_el_dia: false },
       { id: 'p-2', user_id: 'test-user-id-000', titulo: 'Cumpleaños de Ana', fecha: todayPlus(5), hora: null, todo_el_dia: true }
     ]
@@ -54,6 +65,7 @@
     var state = { filters: [] };
     var api = {
       select: function () { return api; },
+      order: function () { return api; },
       eq: function (col, val) { state.filters.push([col, val]); return api; },
       in: function (col, vals) {
         var err = sesionVencidaErrorSiCorresponde();

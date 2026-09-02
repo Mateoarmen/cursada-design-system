@@ -16,9 +16,14 @@
 // Cambio de arquitectura (migración a Supabase): el entregable dejó de ser
 // 100% offline. Necesita el SDK de supabase-js en el navegador, así que este
 // script agrega un <script src> a un CDN (jsdelivr) antes de
-// src/supabase-client.js — es la única llamada de red que agrega el build en
-// sí (además de las que la propia app hace en runtime contra Supabase). No
-// hace falta bundlear ni agregar un paso de compilación nuevo.
+// src/supabase-client.js. No hace falta bundlear ni agregar un paso de
+// compilación nuevo.
+//
+// Teléfono con prefijo de país (bloque A): mismo patrón — se agrega el
+// bundle standalone de libphonenumber-js (sin bundler, expone el global
+// `window.libphonenumber`) por CDN, antes de runtime.js. Son las únicas dos
+// llamadas de red que agrega el build en sí (además de las que la propia
+// app hace en runtime contra Supabase).
 //
 // Uso: npm run build:app  (o: node build/build-app.mjs)
 
@@ -58,6 +63,7 @@ ${stylesCss}
 <body>
 ${appHtml}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/libphonenumber-js@1.11.9/bundle/libphonenumber-js.min.js"></script>
 <script>
 ${supabaseClientJs}
 </script>

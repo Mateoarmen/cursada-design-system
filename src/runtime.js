@@ -71,6 +71,10 @@
     return pad2(h) + ':' + pad2(m);
   }
   function truncate(s, n) { return (s && s.length > n) ? s.slice(0, n - 1) + '…' : (s || ''); }
+  // Abreviatura corta para tiles/avatares de materia (reemplaza al viejo
+  // prefijo de código, ej. "CON" de "CON-201") — primera palabra del
+  // nombre, hasta 4 letras.
+  function materiaAbrev(nombre) { return ((nombre || '').trim().split(/\s+/)[0] || '').slice(0, 4).toUpperCase(); }
   // Único lugar del código que arma HTML como string (el gráfico de Progreso,
   // ver buildProgresoChartSvg) — el resto de la app arma DOM con el()/textContent,
   // que ya es seguro por naturaleza. Cualquier texto libre del usuario
@@ -254,7 +258,7 @@
   // Promise<boolean> y cada call site que la usa pasó a ser `async`/`await`.
   function sb() { return window.CURSADA_SUPABASE; }
 
-  var CACHE = { semestres: [], materias: [], agenda: [], personal: [] };
+  var CACHE = { semestres: [], materias: [], agenda: [], personal: [], eventTags: [] };
   var CURRENT_USER = null;    // objeto `user` de supabase-js: id, email, …
   var CURRENT_PROFILE = null; // fila de `profiles`: {id, nombre, foto_url}
 
@@ -262,22 +266,22 @@
   // (columnas reales de Supabase) — queda todo acá, nada de conversiones
   // sueltas en el resto del archivo. ----
   function materiaToRow(m) {
-    return { id: m.id, user_id: CURRENT_USER.id, semestre_id: m.semestreId || null, cod: m.cod, nombre: m.nombre, doc: m.doc, color_id: m.colorId, creditos: m.creditos, salon: m.salon, bloques: m.bloques || [], esc: m.esc, estado: m.estado };
+    return { id: m.id, user_id: CURRENT_USER.id, semestre_id: m.semestreId || null, nombre: m.nombre, doc: m.doc, color_id: m.colorId, salon: m.salon, bloques: m.bloques || [], esc: m.esc, estado: m.estado };
   }
   function rowToMateria(r) {
-    return { id: r.id, semestreId: r.semestre_id, cod: r.cod, nombre: r.nombre, doc: r.doc, colorId: r.color_id, creditos: r.creditos, salon: r.salon, bloques: r.bloques || [], esc: r.esc, estado: r.estado };
+    return { id: r.id, semestreId: r.semestre_id, nombre: r.nombre, doc: r.doc, colorId: r.color_id, salon: r.salon, bloques: r.bloques || [], esc: r.esc, estado: r.estado };
   }
   function agendaToRow(a) {
-    return { id: a.id, user_id: CURRENT_USER.id, materia_id: a.materiaId || null, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora || '', hecho: !!a.hecho, nota: a.nota == null ? null : a.nota, notas: a.notas || '' };
+    return { id: a.id, user_id: CURRENT_USER.id, materia_id: a.materiaId || null, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora || '', hecho: !!a.hecho, nota: a.nota == null ? null : a.nota, notas: a.notas || '', tag_id: a.tagId || null };
   }
   function rowToAgenda(r) {
-    return { id: r.id, materiaId: r.materia_id, tipo: r.tipo, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', hecho: !!r.hecho, nota: r.nota == null ? null : r.nota, notas: r.notas || '' };
+    return { id: r.id, materiaId: r.materia_id, tipo: r.tipo, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', hecho: !!r.hecho, nota: r.nota == null ? null : r.nota, notas: r.notas || '', tagId: r.tag_id || null };
   }
   function personalToRow(p) {
-    return { id: p.id, user_id: CURRENT_USER.id, titulo: p.titulo, fecha: p.fecha, hora: p.todoElDia ? '' : (p.hora || ''), todo_el_dia: !!p.todoElDia };
+    return { id: p.id, user_id: CURRENT_USER.id, titulo: p.titulo, fecha: p.fecha, hora: p.todoElDia ? '' : (p.hora || ''), todo_el_dia: !!p.todoElDia, tag_id: p.tagId || null };
   }
   function rowToPersonal(r) {
-    return { id: r.id, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', todoElDia: !!r.todo_el_dia };
+    return { id: r.id, titulo: r.titulo, fecha: r.fecha, hora: r.hora || '', todoElDia: !!r.todo_el_dia, tagId: r.tag_id || null };
   }
   function semestreToRow(s) {
     return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo };
@@ -287,6 +291,12 @@
     // en semestreToRow. Se usa para ordenar semestres cronológicamente de
     // verdad (el nombre es texto libre, no sirve para eso).
     return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at };
+  }
+  function tagToRow(t) {
+    return { id: t.id, user_id: CURRENT_USER.id, name: t.nombre, kind: t.kind, color: t.colorId };
+  }
+  function rowToTag(r) {
+    return { id: r.id, nombre: r.name, kind: r.kind, colorId: r.color };
   }
 
   async function supaUpsert(table, rows) {
@@ -334,6 +344,8 @@
   var saveMateriasRaw = makeSaver('materias', 'materias', materiaToRow);
   var saveAgendaRaw = makeSaver('agenda', 'agenda', agendaToRow);
   var savePersonalRaw = makeSaver('personal', 'personal', personalToRow);
+  function loadEventTagsRaw() { return CACHE.eventTags.slice(); }
+  var saveEventTagsRaw = makeSaver('event_tags', 'eventTags', tagToRow);
 
   function loadSemestresRaw() { return CACHE.semestres.slice(); }
   // `semestres` tiene un índice único parcial en la base que impide más de un
@@ -367,6 +379,18 @@
   function agendaRawById(id) { return loadAgendaRaw().filter(function (a) { return a.id === id; })[0] || null; }
   function personalRawById(id) { return loadPersonalRaw().filter(function (p) { return p.id === id; })[0] || null; }
   function semestreRawById(id) { return loadSemestresRaw().filter(function (s) { return s.id === id; })[0] || null; }
+  function tagById(id) { return id ? (loadEventTagsRaw().filter(function (t) { return t.id === id; })[0] || null) : null; }
+  // Chip de etiqueta — único render reusado en los 5 lugares donde se
+  // muestra una etiqueta (Inicio, "Lo próximo", detalle de materia, Agenda,
+  // panel del Calendario), en vez de que cada uno arme su propio chip.
+  function renderTagChipInto(container, tagId) {
+    var tag = tagById(tagId);
+    clear(container);
+    if (!tag) { container.classList.add('hidden'); return; }
+    container.classList.remove('hidden');
+    container.setAttribute('style', chipStyle(tag.colorId));
+    container.textContent = tag.nombre;
+  }
 
   // Garantiza el invariante "exactamente un semestre activo" (o ninguno, si no
   // hay ningún semestre todavía). Se usa después de migrar/importar, donde el
@@ -424,14 +448,16 @@
       sb().from('semestres').select('*'),
       sb().from('materias').select('*'),
       sb().from('agenda').select('*'),
-      sb().from('personal').select('*')
+      sb().from('personal').select('*'),
+      sb().from('event_tags').select('*')
     ]);
     results.forEach(function (r) { if (r.error) throw r.error; });
-    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', edad: null, facultad: null, carrera: null, telefono: null, foto_url: null, creditos_carrera: null, materias_carrera: null, margen_riesgo: 1 };
+    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', birth_date: null, carrera: null, telefono_e164: null, telefono_pais: null, university_id: null, university_other: null, foto_url: null, materias_carrera: null, margen_riesgo: 1 };
     CACHE.semestres = results[1].data.map(rowToSemestre);
     CACHE.materias = results[2].data.map(rowToMateria);
     CACHE.agenda = results[3].data.map(rowToAgenda);
     CACHE.personal = results[4].data.map(rowToPersonal);
+    CACHE.eventTags = results[5].data.map(rowToTag);
   }
 
   // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
@@ -618,7 +644,6 @@
   function computeMateriasDelActivo() { return computeMaterias({ semestreId: activeSemestreId() }); }
   function computeMateriaById(id) { var m = materiaRawById(id); return m ? computeMateria(m) : null; }
   function materiaNombre(id) { var m = materiaRawById(id); return m ? m.nombre : ''; }
-  function materiaCod(id) { var m = materiaRawById(id); return m ? m.cod : ''; }
 
   // Promedio normalizado (0-100) de un conjunto de materias — de las que
   // tienen nota cargada (m.actual != null), normaliza cada una a % de su
@@ -640,15 +665,9 @@
       return { semestre: s, promedio: promedioNormalizado(materias), aprobadas: materias.filter(function (m) { return m.estado === 'aprobada'; }).length, total: materias.length };
     }).filter(function (p) { return p.promedio != null; });
   }
-  // Créditos acumulados hacia el título: aprobadas de TODOS los semestres,
-  // no sólo el activo — a propósito, distinto del resto de la app (ver
-  // README, sección Semestres, sobre qué vistas se acotan y cuáles no).
-  function creditosAcumulados() {
-    return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; })
-      .reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0);
-  }
-  // Mismo criterio que creditosAcumulados() (aprobadas de todos los
-  // semestres), cuenta en vez de sumar creditos — para la meta de
+  // Materias aprobadas de TODOS los semestres, no sólo el activo — a
+  // propósito, distinto del resto de la app (ver README, sección
+  // Semestres, sobre qué vistas se acotan y cuáles no) — para la meta de
   // "cantidad de materias de la carrera".
   function materiasAprobadasCount() {
     return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; }).length;
@@ -797,7 +816,6 @@
   function computeKpis() {
     var materias = computeMateriasDelActivo();
     var cursando = materias.filter(function (m) { return m.estado === 'cursando' || m.estado === 'recursando'; });
-    var creditos = cursando.reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0);
     var t = today();
     var agenda = agendaDeSemestre(activeSemestreId());
     var pendientes = agenda.filter(function (a) { return !a.hecho; });
@@ -810,7 +828,7 @@
     var estaSemana = pendientes.filter(function (a) { var d = diffDias(parseISODate(a.fecha), t); return d >= 0 && d <= 6; });
     var vencidas = pendientes.filter(function (a) { return parseISODate(a.fecha) < t; });
     return [
-      { label: 'Materias cursando', valor: String(cursando.length), sub: creditos + ' créditos en el semestre', tone: 'neutral' },
+      { label: 'Materias cursando', valor: String(cursando.length), sub: 'este semestre', tone: 'neutral' },
       { label: 'Próxima evaluación', valor: proxExamen ? (DIAS_CORTOS[proxExamen.d.getDay()] + ' ' + proxExamen.d.getDate()) : '—', sub: proxExamen ? (proxExamen.a.tipo + ' · ' + materiaNombre(proxExamen.a.materiaId)) : 'sin evaluaciones cargadas', tone: 'warning' },
       { label: 'Promedio general', valor: promedio != null ? promedio + '%' : '—', sub: 'normalizado · 3 escalas distintas', tone: 'success' },
       { label: 'Pendientes esta semana', valor: String(estaSemana.length), sub: vencidas.length ? (vencidas.length + (vencidas.length === 1 ? ' vencida de antes' : ' vencidas de antes')) : 'sin vencidas', tone: vencidas.length ? 'danger' : 'neutral' }
@@ -865,7 +883,7 @@
         var m = computeMateriaById(p.item.materiaId);
         qf(node, 'bar').setAttribute('style', barStyle(m ? m.strong : PERSONAL_COLOR));
         qf(node, 'titulo').textContent = p.item.titulo;
-        var chip = qf(node, 'chip'); chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle()); chip.textContent = m ? m.cod : 'Personal';
+        var chip = qf(node, 'chip'); chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle()); chip.textContent = m ? truncate(m.nombre, 16) : 'Personal';
         qf(node, 'metaTxt').textContent = (p.item.hora || '') + (p.item.hora ? ' · ' : '') + p.item.tipo;
         var badgeInfo = agendaBadgeInfo(p.item, t7);
         var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(badgeInfo.tone)); b.textContent = badgeInfo.label;
@@ -876,6 +894,7 @@
         qf(node, 'metaTxt').textContent = p.item.todoElDia ? 'Todo el día' : (p.item.hora || '');
         var b2 = qf(node, 'badge'); b2.setAttribute('style', badgeStyle('neutral')); b2.textContent = 'Personal';
       }
+      renderTagChipInto(qf(node, 'tag'), p.item.tagId);
       if (p.tipo === 'materia') makeRowClickable(node, function () { openEvaluacionModal({ editId: p.item.id }); }, 'Abrir ' + p.item.titulo);
       proxList.appendChild(node);
     });
@@ -948,16 +967,15 @@
       primary.textContent = 'Ver en agenda';
       primary.onclick = function () { location.hash = '#agenda'; };
     }
+    renderTagChipInto(document.getElementById('inicio-hero-tag'), p.item.tagId);
   }
 
   // ================================================================
   // PROGRESO (histórico entre semestres)
   // ================================================================
-  // Barra de progreso hacia una meta de carrera — compartida entre créditos
-  // y cantidad de materias (Ajustes las trata como dos metas independientes,
-  // ninguna pisa a la otra si están las dos cargadas), y entre la sección
-  // Progreso completa y el widget resumen de Inicio (compact=true ahí, sin
-  // el conteo exacto, sólo el %).
+  // Barra de progreso hacia la meta de cantidad de materias de la carrera —
+  // reusada entre la sección Progreso completa y el widget resumen de
+  // Inicio (compact=true ahí, sin el conteo exacto, sólo el %).
   function renderMetaBarInto(container, compact, valorMeta, valorActual, unidad, ctaTexto) {
     clear(container);
     if (valorMeta == null) {
@@ -986,7 +1004,6 @@
     document.getElementById('progreso-content').classList.toggle('hidden', puntos.length === 0);
     if (!puntos.length) return;
     document.getElementById('progreso-chart').innerHTML = buildProgresoChartSvg(puntos);
-    renderMetaBarInto(document.getElementById('progreso-creditos'), false, CURRENT_PROFILE && CURRENT_PROFILE.creditos_carrera, creditosAcumulados(), 'créditos', 'Completá los créditos de tu carrera en Ajustes para ver tu progreso hacia el título.');
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
   }
   // Sólo se muestra con ≥2 semestres con datos — nada de estado vacío acá,
@@ -1021,7 +1038,6 @@
       row.appendChild(val); row.appendChild(d);
       deltaWrap.appendChild(row);
     }
-    renderMetaBarInto(document.getElementById('progreso-widget-creditos'), true, CURRENT_PROFILE && CURRENT_PROFILE.creditos_carrera, creditosAcumulados(), 'créditos', 'Completá los créditos de tu carrera en Ajustes.');
     renderMetaBarInto(document.getElementById('progreso-widget-materias'), true, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes.');
   }
 
@@ -1049,7 +1065,7 @@
     if (esMobile()) STATE.materiasView = 'tarjetas';
     syncStateToURL();
     var materias = computeMateriasDelActivo();
-    document.getElementById('materias-count').textContent = materias.length + (materias.length === 1 ? ' materia' : ' materias') + ' · ' + materias.reduce(function (s, m) { return s + (Number(m.creditos) || 0); }, 0) + ' créditos';
+    document.getElementById('materias-count').textContent = materias.length + (materias.length === 1 ? ' materia' : ' materias');
 
     var empty = document.getElementById('materias-empty');
     var toolbar = document.querySelector('#materias .materias-toolbar');
@@ -1081,7 +1097,7 @@
     if (searchInput.value !== STATE.materiasQuery) searchInput.value = STATE.materiasQuery;
     var q = STATE.materiasQuery.trim().toLowerCase();
     var filtradas = STATE.materiasFiltro === 'todas' ? materias : materias.filter(function (m) { return m.estado === STATE.materiasFiltro; });
-    if (q) filtradas = filtradas.filter(function (m) { return (m.nombre + ' ' + m.cod + ' ' + m.doc).toLowerCase().indexOf(q) >= 0; });
+    if (q) filtradas = filtradas.filter(function (m) { return (m.nombre + ' ' + m.doc).toLowerCase().indexOf(q) >= 0; });
 
     var gridWrap = document.getElementById('materias-grid');
     var tableWrap = document.getElementById('materias-table-wrap');
@@ -1102,10 +1118,8 @@
       clear(tbody);
       filtradas.forEach(function (m) {
         var row = tpl('materia-table-row');
-        qf(row, 'cod').textContent = m.cod;
         qf(row, 'nombre').textContent = m.nombre;
         qf(row, 'doc').textContent = m.doc;
-        qf(row, 'creditos').textContent = String(m.creditos);
         qf(row, 'notaTxt').textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
         var b = qf(row, 'badge'); b.setAttribute('style', badgeStyle(ESTADO_TONE[m.estado])); b.textContent = m.badgeLabel;
         makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
@@ -1116,7 +1130,7 @@
 
   function buildMateriaCard(m) {
     var node = tpl('materia-card');
-    var tile = qf(node, 'tile'); tile.style.background = tileGradient(m.colorId); tile.textContent = m.cod.split('-')[0].slice(0, 4);
+    var tile = qf(node, 'tile'); tile.style.background = tileGradient(m.colorId); tile.textContent = materiaAbrev(m.nombre);
     var badge = qf(node, 'badge'); badge.setAttribute('style', badgeStyle(ESTADO_TONE[m.estado])); badge.textContent = m.badgeLabel;
     qf(node, 'nombre').textContent = m.nombre;
     qf(node, 'doc').textContent = m.doc;
@@ -1141,11 +1155,11 @@
     document.getElementById('detalle-crumb').textContent = m.nombre;
     var av = document.getElementById('detalle-avatar');
     av.style.background = tileGradient(m.colorId);
-    av.textContent = m.cod.split('-')[0];
+    av.textContent = materiaAbrev(m.nombre);
     document.getElementById('detalle-nombre').textContent = m.nombre;
     var badge = document.getElementById('detalle-estado-badge');
     badge.setAttribute('style', badgeStyle(ESTADO_TONE[m.estado])); badge.textContent = m.badgeLabel;
-    document.getElementById('detalle-meta').textContent = m.cod + ' · ' + m.creditos + ' créditos · ' + m.doc + ' · ' + m.escalaTxt.toLowerCase();
+    document.getElementById('detalle-meta').textContent = m.doc + ' · ' + m.escalaTxt.toLowerCase();
     document.getElementById('detalle-salon').textContent = m.salon || 'Sin salón asignado';
     document.getElementById('detalle-cursada').textContent = m.horario;
 
@@ -1208,6 +1222,7 @@
       var mark = qf(node, 'checkMark'); mark.textContent = a.hecho ? '✓' : '';
       var titulo = qf(node, 'titulo'); titulo.textContent = a.titulo; titulo.classList.toggle('done', !!a.hecho);
       qf(node, 'metaTxt').textContent = a.tipo + ' · ' + formatFechaAgenda(a.fecha, a.hora) + (a.nota != null ? ' · ' + valU(a.nota, m.esc) : '');
+      renderTagChipInto(qf(node, 'tag'), a.tagId);
       var info = agendaBadgeInfo(a, t);
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
       makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar evaluación ' + a.titulo);
@@ -1412,8 +1427,8 @@
   // ================================================================
   function agendaEntries() {
     var out = [];
-    loadAgendaRaw().forEach(function (a) { out.push({ kind: 'materia', id: a.id, materiaId: a.materiaId, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora, hecho: a.hecho }); });
-    if (STATE.mostrarPersonales) loadPersonalRaw().forEach(function (p) { out.push({ kind: 'personal', id: p.id, tipo: 'Evento personal', titulo: p.titulo, fecha: p.fecha, hora: p.todoElDia ? '' : p.hora, hecho: false, todoElDia: p.todoElDia }); });
+    loadAgendaRaw().forEach(function (a) { out.push({ kind: 'materia', id: a.id, materiaId: a.materiaId, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora, hecho: a.hecho, tagId: a.tagId }); });
+    if (STATE.mostrarPersonales) loadPersonalRaw().forEach(function (p) { out.push({ kind: 'personal', id: p.id, tipo: 'Evento personal', titulo: p.titulo, fecha: p.fecha, hora: p.todoElDia ? '' : p.hora, hecho: false, todoElDia: p.todoElDia, tagId: p.tagId }); });
     return out;
   }
 
@@ -1424,7 +1439,7 @@
     var prevVal = STATE.agendaFiltroMateria;
     clear(materiaSel);
     var optTodas = el('option'); optTodas.value = ''; optTodas.textContent = 'Todas las materias'; materiaSel.appendChild(optTodas);
-    computeMaterias().forEach(function (m) { var o = el('option'); o.value = m.id; o.textContent = m.cod + ' · ' + m.nombre; materiaSel.appendChild(o); });
+    computeMaterias().forEach(function (m) { var o = el('option'); o.value = m.id; o.textContent = m.nombre; materiaSel.appendChild(o); });
     materiaSel.value = prevVal;
     materiaSel.onchange = function () { STATE.agendaFiltroMateria = materiaSel.value; renderAgenda(); };
     document.getElementById('agenda-filtro-estado').value = STATE.agendaFiltroEstado;
@@ -1450,8 +1465,8 @@
       if (STATE.agendaFiltroEstado === 'pendiente' && e.hecho) return false;
       if (STATE.agendaFiltroEstado === 'hecho' && !e.hecho) return false;
       if (aq) {
-        var cod = e.materiaId ? materiaCod(e.materiaId) : 'personal';
-        if ((e.titulo + ' ' + cod + ' ' + e.tipo).toLowerCase().indexOf(aq) < 0) return false;
+        var nombreMateria = e.materiaId ? materiaNombre(e.materiaId) : 'personal';
+        if ((e.titulo + ' ' + nombreMateria + ' ' + e.tipo).toLowerCase().indexOf(aq) < 0) return false;
       }
       return true;
     });
@@ -1502,8 +1517,9 @@
       var m = item.materiaId ? computeMateriaById(item.materiaId) : null;
       qf(node, 'bar').setAttribute('style', barStyle(m ? m.strong : PERSONAL_COLOR));
       var titleEl = qf(node, 'titulo'); titleEl.textContent = item.titulo; titleEl.classList.toggle('done', !!item.hecho);
-      var chip = qf(node, 'chip'); chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle()); chip.textContent = m ? m.cod : 'Personal';
+      var chip = qf(node, 'chip'); chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle()); chip.textContent = m ? truncate(m.nombre, 16) : 'Personal';
       qf(node, 'tipo').textContent = item.tipo;
+      renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
       var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
       var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
@@ -1765,13 +1781,13 @@
     var dow = designDia(d);
     var claseEntries = clasesDeDiaRaw(dow).map(function (x) {
       var m = x.materia, b = x.bloque;
-      return { chipColor: m.colorId, materiaTxt: m.cod, hora: horaTexto(b.ini) + ' – ' + horaTexto(b.fin), titulo: 'Clase de ' + m.nombre, lugar: m.salon || 'Sin salón asignado', strong: m.strong, sortHora: b.ini };
+      return { chipColor: m.colorId, materiaTxt: truncate(m.nombre, 16), hora: horaTexto(b.ini) + ' – ' + horaTexto(b.fin), titulo: 'Clase de ' + m.nombre, lugar: m.salon || 'Sin salón asignado', strong: m.strong, sortHora: b.ini };
     });
     var evData = eventosDeDia(iso).map(function (ev) {
       if (ev.kind === 'materia') {
-        return { chipColor: ev.materia ? ev.materia.colorId : null, materiaTxt: ev.materia ? ev.materia.cod : '', hora: ev.item.hora || '', titulo: ev.item.titulo, lugar: ev.materia ? (ev.materia.salon || 'Sin salón asignado') : '', strong: ev.color, sortHora: ev.item.hora || '00:00', personal: false, refItem: ev.item };
+        return { chipColor: ev.materia ? ev.materia.colorId : null, materiaTxt: ev.materia ? truncate(ev.materia.nombre, 16) : '', hora: ev.item.hora || '', titulo: ev.item.titulo, lugar: ev.materia ? (ev.materia.salon || 'Sin salón asignado') : '', strong: ev.color, sortHora: ev.item.hora || '00:00', personal: false, refItem: ev.item, tagId: ev.item.tagId };
       }
-      return { chipColor: null, materiaTxt: 'Personal', hora: ev.allDay ? 'Todo el día' : (ev.item.hora || ''), titulo: ev.item.titulo, lugar: '', strong: PERSONAL_COLOR, sortHora: ev.allDay ? '00:00' : (ev.item.hora || '00:00'), personal: true, refItem: ev.item };
+      return { chipColor: null, materiaTxt: 'Personal', hora: ev.allDay ? 'Todo el día' : (ev.item.hora || ''), titulo: ev.item.titulo, lugar: '', strong: PERSONAL_COLOR, sortHora: ev.allDay ? '00:00' : (ev.item.hora || '00:00'), personal: true, refItem: ev.item, tagId: ev.item.tagId };
     });
     var all = claseEntries.concat(evData).sort(function (a, b) { return String(a.sortHora).localeCompare(String(b.sortHora)); });
 
@@ -1787,6 +1803,7 @@
       var chip = qf(node, 'chip');
       chip.setAttribute('style', item.personal ? personalChipStyle() : (item.chipColor ? chipStyle(item.chipColor) : personalChipStyle()));
       chip.textContent = item.materiaTxt;
+      renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'hora').textContent = item.hora;
       qf(node, 'titulo').textContent = item.titulo;
       qf(node, 'lugar').textContent = item.lugar;
@@ -1849,9 +1866,10 @@
         node.style.width = 'calc(' + anchoPct + '% - 2px)';
         node.style.marginLeft = 'calc(' + (anchoPct * b.slot) + '% + 1px)';
         // En mobile la columna es de ~40px: el nombre completo no entra
-        // ("Conta…"). El código se lee mucho mejor ahí — el nombre completo
-        // sigue disponible en el title/aria-label que pone makeRowClickable.
-        qf(node, 'nombre').textContent = esMobile() ? b.m.cod.split('-')[0] : b.m.nombre;
+        // ("Conta…"). Usamos la misma abreviatura de 4 letras que tiles/
+        // avatares — el nombre completo sigue disponible en el title/
+        // aria-label que pone makeRowClickable.
+        qf(node, 'nombre').textContent = esMobile() ? materiaAbrev(b.m.nombre) : b.m.nombre;
         qf(node, 'hora').textContent = horaTexto(b.ini) + '–' + horaTexto(b.fin);
         qf(node, 'salon').textContent = (b.m.salon || '').replace('Edificio ', '');
         makeRowClickable(node, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
@@ -2057,9 +2075,7 @@
     var form = document.getElementById('form-materia');
     form.reset();
     form.nombre.value = m ? m.nombre : '';
-    form.cod.value = m ? m.cod : '';
     form.doc.value = m ? m.doc : '';
-    form.creditos.value = m ? m.creditos : '';
     form.salon.value = m ? m.salon : '';
     form.estado.value = m ? m.estado : 'cursando';
     renderModalMateriaSwatches();
@@ -2228,11 +2244,9 @@
       var record = {
         id: STATE.editing.materiaId || uid(),
         semestreId: semestreId,
-        cod: form.cod.value.trim() || autoCod(form.nombre.value),
         nombre: form.nombre.value.trim(),
         doc: form.doc.value.trim(),
         colorId: STATE.editing.colorId,
-        creditos: Number(form.creditos.value) || 0,
         salon: form.salon.value.trim(),
         bloques: bloques,
         esc: STATE.editing.esc,
@@ -2267,11 +2281,6 @@
     });
   });
 
-  function autoCod(nombre) {
-    var letras = (nombre || 'MAT').replace(/[^a-zA-ZÀ-ÿ ]/g, '').split(' ').filter(Boolean).slice(0, 1)[0] || 'MAT';
-    return letras.slice(0, 3).toUpperCase() + '-' + (100 + Math.floor(Math.random() * 900));
-  }
-
   // ---- Modal evaluación ----
   function openEvaluacionModal(opts) {
     opts = opts || {};
@@ -2285,7 +2294,10 @@
       // semestre activo antes que una vieja al azar.
       evalMateriaId: ev ? ev.materiaId : (opts.materiaId || (computeMateriasDelActivo()[0] || computeMaterias()[0]).id),
       evalTipo: ev ? (tipoEsPreset ? ev.tipo : 'Otro') : 'Parcial',
-      evalTipoCustom: ev && !tipoEsPreset ? ev.tipo : ''
+      evalTipoCustom: ev && !tipoEsPreset ? ev.tipo : '',
+      tagId: ev ? ev.tagId : null,
+      tagNuevoAbierto: false,
+      tagNuevoColor: 'azul'
     };
     document.getElementById('modal-evaluacion-title').textContent = ev ? 'Editar examen o entrega' : 'Nuevo examen o entrega';
     document.getElementById('btn-evaluacion-eliminar').classList.toggle('hidden', !ev);
@@ -2299,6 +2311,7 @@
     form.notas.value = ev ? (ev.notas || '') : '';
     renderModalEvalMaterias();
     renderModalEvalTipos();
+    renderTagPicker({ wrap: 'modal-eval-tags', kind: 'academico', nuevoWrap: 'modal-eval-tag-nueva', nuevoNombre: 'modal-eval-tag-nueva-nombre', nuevoSwatches: 'modal-eval-tag-nueva-swatches', nuevoCrear: 'modal-eval-tag-nueva-crear' });
     openModal('modal-evaluacion');
     snapshotModalForm('modal-evaluacion');
   }
@@ -2310,7 +2323,7 @@
       var node = tpl('chip-materia');
       var on = STATE.editing.evalMateriaId === m.id;
       var chip = qf(node, 'chip');
-      chip.textContent = m.cod + ' · ' + truncate(m.nombre, 18);
+      chip.textContent = truncate(m.nombre, 24);
       chip.classList.toggle('is-on', on);
       chip.style.background = on ? m.soft : '';
       chip.style.color = on ? m.strong : '';
@@ -2338,6 +2351,76 @@
     customInput.oninput = function () { STATE.editing.evalTipoCustom = customInput.value; };
   }
 
+  // ---- Selector de etiqueta (bloque A5) ----
+  // Reusado por el modal de Evaluación (kind 'academico') y el de Evento
+  // personal (kind 'personal') — mismos ids de STATE.editing (tagId,
+  // tagNuevoAbierto, tagNuevoColor), sólo cambian los ids del DOM que le
+  // pasa cada caller.
+  function renderTagPicker(ids) {
+    var wrap = document.getElementById(ids.wrap);
+    clear(wrap);
+    loadEventTagsRaw().filter(function (t) { return t.kind === ids.kind; }).forEach(function (t) {
+      var node = tpl('chip-materia');
+      var on = STATE.editing.tagId === t.id;
+      var chip = qf(node, 'chip');
+      var a = ACCENTS[t.colorId] || ACCENTS.gris;
+      chip.textContent = truncate(t.nombre, 20);
+      chip.classList.toggle('is-on', on);
+      chip.style.background = a.soft;
+      chip.style.color = a.text;
+      chip.style.borderColor = on ? a.strong : 'transparent';
+      chip.style.border = '1.5px solid ' + (on ? a.strong : 'transparent');
+      chip.addEventListener('click', function () {
+        STATE.editing.tagId = on ? null : t.id;
+        renderTagPicker(ids);
+      });
+      wrap.appendChild(node);
+    });
+    var nuevoNode = tpl('chip-materia');
+    var nuevoChip = qf(nuevoNode, 'chip');
+    nuevoChip.textContent = '+ Nueva…';
+    nuevoChip.classList.toggle('is-on', STATE.editing.tagNuevoAbierto);
+    nuevoChip.addEventListener('click', function () {
+      STATE.editing.tagNuevoAbierto = !STATE.editing.tagNuevoAbierto;
+      renderTagPicker(ids);
+      if (STATE.editing.tagNuevoAbierto) document.getElementById(ids.nuevoNombre).focus();
+    });
+    wrap.appendChild(nuevoNode);
+
+    var nuevoWrap = document.getElementById(ids.nuevoWrap);
+    nuevoWrap.classList.toggle('hidden', !STATE.editing.tagNuevoAbierto);
+    if (STATE.editing.tagNuevoAbierto) {
+      var swWrap = document.getElementById(ids.nuevoSwatches);
+      clear(swWrap);
+      Object.keys(ACCENTS).forEach(function (colorId) {
+        var swNode = tpl('swatch');
+        var strong = ACCENTS[colorId].strong;
+        swNode.style.background = strong;
+        var selected = STATE.editing.tagNuevoColor === colorId;
+        swNode.classList.toggle('is-selected', selected);
+        if (selected) swNode.style.boxShadow = '0 0 0 3px var(--c-surface), 0 0 0 5px ' + strong;
+        swNode.addEventListener('click', function () { STATE.editing.tagNuevoColor = colorId; renderTagPicker(ids); });
+        swWrap.appendChild(swNode);
+      });
+    }
+    document.getElementById(ids.nuevoCrear).onclick = async function () {
+      var nombreInput = document.getElementById(ids.nuevoNombre);
+      var nombre = nombreInput.value.trim();
+      if (!nombre) { nombreInput.focus(); return; }
+      var nuevoTag = { id: uid(), nombre: nombre, kind: ids.kind, colorId: STATE.editing.tagNuevoColor || 'azul' };
+      var arr = loadEventTagsRaw(); arr.push(nuevoTag);
+      var btnCrear = document.getElementById(ids.nuevoCrear);
+      setBtnBusy(btnCrear, true, 'Creando…');
+      var ok = await saveEventTagsRaw(arr);
+      setBtnBusy(btnCrear, false);
+      if (!ok) { avisarError(); return; }
+      STATE.editing.tagId = nuevoTag.id;
+      STATE.editing.tagNuevoAbierto = false;
+      nombreInput.value = '';
+      renderTagPicker(ids);
+    };
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('form-evaluacion').addEventListener('submit', async function (ev) {
       ev.preventDefault();
@@ -2352,7 +2435,8 @@
         hora: form.hora.value,
         hecho: form.hecho.value === '1',
         nota: form.nota.value === '' ? null : Number(form.nota.value),
-        notas: form.notas.value.trim()
+        notas: form.notas.value.trim(),
+        tagId: STATE.editing.tagId
       };
       var arr = loadAgendaRaw();
       if (STATE.editing.evaluacionId) arr = arr.map(function (a) { return a.id === record.id ? record : a; });
@@ -2382,7 +2466,7 @@
   function openPersonalModal(opts) {
     opts = opts || {};
     var p = opts.editId ? personalRawById(opts.editId) : null;
-    STATE.editing = { personalId: opts.editId || null, todoElDia: p ? !!p.todoElDia : false };
+    STATE.editing = { personalId: opts.editId || null, todoElDia: p ? !!p.todoElDia : false, tagId: p ? p.tagId : null, tagNuevoAbierto: false, tagNuevoColor: 'azul' };
     document.getElementById('btn-personal-eliminar').classList.toggle('hidden', !p);
     var form = document.getElementById('form-personal');
     form.reset();
@@ -2390,6 +2474,7 @@
     form.fecha.value = p ? p.fecha : (opts.fecha || todayISO());
     form.hora.value = p ? (p.hora || '') : '';
     renderPersonalToggle();
+    renderTagPicker({ wrap: 'modal-personal-tags', kind: 'personal', nuevoWrap: 'modal-personal-tag-nueva', nuevoNombre: 'modal-personal-tag-nueva-nombre', nuevoSwatches: 'modal-personal-tag-nueva-swatches', nuevoCrear: 'modal-personal-tag-nueva-crear' });
     openModal('modal-personal');
     snapshotModalForm('modal-personal');
   }
@@ -2413,7 +2498,8 @@
         titulo: form.titulo.value.trim(),
         fecha: form.fecha.value,
         hora: STATE.editing.todoElDia ? '' : form.hora.value,
-        todoElDia: !!STATE.editing.todoElDia
+        todoElDia: !!STATE.editing.todoElDia,
+        tagId: STATE.editing.tagId
       };
       var arr = loadPersonalRaw();
       if (STATE.editing.personalId) arr = arr.map(function (p) { return p.id === record.id ? record : p; });
@@ -2448,8 +2534,8 @@
     computeMateriasDelActivo().slice(0, 3).forEach(function (m) {
       var card = el('div', 'card'); card.style.cssText = 'padding:18px;display:flex;flex-direction:column;gap:11px';
       var top = el('div'); top.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
-      var chip = el('span'); chip.setAttribute('style', chipStyle(m.colorId)); chip.textContent = m.cod;
-      var meta = el('span', 'mono'); meta.style.cssText = 'font-size:11px;color:var(--c-ink3)'; meta.textContent = m.creditos + ' créditos';
+      var chip = el('span'); chip.setAttribute('style', chipStyle(m.colorId)); chip.textContent = truncate(m.doc, 18);
+      var meta = el('span', 'mono'); meta.style.cssText = 'font-size:11px;color:var(--c-ink3)'; meta.textContent = m.badgeLabel;
       top.appendChild(chip); top.appendChild(meta);
       var nombre = el('span'); nombre.style.cssText = 'font-family:var(--font-display);font-size:17px;font-weight:600;letter-spacing:-.01em'; nombre.textContent = m.nombre;
       var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:12px';
@@ -2747,8 +2833,8 @@
       // ambiguo (#materias) también lo está; agendaHits se busca sin acotar
       // porque su destino (#agenda) tampoco se acota por semestre — ver
       // README, sección Semestres.
-      var materiaHits = computeMateriasDelActivo().filter(function (m) { return (m.nombre + ' ' + m.cod + ' ' + m.doc).toLowerCase().indexOf(ql) >= 0; });
-      var agendaHits = loadAgendaRaw().filter(function (a) { return (a.titulo + ' ' + (a.materiaId ? materiaCod(a.materiaId) : '')).toLowerCase().indexOf(ql) >= 0; });
+      var materiaHits = computeMateriasDelActivo().filter(function (m) { return (m.nombre + ' ' + m.doc).toLowerCase().indexOf(ql) >= 0; });
+      var agendaHits = loadAgendaRaw().filter(function (a) { return (a.titulo + ' ' + (a.materiaId ? materiaNombre(a.materiaId) : '')).toLowerCase().indexOf(ql) >= 0; });
       var targetHash, apply;
       if (materiaHits.length === 1 && agendaHits.length === 0) {
         targetHash = '#materia-' + materiaHits[0].id;
@@ -2999,6 +3085,11 @@
     document.querySelectorAll('#auth-mode-toggle [data-auth-mode]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-auth-mode') === mode); });
     document.getElementById('auth-submit').textContent = mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión';
     document.getElementById('auth-signup-fields').classList.toggle('hidden', mode !== 'signup');
+    if (mode === 'signup') {
+      poblarSelectNacimiento('auth-nac');
+      initSelectPais('auth-tel-pais', 'auth-telefono', null, null);
+      initSelectUniversidad('auth-universidad', 'auth-universidad-otra-wrap', 'auth-universidad-otra', null, null);
+    }
     // No tiene sentido "¿olvidaste tu contraseña?" en el formulario de
     // registro (todavía no existe una).
     document.getElementById('auth-forgot-row').classList.toggle('hidden', mode === 'signup');
@@ -3054,6 +3145,146 @@
   // cualquier login nuevo.
   function authRedirectUrl() { return location.href.split('#')[0]; }
 
+  // ================================================================
+  // FECHA DE NACIMIENTO / TELÉFONO CON PAÍS / UNIVERSIDAD (bloque A)
+  // Compartido entre el formulario de registro (auth-*) y el de perfil
+  // (perfil-*) — mismos helpers, dos prefijos de id distintos.
+  // ================================================================
+  function poblarSelectNacimiento(prefix) {
+    var selDia = document.getElementById(prefix + '-dia');
+    var selMes = document.getElementById(prefix + '-mes');
+    var selAnio = document.getElementById(prefix + '-anio');
+    if (!selDia || selDia.options.length) return; // ya poblado
+    var optDia = el('option'); optDia.value = ''; optDia.textContent = 'Día'; selDia.appendChild(optDia);
+    for (var d = 1; d <= 31; d++) { var o = el('option'); o.value = String(d); o.textContent = String(d); selDia.appendChild(o); }
+    var optMes = el('option'); optMes.value = ''; optMes.textContent = 'Mes'; selMes.appendChild(optMes);
+    MESES_LARGOS.forEach(function (nombre, i) {
+      var om = el('option'); om.value = String(i + 1); om.textContent = nombre.charAt(0).toUpperCase() + nombre.slice(1); selMes.appendChild(om);
+    });
+    var optAnio = el('option'); optAnio.value = ''; optAnio.textContent = 'Año'; selAnio.appendChild(optAnio);
+    // 15 a 100 años — mismo rango que valida el check constraint en Supabase.
+    var anioActual = today().getFullYear();
+    for (var y = anioActual - 15; y >= anioActual - 100; y--) { var oy = el('option'); oy.value = String(y); oy.textContent = String(y); selAnio.appendChild(oy); }
+  }
+  function leerNacimientoISO(prefix) {
+    var dia = document.getElementById(prefix + '-dia').value;
+    var mes = document.getElementById(prefix + '-mes').value;
+    var anio = document.getElementById(prefix + '-anio').value;
+    if (!dia || !mes || !anio) return null;
+    return anio + '-' + (mes.length < 2 ? '0' + mes : mes) + '-' + (dia.length < 2 ? '0' + dia : dia);
+  }
+  function initNacimiento(prefix, iso) {
+    poblarSelectNacimiento(prefix);
+    var selDia = document.getElementById(prefix + '-dia');
+    var selMes = document.getElementById(prefix + '-mes');
+    var selAnio = document.getElementById(prefix + '-anio');
+    if (!iso) { selDia.value = ''; selMes.value = ''; selAnio.value = ''; return; }
+    var partes = iso.split('-');
+    selAnio.value = partes[0]; selMes.value = String(Number(partes[1])); selDia.value = String(Number(partes[2]));
+  }
+
+  // Uruguay primero (default) — resto pensado para estudiantes de la
+  // región + los destinos de intercambio más comunes, no la lista completa
+  // de países del mundo.
+  var PAISES_TEL = [
+    { iso: 'UY', nombre: 'Uruguay', prefijo: '+598', bandera: '🇺🇾' },
+    { iso: 'AR', nombre: 'Argentina', prefijo: '+54', bandera: '🇦🇷' },
+    { iso: 'BR', nombre: 'Brasil', prefijo: '+55', bandera: '🇧🇷' },
+    { iso: 'CL', nombre: 'Chile', prefijo: '+56', bandera: '🇨🇱' },
+    { iso: 'PY', nombre: 'Paraguay', prefijo: '+595', bandera: '🇵🇾' },
+    { iso: 'BO', nombre: 'Bolivia', prefijo: '+591', bandera: '🇧🇴' },
+    { iso: 'PE', nombre: 'Perú', prefijo: '+51', bandera: '🇵🇪' },
+    { iso: 'EC', nombre: 'Ecuador', prefijo: '+593', bandera: '🇪🇨' },
+    { iso: 'CO', nombre: 'Colombia', prefijo: '+57', bandera: '🇨🇴' },
+    { iso: 'VE', nombre: 'Venezuela', prefijo: '+58', bandera: '🇻🇪' },
+    { iso: 'MX', nombre: 'México', prefijo: '+52', bandera: '🇲🇽' },
+    { iso: 'ES', nombre: 'España', prefijo: '+34', bandera: '🇪🇸' },
+    { iso: 'US', nombre: 'Estados Unidos', prefijo: '+1', bandera: '🇺🇸' }
+  ];
+  function paisPorIso(iso) {
+    var found = null;
+    PAISES_TEL.forEach(function (p) { if (p.iso === iso) found = p; });
+    return found || PAISES_TEL[0];
+  }
+  // Formatea "mientras se escribe" con libphonenumber-js si está disponible
+  // (bundle standalone por CDN, ver build-app.mjs) — si no cargó (offline,
+  // CDN caído), se degrada a dejar el número tal cual lo escribió el
+  // usuario, sin romper el formulario.
+  function formatearTelefonoInput(inputEl, paisIso) {
+    if (!window.libphonenumber) return;
+    try {
+      var formateado = new window.libphonenumber.AsYouType(paisIso).input(inputEl.value);
+      if (formateado) inputEl.value = formateado;
+    } catch (e) {}
+  }
+  // { telefono_e164, telefono_pais } a partir del select de país + el input
+  // — si libphonenumber no está disponible o el número no valida para ese
+  // país, guarda un E.164 "mejor esfuerzo" (prefijo + dígitos) en vez de
+  // perder el dato.
+  function calcularTelefono(paisIso, valorInput) {
+    var digits = (valorInput || '').replace(/[^\d]/g, '');
+    if (!digits) return { telefono_e164: null, telefono_pais: null };
+    if (window.libphonenumber) {
+      try {
+        var pn = window.libphonenumber.parsePhoneNumberFromString(valorInput, paisIso);
+        if (pn) return { telefono_e164: pn.number, telefono_pais: paisIso };
+      } catch (e) {}
+    }
+    return { telefono_e164: paisPorIso(paisIso).prefijo + digits, telefono_pais: paisIso };
+  }
+  // Número nacional legible para mostrar en el input al editar (sin
+  // prefijo — ese ya lo muestra el select de país aparte).
+  function telefonoNacionalDesdeE164(e164, paisIso) {
+    if (!e164) return '';
+    if (window.libphonenumber) {
+      try {
+        var pn = window.libphonenumber.parsePhoneNumberFromString(e164);
+        if (pn) return pn.formatNational();
+      } catch (e) {}
+    }
+    var prefijo = paisPorIso(paisIso).prefijo;
+    return e164.indexOf(prefijo) === 0 ? e164.slice(prefijo.length).trim() : e164;
+  }
+  function initSelectPais(selectId, telInputId, e164, paisIso) {
+    var sel = document.getElementById(selectId);
+    var input = document.getElementById(telInputId);
+    if (!sel.options.length) {
+      PAISES_TEL.forEach(function (p) { var o = el('option'); o.value = p.iso; o.textContent = p.bandera + ' ' + p.prefijo; o.title = p.nombre; sel.appendChild(o); });
+    }
+    sel.value = paisIso || 'UY';
+    input.value = e164 ? telefonoNacionalDesdeE164(e164, sel.value) : '';
+    sel.onchange = function () { formatearTelefonoInput(input, sel.value); };
+    input.oninput = function () { formatearTelefonoInput(input, sel.value); };
+  }
+
+  // universities: tabla de lectura pública (RLS `using (true)`) — se cachea
+  // en memoria porque no cambia durante la sesión y se usa en dos
+  // formularios (registro y perfil).
+  var UNIVERSIDADES_CACHE = null;
+  function cargarUniversidades() {
+    if (UNIVERSIDADES_CACHE) return Promise.resolve(UNIVERSIDADES_CACHE);
+    return sb().from('universities').select('*').order('nombre').then(function (res) {
+      UNIVERSIDADES_CACHE = res.error ? [] : res.data;
+      return UNIVERSIDADES_CACHE;
+    });
+  }
+  function initSelectUniversidad(selectId, otraWrapId, otraInputId, universityId, universityOther) {
+    var sel = document.getElementById(selectId);
+    var wrap = document.getElementById(otraWrapId);
+    var otraInput = document.getElementById(otraInputId);
+    cargarUniversidades().then(function (unis) {
+      if (!sel.options.length) {
+        var optVacia = el('option'); optVacia.value = ''; optVacia.textContent = 'Elegí tu universidad'; sel.appendChild(optVacia);
+        unis.forEach(function (u) { var o = el('option'); o.value = u.id; o.textContent = u.nombre; sel.appendChild(o); });
+        var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'Otra…'; sel.appendChild(optOtra);
+      }
+      if (universityId) { sel.value = universityId; wrap.classList.add('hidden'); otraInput.value = ''; }
+      else if (universityOther) { sel.value = 'otra'; wrap.classList.remove('hidden'); otraInput.value = universityOther; }
+      else { sel.value = ''; wrap.classList.add('hidden'); otraInput.value = ''; }
+    });
+    sel.onchange = function () { wrap.classList.toggle('hidden', sel.value !== 'otra'); };
+  }
+
   function bindAuthUI() {
     // El botón de Google redirige el navegador entero a Google y vuelve acá
     // (Supabase se encarga del intercambio de tokens); eso necesita una URL
@@ -3097,7 +3328,10 @@
           // completarlos) — el trigger de la base los copia solos a
           // `profiles` si vienen, y si no, la pantalla de "completá tu
           // perfil" te los va a volver a pedir en el próximo login.
-          var edadTxt = form.edad.value.trim();
+          var birthDate = leerNacimientoISO('auth-nac');
+          var telSel = document.getElementById('auth-tel-pais').value || 'UY';
+          var tel = calcularTelefono(telSel, form.telefono.value.trim());
+          var uniSel = document.getElementById('auth-universidad').value;
           res = await sb().auth.signUp({
             email: email,
             password: password,
@@ -3105,10 +3339,12 @@
               data: {
                 nombre: form.nombre.value.trim(),
                 apellido: form.apellido.value.trim(),
-                edad: edadTxt === '' ? null : Number(edadTxt),
-                facultad: form.facultad.value.trim(),
+                birth_date: birthDate,
                 carrera: form.carrera.value.trim(),
-                telefono: form.telefono.value.trim()
+                telefono_e164: tel.telefono_e164,
+                telefono_pais: tel.telefono_pais,
+                university_id: uniSel && uniSel !== 'otra' ? uniSel : null,
+                university_other: uniSel === 'otra' ? form.universidad_otra.value.trim() : null
               }
             }
           });
@@ -3242,7 +3478,7 @@
   // ================================================================
   // PERFIL
   // ================================================================
-  var PERFIL_CAMPOS = ['nombre', 'apellido', 'edad', 'facultad', 'carrera', 'telefono'];
+  var PERFIL_CAMPOS = ['nombre', 'apellido', 'nac_dia', 'nac_mes', 'nac_anio', 'universidad', 'carrera', 'telefono'];
   function esCuentaGoogle() {
     return !!(CURRENT_USER && CURRENT_USER.app_metadata && CURRENT_USER.app_metadata.provider === 'google');
   }
@@ -3260,10 +3496,10 @@
     var form = document.getElementById('form-perfil');
     form.nombre.value = p.nombre || '';
     form.apellido.value = p.apellido || '';
-    form.edad.value = p.edad != null ? p.edad : '';
-    form.facultad.value = p.facultad || '';
+    initNacimiento('perfil-nac', p.birth_date || null);
+    initSelectPais('perfil-tel-pais', 'perfil-telefono', p.telefono_e164 || null, p.telefono_pais || null);
+    initSelectUniversidad('perfil-universidad', 'perfil-universidad-otra-wrap', 'perfil-universidad-otra', p.university_id || null, p.university_other || null);
     form.carrera.value = p.carrera || '';
-    form.telefono.value = p.telefono || '';
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
     // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
     // propia con su propia identidad grande (.perfil-hero) — el subtítulo
@@ -3323,20 +3559,75 @@
   function openAjustesModal() {
     var p = CURRENT_PROFILE || {};
     var form = document.getElementById('form-ajustes');
-    form.creditos_carrera.value = p.creditos_carrera != null ? p.creditos_carrera : '';
     form.materias_carrera.value = p.materias_carrera != null ? p.materias_carrera : '';
     AJUSTES_MARGEN_ACTUAL = p.margen_riesgo != null ? p.margen_riesgo : MARGEN_RIESGO;
     renderAjustesMargenPills();
+    renderAjustesTags();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
 
-  // Los únicos 3 campos que gatillan el aviso — nombre/apellido/edad/foto
-  // pueden quedar sin completar sin que la app insista, salvo en el modo
-  // obligatorio de cuentas de Google (ver README), donde se piden los 6.
+  var KIND_LABEL = { academico: 'Académica', personal: 'Personal' };
+  function renderAjustesTags() {
+    var wrap = document.getElementById('ajustes-tags-list');
+    clear(wrap);
+    var tags = loadEventTagsRaw();
+    if (!tags.length) {
+      var empty = el('span'); empty.style.cssText = 'font-size:12px;color:var(--c-ink3)'; empty.textContent = 'Todavía no creaste ninguna etiqueta.';
+      wrap.appendChild(empty);
+      return;
+    }
+    tags.forEach(function (t) {
+      var node = tpl('tag-row');
+      qf(node, 'chip').setAttribute('style', chipStyle(t.colorId));
+      qf(node, 'chip').textContent = truncate(t.nombre, 20);
+      qf(node, 'kind').textContent = KIND_LABEL[t.kind] || t.kind;
+      qf(node, 'editBtn').addEventListener('click', function () { iniciarRenombreTag(node, t); });
+      qf(node, 'deleteBtn').addEventListener('click', function () { eliminarTag(t); });
+      wrap.appendChild(node);
+    });
+  }
+  function iniciarRenombreTag(row, t) {
+    clear(row);
+    var input = el('input', 'semestre-row-nombre-input');
+    input.value = t.nombre;
+    row.appendChild(input);
+    input.focus(); input.select();
+    var done = false;
+    var commit = async function () {
+      if (done) return;
+      done = true;
+      var nuevo = input.value.trim();
+      if (nuevo && nuevo !== t.nombre) {
+        var arr = loadEventTagsRaw().map(function (x) { return x.id === t.id ? Object.assign({}, x, { nombre: nuevo }) : x; });
+        var ok = await saveEventTagsRaw(arr);
+        if (!ok) avisarError();
+      }
+      renderAjustesTags();
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+      else if (ev.key === 'Escape') { done = true; renderAjustesTags(); }
+    });
+  }
+  // ON DELETE SET NULL en agenda.tag_id/personal.tag_id: la base se encarga
+  // de "soltar" el tag de cualquier evento que lo tuviera — no hace falta
+  // buscar y limpiar referencias acá.
+  async function eliminarTag(t) {
+    if (!confirm('¿Eliminar la etiqueta "' + t.nombre + '"? Los eventos que la tenían se quedan sin etiqueta.')) return;
+    var ok = await saveEventTagsRaw(loadEventTagsRaw().filter(function (x) { return x.id !== t.id; }));
+    if (!ok) avisarError();
+    renderAjustesTags();
+  }
+
+  // Los únicos 3 campos que gatillan el aviso — nombre/apellido/fecha de
+  // nacimiento/foto pueden quedar sin completar sin que la app insista,
+  // salvo en el modo obligatorio de cuentas de Google (ver README), donde
+  // se piden todos.
   function perfilIncompleto(p) {
     if (!p) return true;
-    return !p.facultad || !p.carrera || !p.telefono;
+    return !(p.university_id || p.university_other) || !p.carrera || !p.telefono_e164;
   }
 
   // Cuentas de Google: se resuelve ANTES de mostrar la app (ver onSignedIn),
@@ -3457,15 +3748,19 @@
     document.getElementById('form-perfil').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
-      var edadTxt = form.edad.value.trim();
+      var uniSel = document.getElementById('perfil-universidad').value;
+      var telSel = document.getElementById('perfil-tel-pais').value || 'UY';
+      var tel = calcularTelefono(telSel, form.telefono.value.trim());
       var patch = {
         id: CURRENT_USER.id,
         nombre: form.nombre.value.trim(),
         apellido: form.apellido.value.trim(),
-        edad: edadTxt === '' ? null : Number(edadTxt),
-        facultad: form.facultad.value.trim(),
+        birth_date: leerNacimientoISO('perfil-nac'),
         carrera: form.carrera.value.trim(),
-        telefono: form.telefono.value.trim()
+        telefono_e164: tel.telefono_e164,
+        telefono_pais: tel.telefono_pais,
+        university_id: uniSel && uniSel !== 'otra' ? uniSel : null,
+        university_other: uniSel === 'otra' ? form.universidad_otra.value.trim() : null
       };
       var btn = document.getElementById('btn-perfil-guardar');
       setBtnBusy(btn, true, 'Guardando…');
@@ -3489,11 +3784,9 @@
     document.getElementById('form-ajustes').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
-      var creditosTxt = form.creditos_carrera.value.trim();
       var materiasTxt = form.materias_carrera.value.trim();
       var patch = {
         id: CURRENT_USER.id,
-        creditos_carrera: creditosTxt === '' ? null : Number(creditosTxt),
         materias_carrera: materiasTxt === '' ? null : Number(materiasTxt),
         margen_riesgo: AJUSTES_MARGEN_ACTUAL
       };

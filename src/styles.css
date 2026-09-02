@@ -703,11 +703,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .tipo-item:hover:not(.is-on){filter:brightness(.96)}
 .tipo-item.is-on{font-weight:600;background:var(--c-accent);color:#fff}
 
-.categoria-row{display:flex;gap:8px;flex-wrap:wrap}
-.categoria-item{height:38px;display:flex;align-items:center;gap:8px;padding:0 14px;border-radius:12px;border:none;font-size:13px;color:var(--c-ink2);background:var(--c-surfaceAlt)}
-.categoria-item.is-on{font-weight:600;color:var(--c-ink);background:rgba(142,142,147,.18)}
-.categoria-item .d{width:9px;height:9px;border-radius:50%;background:var(--c-personal)}
-
 /* ---------- Estados vacíos / onboarding ---------- */
 .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:0 40px;text-align:center}
 .empty-copy{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:480px}
@@ -1327,7 +1322,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .num-pill{height:40px;min-width:54px}
   .horario-modal-row{gap:8px}
   .horario-modal-row input[type=time]{flex:1 1 40%;min-width:0;height:44px!important}
-  .categoria-item{height:44px}
 
   /* Hojas inferiores (listas cortas: semestres, importar datos). */
   .modal-backdrop.is-sheet{align-items:flex-end;background:var(--c-overlay)}

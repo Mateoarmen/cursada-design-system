@@ -47,11 +47,23 @@
             <div class="field"><label for="auth-nombre">Nombre</label><input id="auth-nombre" name="nombre" placeholder="Tu nombre" autocomplete="given-name"></div>
             <div class="field"><label for="auth-apellido">Apellido</label><input id="auth-apellido" name="apellido" placeholder="Tu apellido" autocomplete="family-name"></div>
           </div>
+          <div class="field">
+            <label for="auth-nac-dia">Fecha de nacimiento</label>
+            <div style="display:flex;gap:8px">
+              <select id="auth-nac-dia" name="nac_dia" style="flex:0.8" aria-label="Día de nacimiento"></select>
+              <select id="auth-nac-mes" name="nac_mes" style="flex:1.6" aria-label="Mes de nacimiento"></select>
+              <select id="auth-nac-anio" name="nac_anio" style="flex:1.1" aria-label="Año de nacimiento"></select>
+            </div>
+          </div>
           <div class="field-row">
-            <div class="field" style="flex:none;width:100px"><label for="auth-edad">Edad</label><input id="auth-edad" name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
+            <div class="field" style="flex:none;width:104px"><label for="auth-tel-pais">País</label><select id="auth-tel-pais" name="tel_pais" aria-label="Código de país"></select></div>
             <div class="field"><label for="auth-telefono">Teléfono</label><input id="auth-telefono" name="telefono" type="tel" placeholder="Ej: 099 123 456" autocomplete="tel"></div>
           </div>
-          <div class="field"><label for="auth-facultad">Facultad</label><input id="auth-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
+          <div class="field">
+            <label for="auth-universidad">Universidad</label>
+            <select id="auth-universidad" name="universidad" aria-label="Universidad"></select>
+          </div>
+          <div class="field hidden" id="auth-universidad-otra-wrap"><label for="auth-universidad-otra">¿Cuál?</label><input id="auth-universidad-otra" name="universidad_otra" placeholder="Nombre de tu universidad"></div>
           <div class="field"><label for="auth-carrera">Carrera</label><input id="auth-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
         </div>
         <span class="auth-error hidden" id="auth-error" role="alert" aria-live="polite"></span>
@@ -195,6 +207,7 @@
             <div class="inicio-hero-body">
               <span class="inicio-hero-title" id="inicio-hero-title"></span>
               <span class="inicio-hero-meta" id="inicio-hero-meta"></span>
+              <span class="chip hidden" id="inicio-hero-tag" style="margin-top:2px"></span>
             </div>
             <div class="inicio-hero-progress hidden" id="inicio-hero-progress">
               <div class="bar-wrap"><div class="bar-fill" id="inicio-hero-bar"></div></div>
@@ -229,7 +242,6 @@
                 <a class="panel-hint" href="#progreso">ver detalle</a>
               </div>
               <div id="progreso-widget-delta"></div>
-              <div id="progreso-widget-creditos"></div>
               <div id="progreso-widget-materias"></div>
             </div>
             <div class="card panel">
@@ -269,7 +281,7 @@
         <div class="materias-grid" id="materias-grid"></div>
         <div style="overflow-x:auto" class="hidden" id="materias-table-wrap">
           <table class="materias-table">
-            <thead><tr><th>Código</th><th>Materia</th><th>Docente</th><th>Créditos</th><th>Nota</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Materia</th><th>Docente</th><th>Nota</th><th>Estado</th></tr></thead>
             <tbody id="materias-table"></tbody>
           </table>
         </div>
@@ -465,7 +477,6 @@
           </div>
           <div class="card panel" id="progreso-creditos-panel">
             <div class="panel-head"><h2 class="panel-title">Progreso hacia el título</h2></div>
-            <div id="progreso-creditos"></div>
             <div id="progreso-materias"></div>
           </div>
         </div>
@@ -530,9 +541,7 @@
     <form id="form-materia">
       <div class="modal-body">
         <div class="field-row">
-          <div class="field" style="flex:1.6"><label for="materia-nombre">Nombre de la materia</label><input id="materia-nombre" name="nombre" required placeholder="Ej: Contabilidad II"></div>
-          <div class="field" style="flex:none;width:130px"><label for="materia-cod">Código</label><input id="materia-cod" name="cod" class="mono" spellcheck="false" placeholder="Ej: CON-201"></div>
-          <div class="field" style="flex:none;width:112px"><label for="materia-creditos">Créditos</label><input id="materia-creditos" name="creditos" type="number" min="0" step="1" class="mono"></div>
+          <div class="field"><label for="materia-nombre">Nombre de la materia</label><input id="materia-nombre" name="nombre" required placeholder="Ej: Contabilidad II"></div>
         </div>
         <div class="field-row">
           <div class="field"><label for="materia-doc">Docente</label><input id="materia-doc" name="doc" placeholder="Prof. …"></div>
@@ -603,6 +612,17 @@
           <div class="tipos-seg" id="modal-eval-tipos" role="group" aria-labelledby="eval-tipo-label"></div>
           <input type="text" id="modal-eval-tipo-custom" class="hidden" placeholder="Nombre del tipo (ej: Coloquio, Laboratorio)" autocomplete="off">
         </div>
+        <div class="field">
+          <label id="eval-tag-label">Etiqueta (opcional)</label>
+          <div class="chips-materia" id="modal-eval-tags" role="group" aria-labelledby="eval-tag-label"></div>
+          <div class="field hidden" id="modal-eval-tag-nueva" style="margin-top:4px">
+            <div style="display:flex;gap:8px">
+              <input type="text" id="modal-eval-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
+              <button type="button" class="btn btn-sm" id="modal-eval-tag-nueva-crear">Crear</button>
+            </div>
+            <div class="swatches" id="modal-eval-tag-nueva-swatches" style="margin-top:8px"></div>
+          </div>
+        </div>
         <div class="field"><label for="eval-titulo">Título</label><input id="eval-titulo" name="titulo" required placeholder="Ej: Parcial 1 · unidades 1 a 4"></div>
         <div class="field-row">
           <div class="field"><label for="eval-fecha">Fecha</label><input id="eval-fecha" name="fecha" type="date" required></div>
@@ -657,13 +677,15 @@
           <button type="button" class="switch" id="toggle-todo-el-dia" aria-label="Todo el día"><span class="knob"></span></button>
         </div>
         <div class="field">
-          <label id="personal-categoria-label">Categoría</label>
-          <div class="categoria-row" role="group" aria-labelledby="personal-categoria-label">
-            <div class="categoria-item is-on"><div class="d"></div>Personal</div>
-            <div class="categoria-item" title="No disponible: los eventos personales sólo usan gris neutro">Trabajo</div>
-            <div class="categoria-item" title="No disponible: los eventos personales sólo usan gris neutro">Salud</div>
+          <label id="personal-tag-label">Etiqueta (opcional)</label>
+          <div class="chips-materia" id="modal-personal-tags" role="group" aria-labelledby="personal-tag-label"></div>
+          <div class="field hidden" id="modal-personal-tag-nueva" style="margin-top:4px">
+            <div style="display:flex;gap:8px">
+              <input type="text" id="modal-personal-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
+              <button type="button" class="btn btn-sm" id="modal-personal-tag-nueva-crear">Crear</button>
+            </div>
+            <div class="swatches" id="modal-personal-tag-nueva-swatches" style="margin-top:8px"></div>
           </div>
-          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Los eventos personales nunca usan colores de materia: quedan en gris neutro para no competir con lo académico.</span>
         </div>
       </div>
       <div class="modal-foot" style="justify-content:flex-end">
@@ -716,14 +738,26 @@
             <div class="field"><label for="perfil-nombre">Nombre</label><input id="perfil-nombre" name="nombre" placeholder="Tu nombre"></div>
             <div class="field"><label for="perfil-apellido">Apellido</label><input id="perfil-apellido" name="apellido" placeholder="Tu apellido"></div>
           </div>
+          <div class="field">
+            <label for="perfil-nac-dia">Fecha de nacimiento</label>
+            <div style="display:flex;gap:8px">
+              <select id="perfil-nac-dia" name="nac_dia" style="flex:0.8" aria-label="Día de nacimiento"></select>
+              <select id="perfil-nac-mes" name="nac_mes" style="flex:1.6" aria-label="Mes de nacimiento"></select>
+              <select id="perfil-nac-anio" name="nac_anio" style="flex:1.1" aria-label="Año de nacimiento"></select>
+            </div>
+          </div>
           <div class="field-row">
-            <div class="field" style="flex:none;width:100px"><label for="perfil-edad">Edad</label><input id="perfil-edad" name="edad" type="number" min="14" max="99" step="1" placeholder="Ej: 21"></div>
+            <div class="field" style="flex:none;width:104px"><label for="perfil-tel-pais">País</label><select id="perfil-tel-pais" name="tel_pais" aria-label="Código de país"></select></div>
             <div class="field"><label for="perfil-telefono">Teléfono</label><input id="perfil-telefono" name="telefono" type="tel" placeholder="Ej: 099 123 456"></div>
           </div>
         </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Estudio</span>
-          <div class="field"><label for="perfil-facultad">Facultad</label><input id="perfil-facultad" name="facultad" placeholder="Ej: Facultad de Administración y Ciencias Sociales"></div>
+          <div class="field">
+            <label for="perfil-universidad">Universidad</label>
+            <select id="perfil-universidad" name="universidad" aria-label="Universidad"></select>
+          </div>
+          <div class="field hidden" id="perfil-universidad-otra-wrap"><label for="perfil-universidad-otra">¿Cuál?</label><input id="perfil-universidad-otra" name="universidad_otra" placeholder="Nombre de tu universidad"></div>
           <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
@@ -747,14 +781,18 @@
       <div class="modal-body pad-lg">
         <div class="perfil-group">
           <span class="perfil-group-lbl">Meta de carrera</span>
-          <div class="field"><label for="ajustes-creditos-carrera">Créditos totales de la carrera</label><input id="ajustes-creditos-carrera" name="creditos_carrera" type="number" min="0" step="1" placeholder="Ej: 240"></div>
           <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
-          <span style="font-size:11px;color:var(--c-ink3)">Los dos son opcionales e independientes — si cargás los dos, la sección Progreso muestra las dos barras. Podés completarlos después.</span>
+          <span style="font-size:11px;color:var(--c-ink3)">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
         </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Margen de riesgo</span>
           <div class="num-pill-row"><span class="lbl">De 0 a 3</span><div class="num-pills" id="ajustes-margen-presets"></div></div>
           <span style="font-size:11px;color:var(--c-ink3)">Define cuánto margen le das a una materia antes de que pase de "en riesgo" a "en peligro" en los semáforos de Inicio y Materias.</span>
+        </div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Etiquetas</span>
+          <span style="font-size:11px;color:var(--c-ink3)">Se crean desde el selector de etiqueta al cargar una evaluación o un evento — acá sólo se renombran o se borran.</span>
+          <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
         </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Datos y cuenta</span>
@@ -804,7 +842,7 @@
     <div class="bar4" data-f="bar"></div>
     <div class="prox-body">
       <span class="prox-title" data-f="titulo"></span>
-      <div class="prox-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="metaTxt"></span></div>
+      <div class="prox-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="metaTxt"></span></div>
     </div>
     <span class="badge" data-f="badge"></span>
   </div>
@@ -831,10 +869,8 @@
 
 <template data-template="materia-table-row">
   <tr>
-    <td class="mono" data-f="cod"></td>
     <td data-f="nombre"></td>
     <td data-f="doc"></td>
-    <td class="mono" data-f="creditos"></td>
     <td class="mono" data-f="notaTxt"></td>
     <td><span class="badge" data-f="badge"></span></td>
   </tr>
@@ -866,6 +902,7 @@
     <div class="eval-row">
       <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
       <div class="eval-body"><span class="t" data-f="titulo"></span><span class="meta" data-f="metaTxt"></span></div>
+      <span class="chip hidden" data-f="tag"></span>
       <span class="badge" data-f="badge"></span>
     </div>
   </div>
@@ -881,7 +918,7 @@
     <div class="agenda-row">
       <div class="lp-cb-wrap"><input type="checkbox" class="lp-toggle" data-f="check"><span class="lp-tg" data-f="checkMark"></span></div>
       <div class="bar4" data-f="bar"></div>
-      <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="m" data-f="tipo"></span></div></div>
+      <div class="agenda-body"><span class="agenda-title" data-f="titulo"></span><div class="agenda-meta"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="tipo"></span></div></div>
       <span class="agenda-fecha" data-f="fecha"></span>
       <span class="badge" data-f="badge"></span>
     </div>
@@ -911,7 +948,7 @@
 </template>
 
 <template data-template="cal-day-card">
-  <div class="cal-day-card"><div class="row"><span class="chip" data-f="chip"></span><span class="m" data-f="hora"></span></div><span class="t" data-f="titulo"></span><span class="m" data-f="lugar"></span></div>
+  <div class="cal-day-card"><div class="row"><span class="chip" data-f="chip"></span><span class="chip hidden" data-f="tag"></span><span class="m" data-f="hora"></span></div><span class="t" data-f="titulo"></span><span class="m" data-f="lugar"></span></div>
 </template>
 
 <template data-template="leyenda-item">
@@ -949,6 +986,15 @@
     <span class="semestre-row-meta" data-f="meta"></span>
     <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar semestre">✎</button>
     <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar semestre">🗑</button>
+  </div>
+</template>
+
+<template data-template="tag-row">
+  <div class="semestre-row">
+    <span class="chip" data-f="chip" style="flex:none"></span>
+    <span class="semestre-row-meta" data-f="kind" style="flex:1"></span>
+    <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar etiqueta">✎</button>
+    <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar etiqueta">🗑</button>
   </div>
 </template>
 

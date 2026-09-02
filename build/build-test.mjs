@@ -45,6 +45,7 @@ ${stylesCss}
 </head>
 <body>
 ${appHtml}
+<script src="https://cdn.jsdelivr.net/npm/libphonenumber-js@1.11.9/bundle/libphonenumber-js.min.js"></script>
 <script>
 ${mockJs}
 </script>
