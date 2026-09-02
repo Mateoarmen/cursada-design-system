@@ -2218,3 +2218,162 @@ Semestres a 375px, mostrar nombre + cantidad de materias + 4 botones de
 acción en una sola fila queda muy justo — se sacó la cantidad de materias
 (ya se ve al entrar al semestre) sólo en mobile para darle el espacio a los
 botones, que son la única forma de hacer esas acciones.
+
+## Bloque E — layout, tema y landing
+
+Se pidió: E1) overflow horizontal en mobile en Calendario/Agenda (Horario
+como referencia de "hecho bien"), sin desactivar el pinch-zoom; E2) altura
+de la topbar como variable CSS, padding del contenido derivado de ahí,
+considerando `env(safe-area-inset-top)`; E3) logo "Cursada" en la topbar
+mobile (hoy ausente); E4) tema por defecto siguiendo al sistema operativo
+de forma reactiva, con un control de 3 estados (Sistema/Claro/Oscuro) en
+Ajustes, sacando los botones de tema sueltos que había; E5) landing con
+"Iniciar sesión" visible en mobile (hoy sólo se veía "Crear mi cuenta").
+
+**E1 — el bug real, no el que se pensaba.** Calendario y Agenda desbordaban
+horizontalmente en mobile, pero no por el motivo obvio (viewport/zoom): sus
+topbars tienen controles extra que Horario no tiene (dos `<select>` de
+filtro en Agenda; el toggle Mes/Semana + navegación de mes en Calendario),
+y la regla mobile de `.topbar-actions` (`flex-wrap:nowrap` + `flex:none`,
+pensada para una topbar simple de ícono+ícono+botón) no tiene ningún
+mecanismo para acomodar controles más anchos — simplemente se salen de la
+pantalla. La solución no fue "apretar todo hasta que entre": se sacaron los
+controles que no son decorativos (el toggle Mes/Semana cambia
+`STATE.calViewMode` de verdad, no se puede esconder en mobile como el
+Tarjetas/Tabla de Materias) de `.topbar-actions` a una fila propia debajo
+del header — mismo patrón que ya usaba Materias con `.materias-toolbar` +
+`.filtros-row`, sólo que Agenda y Calendario nunca lo habían adoptado.
+Encontrado recién probando de verdad en 375px, no por lectura de código:
+`gridTemplateColumns`/`scrollWidth` no avisan nada raro hasta que se mide.
+
+Dos gotchas de CSS reales en el camino, ambos con fix documentado inline en
+`styles.css` porque no son obvios releyendo la regla:
+- Un div flex con `gap` en el `style=` inline (`.cal-header-nav`) no se
+  puede angostar desde una regla externa sin `!important` — se movió el
+  `gap` al CSS (mismo criterio ya aplicado en `landing.html` para el header
+  de la landing, ver más abajo).
+- `.filtros-row` reutiliza el patrón "flex:none + overflow-x:auto" pensado
+  para cuando es hijo directo de `.view` (un bloque normal, 100% de ancho).
+  Al meterlo dentro de un nuevo contenedor flex (`.agenda-toolbar`), ese
+  mismo `flex:none` — antes inerte porque `.filtros-row` no vivía en un
+  contexto flex — pasó a tener efecto real y lo dejó del ancho de su
+  contenido (519px) en vez de encogerse a lo disponible, así que su propio
+  scroll interno nunca llegaba a activarse. `min-width:0` no alcanzó para
+  forzarlo (con `flex-shrink:0` el min-width no entra en juego para el
+  cálculo de stretch en este caso); hizo falta `width:100%` explícito.
+
+**Bug propio, encontrado probando — HTML mal cerrado.** Al mover el toggle
+de Calendario y los `<select>` de Agenda fuera de la topbar, se agregaron
+comentarios explicativos en `app.html` y en dos de ellos se cerró con `*/`
+(sintaxis de comentario de `styles.css`, donde se escribió la mayoría de
+los comentarios de esta sesión) en vez de `-->` (HTML). Un comentario HTML
+sin cerrar correctamente no termina en el `*/` — sigue "abierto" hasta el
+próximo `-->` real que aparezca en el archivo, así que todo el markup del
+medio (incluidas dos secciones completas: `.calendario-wrap` con
+`#cal-side`, y parte de la apertura de la sección Horario) quedaba fuera
+del DOM real. El síntoma no se veía en Calendario/Agenda mismos sino
+navegando a **otra** vista (Materias, en este caso): `#cal-side`, que
+debería vivir anidado dentro de `#calendario`, terminaba reparentado como
+hijo directo de `#app` (hermano de `.sidenav`/`.main` en el flex row raíz),
+robándole todo el ancho a `.main` vía `flex:1` y aplastando la vista
+visible a columnas de 64px. Se encontró probando cada vista después del
+cambio (no sólo la que se tocó) y confirmando con
+`document.getElementById('app').children` en vez de confiar en la captura
+visual — el screenshot del bug ya alcanzaba para sospechar, pero la
+inspección del árbol real fue la que mostró la causa exacta. Corregido
+(`-->` en los dos comentarios) y reverificado: `#app` vuelve a tener
+siempre los mismos 6 hijos esperados en cualquier vista.
+
+**E2 — no se pudo reproducir un "la topbar tapa contenido" en vivo.**
+`.topbar` usa `position:sticky` en mobile (no `fixed`), así que reserva su
+propio espacio en el flujo normal — no hay manera estructural de que tape
+contenido por default, y no se encontró ningún elemento `position:fixed`
+en la app que asuma su altura a mano (ninguna otra regla duplicaba el
+`52px` de `.topbar`, sólo la propia definición). Se probó cada vista a
+375px con scroll real (`window.scrollTo`) buscando algo escapándose por
+encima o por detrás de la topbar, y en desktop (1440px) donde `.topbar` en
+realidad ni siquiera es sticky (`position:static`, scrollea con el
+contenido — el elemento persistente ahí es `.sidenav`). Nada. Se implementó
+igual el pedido explícito, como refuerzo preventivo más que como fix de un
+bug reproducido: `--topbar-h:52px` nueva en `:root`, y
+`calc(var(--topbar-h) + env(safe-area-inset-top))` reemplaza el `52px`
+hardcodeado que tenía `.topbar`. Cualquier elemento mobile nuevo que en el
+futuro necesite ubicarse justo debajo de la topbar (un overlay `fixed`, por
+ejemplo) ya tiene de dónde calcularlo sin adivinar un número a mano y
+desincronizarse si esto cambia — mismo espíritu que el bug del tick de
+"hecho" en el bloque D: no se pudo reproducir, se blindó preventivamente y
+se documentó la falta de reproducción en vez de inventar un fix para un
+síntoma no confirmado.
+
+**E3 — logo en la topbar mobile.** El logo "Cursada" (`.sidenav-brand`)
+sólo vivía dentro del cajón lateral, que en mobile está fuera de pantalla
+por defecto — la topbar fija de cada vista (la que sí se ve todo el tiempo)
+no tenía ningún logo, sólo el ☰. Se agregó `.topbar-brand` — la misma marca
+cuadrada de `.sidenav-brand .mark`, sin el wordmark en texto (ya sobra
+lugar con el título de la vista al lado) — repetida en los 7 headers de
+`app.html`, mismo criterio de repetición ya establecido para
+`.topbar-menu` (el ☰), que también vive duplicado en cada header en vez de
+inyectarse por JS. Oculta en desktop con el mismo guard explícito que
+`.topbar-menu` (`@media(min-width:761px){display:none}`) para no reabrir
+el gap de "estilo que sólo vive dentro del media de mobile" documentado en
+la skill de convenciones.
+
+**E4 — tema de 3 estados.** Existían dos controles Claro/Oscuro sueltos
+(uno en `.app-toolbar`, sólo desktop; uno duplicado en el header de
+Horario, también sólo desktop) más un tercero fantasma: en mobile no había
+ningún control de tema visible en ningún lado. Los dos sueltos se sacaron;
+uno solo nuevo vive en Ajustes, con tres opciones (Sistema/Claro/Oscuro) —
+accesible en cualquier ancho, a diferencia de los que reemplaza.
+`localStorage['cursada:theme']` ahora guarda la *preferencia*
+(`'sistema'|'claro'|'oscuro'`), no el tema resuelto: `'sistema'` se
+resuelve con `window.matchMedia('(prefers-color-scheme: dark)')` en cada
+`applyTheme()`, y un listener de `change` sobre ese mismo `matchMedia`
+re-resuelve solo si el SO cambia de tema mientras la pestaña sigue abierta
+(sin recargar). Default nuevo (sin preferencia guardada) es `'sistema'`;
+una preferencia explícita guardada de antes de este cambio (`'claro'` o
+`'oscuro'`) se respeta tal cual, no se pisa. Se agregó
+`html[data-theme="claro"]{color-scheme:light}` (antes sólo el oscuro
+declaraba `color-scheme`, así que los controles nativos en tema claro no lo
+tenían explícito).
+
+No se pudo verificar en este entorno que el cambio sea *reactivo en vivo*
+sin interacción: la emulación de `prefers-color-scheme` de la herramienta
+de browser de este entorno cambia lo que devuelve `matchMedia(...).matches`
+pero no dispara el evento `change` sobre un `MediaQueryList` ya creado
+(confirmado con un listener de prueba aparte, que nunca se disparó pese a
+que `.matches` sí cambiaba) — limitación del entorno de prueba, no de la
+API real (`addEventListener('change', ...)` sobre `matchMedia` es
+comportamiento estándar y así es como cualquier navegador real notifica un
+cambio de tema del SO en vivo). Se verificó el mecanismo de resolución en
+sí (re-seleccionar "Sistema" con el SO ya en oscuro resuelve a oscuro
+correctamente) — sólo la reactividad *sin* volver a tocar el control quedó
+sin poder confirmarse en vivo acá.
+
+**E5 — "Iniciar sesión" en el header mobile de la landing.** A 700px el
+header ya escondía el nav del medio (Funciones/Cómo calcula/Preguntas) y
+"Iniciar sesión" (dejaba sólo el CTA de "Crear mi cuenta") — decisión
+documentada en el propio `landing.html` de una sesión anterior. Se cambió
+para mostrar ambos: un visitante mobile que ya tiene cuenta necesita poder
+entrar sin buscar el link en el footer. Mostrar los dos enteros
+("Iniciar sesión" + "Crear mi cuenta") no entraba ni a 375px sin quedar al
+límite exacto (medido: 227.5px de contenido para 227.5px disponibles, cero
+margen) y a 320px desbordaba ~40px incluso después de angostar
+gap/padding/tipografía al mínimo razonable — así que además de achicar
+espaciado, los dos links ganaron una versión corta sólo para mobile
+("Ingresar" / "Crear cuenta", mismo destino) vía un par de `<span>`
+alternados por media query, y el logo del header también se achica un
+toque en mobile (26px → 22px de marca, texto 19px → 16px). Verificado con
+medición real (`getBoundingClientRect`) a 320px y 375px, no sólo por
+lectura de CSS — la primera versión "parecía" entrar por cálculo a mano y
+en la práctica desbordaba, así que esta vez se iteró contra el navegador
+hasta confirmar margen real, no ancho exacto al límite.
+
+**Cosas encontradas pero fuera de lo pedido, no tocadas.** El detalle de
+materia (`#materia-*`) mide 3px de overflow horizontal a 375px que no
+viene de nada tocado en este bloque — resultó ser contenido de un modal
+cerrado (`visibility:hidden`, no `display:none`, patrón estándar de la app
+para poder animar la apertura) que igual aporta al `scrollWidth` del
+documento por estar fuera de flujo normal; no genera scroll visible ni
+perceptible en uso real. Preexistente, no relacionado con Calendario/Agenda
+que era el pedido explícito de E1 — se deja anotado acá en vez de
+tocarlo sin que se pida.
