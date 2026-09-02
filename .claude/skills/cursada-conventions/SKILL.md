@@ -22,10 +22,11 @@ Cuando un pedido nuevo se parece a algo de acá, reusar — no reinventar.
   `src/seed.js` = datos de ejemplo sin usar actualmente (a propósito).
 - Build real: `npm run build:app` (Node, funciona — no hay que usar
   workarounds). Ver skill `cursada-ship` para el ciclo completo.
-- Supabase: el esquema se modifica a mano desde el dashboard (el usuario lo
-  hace y avisa qué agregó) — este código nunca corre migraciones. La anon
-  key es pública por diseño; la seguridad la da RLS en las tablas, no el
-  secreto de esa key.
+- Supabase: el esquema se modifica con el MCP de Supabase conectado —
+  mostrar el SQL antes de aplicarlo, aplicarlo directo (no delegarlo al
+  usuario vía dashboard salvo que lo pida explícitamente). La anon key es
+  pública por diseño; la seguridad la da RLS en las tablas, no el secreto
+  de esa key.
 
 ## Helpers de DOM (usar siempre, no `innerHTML` con texto de usuario)
 
