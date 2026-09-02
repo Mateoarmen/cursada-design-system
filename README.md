@@ -1981,3 +1981,19 @@ verdes, tarjeta de perfil) — se ajustó lo que faltaba en vez de reescribir:
   vista) no se rediseñó como estructura — se mantiene como estaba en el
   resto de la app; sólo Horario ganó los controles adicionales pedidos por
   la referencia, sin sacarle nada a las demás vistas.
+
+### Corrección post-entrega: grilla de Horario "en tablero"
+
+El usuario marcó, con la misma captura de referencia, que `.hg-cell` (una
+celda por cada media hora × día, ~150 en pantalla) tenía fondo (`--c-surface`)
++ borde + radio propios — con tantas a la vista se leía como un tablero de
+casilleros marcado, no como el fondo limpio de la referencia (sólo los
+bloques de clase flotando, sin ninguna división de celda visible). Se
+volvió `.hg-cell` transparente y sin borde/radio; se sacó también la regla
+mobile que sólo tocaba su `border-radius` (quedó sin efecto una vez sin
+borde). Como `.hg-cell` nunca estuvo bajo `html[data-theme="oscuro"]`
+(regla compartida entre temas), el ajuste aplicó a los dos temas con un
+solo cambio — confirmado a mano en ambos. Sirve de recordatorio para el
+resto de este rediseño: salvo el degradé del Cambio 1 (explícitamente sólo
+oscuro), toda regla nueva de esta pasada es compartida entre temas por
+default a menos que se documente lo contrario.
