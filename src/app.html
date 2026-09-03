@@ -549,18 +549,6 @@
     <button type="button" id="row-menu-materia">Ver la materia</button>
     <button type="button" id="row-menu-eliminar" class="danger">Eliminar</button>
   </div>
-  <!-- Fase 4: menú chico del tick de una evaluación (desktop y mobile, a
-       diferencia de #row-menu que es sólo mobile) — "Esperando nota" o
-       "Cargar nota", esta última muta el mismo popover a un input chico en
-       vez de abrir el modal entero. -->
-  <div class="tick-menu" id="tick-menu" aria-label="Marcar evaluación">
-    <button type="button" id="tick-menu-esperando">Esperando nota</button>
-    <button type="button" id="tick-menu-cargar">Cargar nota</button>
-    <div class="tick-menu-nota-form hidden" id="tick-menu-nota-form">
-      <input type="number" id="tick-menu-nota-input" step="0.1" min="0" aria-label="Nota obtenida">
-      <button type="button" class="btn btn-sm btn-primary" id="tick-menu-nota-guardar">Guardar</button>
-    </div>
-  </div>
   <nav class="tabbar" id="tabbar" aria-label="Navegación principal">
     <button class="tab" data-nav="inicio" aria-label="Inicio" title="Inicio"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
     <button class="tab" data-nav="materias" aria-label="Materias" title="Materias"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></button>
@@ -701,7 +689,8 @@
       <button type="button" class="remove-link" id="btn-evaluacion-eliminar-view">Eliminar</button>
       <div style="display:flex;gap:10px;align-items:center">
         <button type="button" class="btn" data-close-modal>Cerrar</button>
-        <button type="button" class="btn btn-primary" id="btn-eval-view-editar">Editar</button>
+        <button type="button" class="btn" id="btn-eval-view-editar">Editar</button>
+        <button type="button" class="btn btn-primary" id="btn-eval-view-completar"></button>
       </div>
     </div>
     <form id="form-evaluacion">
@@ -898,6 +887,23 @@
           <span class="perfil-group-lbl">Meta de carrera</span>
           <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
           <span style="font-size:11px;color:var(--c-ink3)">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
+        </div>
+        <div class="perfil-group">
+          <span class="perfil-group-lbl">Etiquetas</span>
+          <span style="font-size:11px;color:var(--c-ink3)">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran. Las predeterminadas no se pueden borrar.</span>
+          <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+          <div class="field hidden" id="ajustes-tag-nueva" style="margin-top:8px">
+            <div style="display:flex;gap:8px">
+              <input type="text" id="ajustes-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
+              <select id="ajustes-tag-nueva-kind" style="width:130px">
+                <option value="academico">Académica</option>
+                <option value="personal">Personal</option>
+              </select>
+              <button type="button" class="btn btn-sm" id="ajustes-tag-nueva-crear">Crear</button>
+            </div>
+            <div class="swatches" id="ajustes-tag-nueva-swatches" style="margin-top:8px"></div>
+          </div>
+          <button type="button" class="btn btn-sm" id="btn-ajustes-tag-nueva-abrir" style="margin-top:8px">+ Nueva etiqueta</button>
         </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Datos y cuenta</span>
@@ -1103,17 +1109,17 @@
   </div>
 </template>
 
-<!-- Fase 5: chip de etiqueta con acciones — reemplaza la sección aparte de
-     "Etiquetas" que vivía en Ajustes (era un duplicado de esta misma
-     funcionalidad). Vive dentro del selector de etiquetas (renderTagPicker
-     en runtime.js), con ✎/eliminar visibles al hover en desktop y siempre
-     visibles en mobile (no hay hover). -->
-<template data-template="tag-chip">
-  <span class="tag-chip-wrap">
-    <button type="button" class="chip-materia" data-f="chip"></button>
+<!-- Fila de etiqueta en Ajustes (renombrar/eliminar) — el selector de
+     etiquetas del modal de evaluación/tarea/evento (renderTagPicker) sólo
+     elige/crea, no edita/borra; ese vaivén se probó y resultó confuso.
+     Las predeterminadas (is_default) no muestran el botón de eliminar. -->
+<template data-template="tag-row">
+  <div class="semestre-row">
+    <span class="chip" data-f="chip" style="flex:none"></span>
+    <span class="semestre-row-meta" data-f="kind" style="flex:1"></span>
     <button type="button" class="semestre-row-edit" data-f="editBtn" title="Renombrar" aria-label="Renombrar etiqueta">✎</button>
     <button type="button" class="semestre-row-delete" data-f="deleteBtn" title="Eliminar" aria-label="Eliminar etiqueta">🗑</button>
-  </span>
+  </div>
 </template>
 
 <template data-template="tipo-item">

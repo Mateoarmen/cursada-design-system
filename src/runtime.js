@@ -301,10 +301,10 @@
     return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at, orden: r.orden };
   }
   function tagToRow(t) {
-    return { id: t.id, user_id: CURRENT_USER.id, name: t.nombre, kind: t.kind, color: t.colorId };
+    return { id: t.id, user_id: CURRENT_USER.id, name: t.nombre, kind: t.kind, color: t.colorId, is_default: !!t.esPredeterminada };
   }
   function rowToTag(r) {
-    return { id: r.id, nombre: r.name, kind: r.kind, colorId: r.color };
+    return { id: r.id, nombre: r.name, kind: r.kind, colorId: r.color, esPredeterminada: !!r.is_default };
   }
 
   async function supaUpsert(table, rows) {
@@ -479,6 +479,29 @@
     if (!(await saveSemestresRaw([{ id: id, nombre: 'Semestre actual', activo: true }]))) return;
     var materias = CACHE.materias.map(function (m) { return Object.assign({}, m, { semestreId: m.semestreId || id }); });
     await saveMateriasRaw(materias);
+  }
+
+  // Etiquetas predeterminadas (feedback post-Fase 5): se siembran una vez
+  // por cuenta (is_default:true — protegidas de borrado por RLS y por la
+  // UI, ver renderAjustesTags) para que Parcial/Examen/Final/Oral/
+  // Estudiar/Leer/Entrega/Grupal existan siempre, en vez de depender de
+  // que el usuario las cree a mano desde el picker. Mismo patrón que
+  // ensureSemestresServerSide: se llama una vez después de cargar todo,
+  // no rompe nada si ya están — sólo agrega las que falten. TAG_PRESETS/
+  // TAG_PRESET_COLOR están definidos más abajo (uso de closure, no
+  // importa el orden textual dentro del mismo IIFE).
+  async function ensureDefaultTagsServerSide() {
+    var existentes = {};
+    CACHE.eventTags.forEach(function (t) { existentes[t.kind + '|' + t.nombre] = true; });
+    var faltantes = [];
+    function agregarSiFalta(nombre, kind) {
+      if (existentes[kind + '|' + nombre]) return;
+      faltantes.push({ id: uid(), nombre: nombre, kind: kind, colorId: TAG_PRESET_COLOR[nombre] || 'azul', esPredeterminada: true });
+    }
+    TAG_PRESETS.evaluacion.forEach(function (nombre) { agregarSiFalta(nombre, 'academico'); });
+    TAG_PRESETS.otro.forEach(function (nombre) { agregarSiFalta(nombre, 'academico'); agregarSiFalta(nombre, 'personal'); });
+    if (!faltantes.length) return;
+    await saveEventTagsRaw(loadEventTagsRaw().concat(faltantes));
   }
 
   async function loadAllFromSupabase() {
@@ -2365,34 +2388,13 @@
     menu.style.bottom = 'auto';
     menu.classList.add('is-open');
   }
-  // ---- Fase 4: tick de "hecho" (agenda-row/eval-row) ----
-  // Tarea → toggle directo. Evaluación → menú chico ("Esperando nota"/
-  // "Cargar nota"), a diferencia de #row-menu (mobile-only, 4 acciones de
-  // toda la fila): funciona en cualquier ancho y sólo tiene que ver con el
-  // tick, no con el resto de la fila.
-  var TICK_MENU_ITEM = null;
-  function closeTickMenu() {
-    document.getElementById('tick-menu').classList.remove('is-open');
-    document.getElementById('tick-menu-nota-form').classList.add('hidden');
-    document.getElementById('tick-menu-esperando').classList.remove('hidden');
-    document.getElementById('tick-menu-cargar').classList.remove('hidden');
-    TICK_MENU_ITEM = null;
-  }
-  function openTickMenuAt(btnEl, item) {
-    closeQuickSheet(); closeRowMenu();
-    TICK_MENU_ITEM = item;
-    document.getElementById('tick-menu-nota-form').classList.add('hidden');
-    document.getElementById('tick-menu-esperando').classList.remove('hidden');
-    document.getElementById('tick-menu-cargar').classList.remove('hidden');
-    var menu = document.getElementById('tick-menu');
-    var r = btnEl.getBoundingClientRect();
-    var margin = 8, menuW = 180, menuHEstimate = 92;
-    var left = Math.min(window.innerWidth - menuW - margin, r.left);
-    menu.style.left = Math.max(margin, left) + 'px';
-    if (r.bottom + margin + menuHEstimate < window.innerHeight) { menu.style.top = (r.bottom + margin) + 'px'; menu.style.bottom = 'auto'; }
-    else { menu.style.bottom = (window.innerHeight - r.top + margin) + 'px'; menu.style.top = 'auto'; }
-    menu.classList.add('is-open');
-  }
+  // ---- Fase 4 (+ rediseño post-feedback): tick de "hecho" (agenda-row/
+  // eval-row) ----
+  // Tarea → toggle directo, un solo click, sin nada más. Evaluación → el
+  // tick abre el mismo panel de lectura que tocar la fila (con "Asignar
+  // nota"/Editar/Eliminar ahí) en vez de un popover chico propio — el
+  // popover anterior resultó ilegible/inusable en la práctica; el panel ya
+  // es grande y ya existe, no hace falta un componente nuevo.
   // Pinta y ata el tick de una fila (agenda-row/eval-row) — `item` es la
   // fila cruda de agenda ({id, kind, hecho, nota, notaMaxima, titulo}).
   function wireTickButton(btn, item) {
@@ -2401,11 +2403,11 @@
     btn.textContent = item.hecho ? '✓' : '';
     btn.setAttribute('aria-pressed', String(!!item.hecho));
     btn.setAttribute('aria-label', esEval
-      ? ('Opciones de nota para ' + item.titulo)
+      ? ('Asignar nota para ' + item.titulo)
       : (item.hecho ? ('Marcar ' + item.titulo + ' como pendiente') : ('Marcar ' + item.titulo + ' como completada')));
     btn.onclick = function (ev) {
       ev.stopPropagation();
-      if (esEval) openTickMenuAt(btn, item);
+      if (esEval) openEvaluacionModal({ editId: item.id });
       else toggleAgendaHecho(item.id, !item.hecho);
     };
   }
@@ -2842,6 +2844,13 @@
     var notasEl = document.getElementById('modal-eval-view-notas');
     notasEl.classList.toggle('hidden', !ev.notas);
     notasEl.textContent = ev.notas || '';
+
+    // Acción rápida sin pasar por "Editar": una tarea se completa al
+    // toque; una evaluación abre el form ya enfocado en el campo de nota
+    // (mismo destino que "Cargar nota" del picker) — nunca el popover
+    // chico que era ilegible/inusable.
+    var btnCompletar = document.getElementById('btn-eval-view-completar');
+    btnCompletar.textContent = isEval ? 'Asignar nota' : (ev.hecho ? 'Marcar pendiente' : 'Marcar completada');
   }
 
   // Muestra/esconde los campos que sólo aplican a evaluación (tipo, nota
@@ -2906,16 +2915,19 @@
     customInput.oninput = function () { STATE.editing.evalTipoCustom = customInput.value; };
   }
 
-  // ---- Selector de etiqueta (bloque A5, unificado en Fase 5) ----
+  // ---- Selector de etiqueta ----
   // Reusado por el modal de Evaluación/Tarea (kind 'academico') y el de
   // Evento personal (kind 'personal') — mismos ids de STATE.editing (tagId,
   // tagNuevoAbierto, tagNuevoColor), sólo cambian los ids del DOM que le
-  // pasa cada caller. `ids.presetKind` ('evaluacion'|'otro') decide qué
-  // lista de creación rápida mostrar — ver TAG_PRESETS.
+  // pasa cada caller.
   //
-  // Fase 5: acá vive TODO lo de etiquetas (crear, elegir, renombrar,
-  // eliminar) — antes "renombrar/eliminar" vivía aparte en una sección de
-  // Ajustes que duplicaba esta misma idea; se sacó de ahí y se juntó acá.
+  // Feedback post-Fase 5: acá sólo se elige/crea — nada de editar/eliminar
+  // (ese vaivén se probó y resultó confuso: "para un view más limpio").
+  // Renombrar/eliminar viven de nuevo en Ajustes (renderAjustesTags), con
+  // las predeterminadas (is_default) protegidas ahí. Los presets ya no se
+  // ofrecen como botones de creación rápida acá — existen siempre, sembrados
+  // por ensureDefaultTagsServerSide(), así que ya aparecen como chips
+  // normales de la lista de abajo.
   var TAG_PRESETS = {
     evaluacion: ['Parcial', 'Examen', 'Final', 'Oral'],
     otro: ['Estudiar', 'Leer', 'Entrega', 'Grupal']
@@ -2926,7 +2938,7 @@
     clear(wrap);
     var tags = loadEventTagsRaw().filter(function (t) { return t.kind === ids.kind; });
     tags.forEach(function (t) {
-      var node = tpl('tag-chip');
+      var node = tpl('chip-materia');
       var on = STATE.editing.tagId === t.id;
       var chip = qf(node, 'chip');
       var a = ACCENTS[t.colorId] || ACCENTS.gris;
@@ -2939,46 +2951,7 @@
         STATE.editing.tagId = on ? null : t.id;
         renderTagPicker(ids);
       });
-      qf(node, 'editBtn').addEventListener('click', async function (ev) {
-        ev.stopPropagation();
-        var nuevo = prompt('Nuevo nombre para esta etiqueta:', t.nombre);
-        if (nuevo == null || !nuevo.trim() || nuevo.trim() === t.nombre) return;
-        var arr = loadEventTagsRaw().map(function (x) { return x.id === t.id ? Object.assign({}, x, { nombre: nuevo.trim() }) : x; });
-        var ok = await saveEventTagsRaw(arr);
-        if (!ok) avisarError();
-        renderTagPicker(ids);
-      });
-      qf(node, 'deleteBtn').addEventListener('click', async function (ev) {
-        ev.stopPropagation();
-        // ON DELETE SET NULL en agenda.tag_id/personal.tag_id: la base
-        // suelta el tag de cualquier evento que lo tuviera.
-        if (!confirm('¿Eliminar la etiqueta "' + t.nombre + '"? Los eventos que la tenían se quedan sin etiqueta.')) return;
-        var ok = await saveEventTagsRaw(loadEventTagsRaw().filter(function (x) { return x.id !== t.id; }));
-        if (!ok) avisarError();
-        if (STATE.editing.tagId === t.id) STATE.editing.tagId = null;
-        renderTagPicker(ids);
-      });
       wrap.appendChild(node);
-    });
-
-    // Creación rápida: un preset por tipo, sólo si todavía no existe una
-    // etiqueta con ese nombre (si ya existe, el chip de arriba alcanza).
-    var nombresExistentes = {};
-    tags.forEach(function (t) { nombresExistentes[t.nombre.toLowerCase()] = true; });
-    (TAG_PRESETS[ids.presetKind] || []).forEach(function (nombrePreset) {
-      if (nombresExistentes[nombrePreset.toLowerCase()]) return;
-      var presetNode = tpl('chip-materia');
-      var presetChip = qf(presetNode, 'chip');
-      presetChip.textContent = '+ ' + nombrePreset;
-      presetChip.addEventListener('click', async function () {
-        var nuevoTag = { id: uid(), nombre: nombrePreset, kind: ids.kind, colorId: TAG_PRESET_COLOR[nombrePreset] || 'azul' };
-        var arr = loadEventTagsRaw(); arr.push(nuevoTag);
-        var ok = await saveEventTagsRaw(arr);
-        if (!ok) { avisarError(); return; }
-        STATE.editing.tagId = nuevoTag.id;
-        renderTagPicker(ids);
-      });
-      wrap.appendChild(presetNode);
     });
 
     var nuevoNode = tpl('chip-materia');
@@ -3035,6 +3008,22 @@
     document.getElementById('btn-eval-view-editar').addEventListener('click', function () {
       STATE.editing.modo = 'form';
       renderModalEvalVisibility();
+    });
+    // Acción rápida del modo lectura (sin pasar por "Editar"): tarea se
+    // completa/despende al toque y cierra; evaluación abre el form ya
+    // enfocado en la nota — mismo destino que "Cargar nota" del picker.
+    document.getElementById('btn-eval-view-completar').addEventListener('click', async function () {
+      var ev = agendaRawById(STATE.editing.evaluacionId);
+      if (!ev) return;
+      if (ev.kind === 'evaluacion') {
+        STATE.editing.modo = 'form';
+        renderModalEvalVisibility();
+        var notaInput = document.getElementById('eval-nota');
+        if (notaInput) { notaInput.focus(); notaInput.select(); }
+      } else {
+        await toggleAgendaHecho(ev.id, !ev.hecho);
+        closeAllModals();
+      }
     });
     // Mismo patrón que #btn-perfil-logout/#btn-ajustes-logout (ver
     // cursada-conventions): dispara el click del botón real en vez de
@@ -3564,46 +3553,6 @@
       if (sheet.classList.contains('is-open') && !sheet.contains(e.target) && e.target !== btnFab && !btnFab.contains(e.target)) closeQuickSheet();
       var menu = document.getElementById('row-menu');
       if (menu.classList.contains('is-open') && !menu.contains(e.target)) closeRowMenu();
-      var tickMenu = document.getElementById('tick-menu');
-      if (tickMenu.classList.contains('is-open') && !tickMenu.contains(e.target) && !e.target.classList.contains('lp-toggle-btn')) closeTickMenu();
-    });
-    document.getElementById('tick-menu-esperando').addEventListener('click', async function () {
-      var item = TICK_MENU_ITEM;
-      closeTickMenu();
-      if (!item) return;
-      var arr = loadAgendaRaw();
-      arr.forEach(function (a) { if (a.id === item.id) { a.hecho = true; a.nota = null; } });
-      var ok = await saveAgendaRaw(arr);
-      if (!ok) avisarError();
-      renderRoute();
-    });
-    document.getElementById('tick-menu-cargar').addEventListener('click', function () {
-      var item = TICK_MENU_ITEM;
-      if (!item) return;
-      document.getElementById('tick-menu-esperando').classList.add('hidden');
-      document.getElementById('tick-menu-cargar').classList.add('hidden');
-      document.getElementById('tick-menu-nota-form').classList.remove('hidden');
-      var input = document.getElementById('tick-menu-nota-input');
-      input.max = item.notaMaxima != null ? item.notaMaxima : '';
-      input.value = item.nota != null ? item.nota : '';
-      input.focus(); input.select();
-    });
-    document.getElementById('tick-menu-nota-input').addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('tick-menu-nota-guardar').click(); }
-    });
-    document.getElementById('tick-menu-nota-guardar').addEventListener('click', async function () {
-      var item = TICK_MENU_ITEM;
-      if (!item) return;
-      var input = document.getElementById('tick-menu-nota-input');
-      if (input.value === '') { input.focus(); return; }
-      var v = Number(input.value);
-      if (item.notaMaxima != null) v = Math.max(0, Math.min(v, item.notaMaxima));
-      closeTickMenu();
-      var arr = loadAgendaRaw();
-      arr.forEach(function (a) { if (a.id === item.id) { a.nota = v; a.hecho = true; } });
-      var ok = await saveAgendaRaw(arr);
-      if (!ok) avisarError();
-      renderRoute();
     });
 
     // ---- Mobile: buscador que se expande en el header ----
@@ -4260,8 +4209,89 @@
     var p = CURRENT_PROFILE || {};
     var form = document.getElementById('form-ajustes');
     form.materias_carrera.value = p.materias_carrera != null ? p.materias_carrera : '';
+    STATE.editing = { ajustesTagNuevoAbierto: false, ajustesTagNuevoColor: 'azul' };
+    renderAjustesTags();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
+  }
+
+  // Etiquetas en Ajustes (feedback post-Fase 5): renombrar/eliminar volvió
+  // acá — el selector del modal de evaluación/tarea/evento (renderTagPicker)
+  // sólo elige/crea, para no repetir ✎/🗑 en cada chip chiquito. Las
+  // predeterminadas (is_default) no muestran el botón de eliminar — RLS
+  // también las protege del lado del servidor (event_tags_delete_own_
+  // not_default), esto es sólo para no mostrar una acción que va a fallar.
+  var KIND_LABEL = { academico: 'Académica', personal: 'Personal' };
+  function renderAjustesTags() {
+    var wrap = document.getElementById('ajustes-tags-list');
+    clear(wrap);
+    var tags = loadEventTagsRaw();
+    if (!tags.length) {
+      var empty = el('span'); empty.style.cssText = 'font-size:12px;color:var(--c-ink3)'; empty.textContent = 'Todavía no hay etiquetas.';
+      wrap.appendChild(empty);
+    } else {
+      tags.forEach(function (t) {
+        var node = tpl('tag-row');
+        qf(node, 'chip').setAttribute('style', chipStyle(t.colorId));
+        qf(node, 'chip').textContent = truncate(t.nombre, 20);
+        qf(node, 'kind').textContent = KIND_LABEL[t.kind] || t.kind;
+        qf(node, 'editBtn').addEventListener('click', function () { iniciarRenombreTag(node, t); });
+        if (t.esPredeterminada) qf(node, 'deleteBtn').remove();
+        else qf(node, 'deleteBtn').addEventListener('click', function () { eliminarTagAjustes(t); });
+        wrap.appendChild(node);
+      });
+    }
+    renderAjustesTagNuevaForm();
+  }
+  function renderAjustesTagNuevaForm() {
+    var abierto = !!STATE.editing.ajustesTagNuevoAbierto;
+    document.getElementById('ajustes-tag-nueva').classList.toggle('hidden', !abierto);
+    document.getElementById('btn-ajustes-tag-nueva-abrir').classList.toggle('hidden', abierto);
+    if (!abierto) return;
+    var swWrap = document.getElementById('ajustes-tag-nueva-swatches');
+    clear(swWrap);
+    Object.keys(ACCENTS).forEach(function (colorId) {
+      var swNode = tpl('swatch');
+      var strong = ACCENTS[colorId].strong;
+      swNode.style.background = strong;
+      var selected = STATE.editing.ajustesTagNuevoColor === colorId;
+      swNode.classList.toggle('is-selected', selected);
+      if (selected) swNode.style.boxShadow = '0 0 0 3px var(--c-surface), 0 0 0 5px ' + strong;
+      swNode.addEventListener('click', function () { STATE.editing.ajustesTagNuevoColor = colorId; renderAjustesTagNuevaForm(); });
+      swWrap.appendChild(swNode);
+    });
+  }
+  function iniciarRenombreTag(row, t) {
+    clear(row);
+    var input = el('input', 'semestre-row-nombre-input');
+    input.value = t.nombre;
+    row.appendChild(input);
+    input.focus(); input.select();
+    var done = false;
+    var commit = async function () {
+      if (done) return;
+      done = true;
+      var nuevo = input.value.trim();
+      if (nuevo && nuevo !== t.nombre) {
+        var arr = loadEventTagsRaw().map(function (x) { return x.id === t.id ? Object.assign({}, x, { nombre: nuevo }) : x; });
+        var ok = await saveEventTagsRaw(arr);
+        if (!ok) avisarError();
+      }
+      renderAjustesTags();
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+      else if (ev.key === 'Escape') { done = true; renderAjustesTags(); }
+    });
+  }
+  // ON DELETE SET NULL en agenda.tag_id/personal.tag_id: la base suelta el
+  // tag de cualquier evento que lo tuviera.
+  async function eliminarTagAjustes(t) {
+    if (!confirm('¿Eliminar la etiqueta "' + t.nombre + '"? Los eventos que la tenían se quedan sin etiqueta.')) return;
+    var ok = await saveEventTagsRaw(loadEventTagsRaw().filter(function (x) { return x.id !== t.id; }));
+    if (!ok) avisarError();
+    renderAjustesTags();
   }
 
   // Los únicos 3 campos que gatillan el aviso — nombre/apellido/fecha de
@@ -4424,6 +4454,27 @@
         setBtnBusy(btn, false);
       }
     });
+    document.getElementById('btn-ajustes-tag-nueva-abrir').addEventListener('click', function () {
+      STATE.editing.ajustesTagNuevoAbierto = true;
+      renderAjustesTagNuevaForm();
+      document.getElementById('ajustes-tag-nueva-nombre').focus();
+    });
+    document.getElementById('ajustes-tag-nueva-crear').addEventListener('click', async function () {
+      var nombreInput = document.getElementById('ajustes-tag-nueva-nombre');
+      var nombre = nombreInput.value.trim();
+      if (!nombre) { nombreInput.focus(); return; }
+      var kind = document.getElementById('ajustes-tag-nueva-kind').value;
+      var nuevoTag = { id: uid(), nombre: nombre, kind: kind, colorId: STATE.editing.ajustesTagNuevoColor || 'azul' };
+      var arr = loadEventTagsRaw(); arr.push(nuevoTag);
+      var btnCrear = document.getElementById('ajustes-tag-nueva-crear');
+      setBtnBusy(btnCrear, true, 'Creando…');
+      var ok = await saveEventTagsRaw(arr);
+      setBtnBusy(btnCrear, false);
+      if (!ok) { avisarError(); return; }
+      nombreInput.value = '';
+      STATE.editing.ajustesTagNuevoAbierto = false;
+      renderAjustesTags();
+    });
     document.getElementById('form-ajustes').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
@@ -4498,6 +4549,7 @@
     try {
       await loadAllFromSupabase();
       await ensureSemestresServerSide();
+      await ensureDefaultTagsServerSide();
     } catch (e) {
       console.warn('Cursada: error cargando datos de la cuenta', e);
       // Mismo criterio que en las funciones de guardado: si esto falló

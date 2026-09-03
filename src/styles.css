@@ -375,14 +375,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .lp-toggle-btn:disabled{opacity:.5;cursor:default}
 .lp-toggle-btn:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
 
-/* ---------- Fase 4: menú chico del tick de una evaluación ---------- */
-.tick-menu{position:fixed;z-index:140;min-width:180px;background:var(--c-surface);border-radius:14px;box-shadow:var(--c-shadow);padding:6px;display:none;flex-direction:column;gap:2px}
-.tick-menu.is-open{display:flex}
-.tick-menu button{display:flex;align-items:center;width:100%;height:42px;padding:0 14px;border:none;background:transparent;border-radius:9px;font-size:14px;color:var(--c-ink);text-align:left;cursor:pointer}
-.tick-menu button:hover,.tick-menu button:focus-visible{background:var(--c-surfaceAlt);outline:none}
-.tick-menu-nota-form{display:flex;gap:6px;padding:4px 8px 6px;align-items:center}
-.tick-menu-nota-form input{flex:1;min-width:0;height:36px;border-radius:8px;border:1px solid var(--c-line);padding:0 10px;font-size:14px;background:var(--c-surfaceAlt);color:var(--c-ink)}
-
 /* ---------- card ---------- */
 .card{background:var(--c-surface);border:none;border-radius:var(--r-card);box-shadow:var(--c-shadow)}
 
@@ -580,14 +572,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .modal-view-grid .val{font-size:14px;font-weight:600}
 .modal-view-notas{font-size:13px;color:var(--c-ink2);line-height:1.5;margin-top:4px}
 
-/* ---------- Fase 5: chip de etiqueta con acciones inline ---------- */
-.tag-chip-wrap{display:inline-flex;align-items:center;gap:3px}
-.tag-chip-wrap .semestre-row-edit,.tag-chip-wrap .semestre-row-delete{width:20px;height:20px;font-size:10px;opacity:0;transition:opacity 120ms ease}
-.tag-chip-wrap:hover .semestre-row-edit,.tag-chip-wrap:hover .semestre-row-delete,
-.tag-chip-wrap:focus-within .semestre-row-edit,.tag-chip-wrap:focus-within .semestre-row-delete{opacity:1}
-@media(max-width:760px){
-  .tag-chip-wrap .semestre-row-edit,.tag-chip-wrap .semestre-row-delete{opacity:1}
-}
 .eval-list{display:flex;flex-direction:column}
 .eval-row{display:flex;align-items:center;gap:15px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
 /* Cada fila vive envuelta en .swipe-row (ver template eval-row en app.html —
