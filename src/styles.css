@@ -859,6 +859,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    de empujar la página entera (mismo criterio que .filtros-row/.mini-days). */
 .progreso-chart-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .progreso-chart-wrap svg{display:block}
+/* <4 semestres con datos: comparación en barras en vez del SVG de línea de
+   arriba (mismo .nota-row que "Progreso hacia el título" más abajo). */
+.progreso-barras{display:flex;flex-direction:column;gap:16px;padding:4px 0 2px}
+.progreso-barra-sub{font-size:12px;color:var(--c-ink3);margin-top:2px}
+/* Distribución de materias por estado: una barra segmentada (proporcional a
+   la cantidad de cada estado) + su leyenda con conteo — el color nunca es la
+   única forma de distinguir un segmento, la leyenda siempre lo nombra. */
+.progreso-dist-bar{display:flex;gap:2px;height:10px;border-radius:999px;overflow:hidden;margin:6px 0 14px}
+.progreso-dist-seg{flex:1 1 0;min-width:3px}
+.progreso-dist-legend{display:flex;flex-wrap:wrap;gap:8px 20px}
 .progreso-creditos-cta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .progreso-creditos-cta span{font-size:13px;color:var(--c-ink2);flex:1;min-width:200px}
 /* Único elemento "motivacional" que pide el prompt (▲/▼ + delta) — mismo

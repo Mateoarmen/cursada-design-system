@@ -839,7 +839,13 @@
     renderSidenavUser();
     renderSemestreSwitcher();
     var activeKey = STATE.route.view === 'detalle' ? 'materias' : STATE.route.view;
-    document.querySelectorAll('.nav-item[data-nav]').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-nav') === activeKey); });
+    // Scopeado a #sidenav-nav (no ".nav-item[data-nav]" a secas): el wordmark
+    // "cursada" del app-toolbar reusa la clase .nav-item + data-nav="inicio"
+    // sólo para heredar el reset de botón y su navegación (ver el listener
+    // genérico de [data-nav] más abajo) — sin este scope, también matcheaba
+    // acá y se le pegaba is-active (fondo azul sólido) cada vez que
+    // STATE.route.view === 'inicio', algo que nunca se pidió para el logo.
+    document.querySelectorAll('#sidenav-nav .nav-item[data-nav]').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-nav') === activeKey); });
     document.querySelectorAll('.toolbar-btn[data-nav]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-nav') === activeKey); });
     // Tab bar mobile: mismo activeKey, mismo patrón — queda sincronizado
     // solo en cada cambio de ruta, sin un hook aparte.
@@ -1170,12 +1176,73 @@
     row.appendChild(label); row.appendChild(barWrap); row.appendChild(v);
     container.appendChild(row);
   }
+  // <4 semestres con datos: comparación en barras en vez de línea — una
+  // línea entre 2-3 puntos sugiere una tendencia continua que todavía no
+  // existe (ver ui-ux-pro-max, dominio chart: "Trend Over Time" pide ≥4
+  // puntos, si no usar una comparación). Reusa el mismo patrón
+  // .nota-row/.bar-wrap/.bar-fill que ya usa "Progreso hacia el título" acá
+  // abajo, no un componente nuevo. El semestre activo queda marcado en el
+  // propio label (mismo criterio "sin ícono nuevo" que el resto de la vista).
+  function renderProgresoBarras(container, puntos) {
+    clear(container);
+    var wrap = el('div', 'progreso-barras');
+    var activoId = activeSemestreId();
+    puntos.forEach(function (p) {
+      var col = el('div', 'progreso-barra-col');
+      var row = el('div', 'nota-row');
+      var label = el('span', 'label');
+      label.textContent = p.semestre.nombre + (p.semestre.id === activoId ? ' · actual' : '');
+      var barWrap = el('div', 'bar-wrap');
+      var barFill = el('div', 'bar-fill');
+      barFill.setAttribute('style', css({ width: p.promedio + '%', background: TONE.success }));
+      barWrap.appendChild(barFill);
+      var v = el('span', 'v'); v.textContent = p.promedio + '%';
+      row.appendChild(label); row.appendChild(barWrap); row.appendChild(v);
+      var sub = el('div', 'progreso-barra-sub');
+      sub.textContent = p.aprobadas + '/' + p.total + ' aprobadas';
+      col.appendChild(row); col.appendChild(sub);
+      wrap.appendChild(col);
+    });
+    container.appendChild(wrap);
+  }
+
+  // "Estado de todas tus materias" — TODAS las materias de la cuenta, no
+  // sólo el semestre activo: mismo alcance que "Progreso hacia el título" y
+  // el resto de esta vista (ver cursada-conventions: Progreso muestra
+  // histórico completo a propósito, no se acota). Agrupa por m.estado, el
+  // mismo vocabulario que ya usan los filtros de Materias (ESTADO_LABEL/
+  // ESTADO_TONE) — no inventa una clasificación de riesgo nueva acá.
+  function renderProgresoDistribucion() {
+    var materias = computeMaterias();
+    var counts = {};
+    materias.forEach(function (m) { counts[m.estado] = (counts[m.estado] || 0) + 1; });
+
+    var bar = document.getElementById('progreso-dist-bar');
+    var legend = document.getElementById('progreso-dist-legend');
+    clear(bar); clear(legend);
+    ['cursando', 'aprobada', 'recursando', 'pendiente'].filter(function (e) { return counts[e]; }).forEach(function (e) {
+      var color = TONE[ESTADO_TONE[e]];
+      var seg = el('div', 'progreso-dist-seg');
+      seg.style.flexGrow = counts[e];
+      seg.style.background = color;
+      seg.title = ESTADO_LABEL[e] + ' · ' + counts[e];
+      bar.appendChild(seg);
+      var item = tpl('leyenda-item');
+      qf(item, 'dot').setAttribute('style', dotStyle(color));
+      qf(item, 'label').textContent = ESTADO_LABEL[e] + ' · ' + counts[e];
+      legend.appendChild(item);
+    });
+  }
+
   function renderProgreso() {
     var puntos = computeProgresoPorSemestre();
     document.getElementById('progreso-empty').classList.toggle('hidden', puntos.length > 0);
     document.getElementById('progreso-content').classList.toggle('hidden', puntos.length === 0);
     if (!puntos.length) return;
-    document.getElementById('progreso-chart').innerHTML = buildProgresoChartSvg(puntos);
+    var chartWrap = document.getElementById('progreso-chart');
+    if (puntos.length >= 4) chartWrap.innerHTML = buildProgresoChartSvg(puntos);
+    else renderProgresoBarras(chartWrap, puntos);
+    renderProgresoDistribucion();
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
   }
   // Sólo se muestra con ≥2 semestres con datos — nada de estado vacío acá,

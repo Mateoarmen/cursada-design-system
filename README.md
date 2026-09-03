@@ -2614,3 +2614,89 @@ literales a propósito, no dependen del tema.
   sin tocar. Verificado además que `out/Cursada.html` (build real, contra
   Supabase real) carga sin errores de consola y con `window.CURSADA_
   SUPABASE` inicializado.
+
+## Rediseño de Progreso + fix del wordmark del sidenav
+
+Auditoría de diseño (skill ui-ux-pro-max) sobre toda la app: la mayoría de
+las vistas ya venían de varias pasadas de pulido (dirección visual, íconos,
+accesibilidad, animación — ver secciones anteriores), pero **Progreso**
+quedó comparativamente vacía: sólo un gráfico de línea entre semestres y la
+barra hacia el título, con mucho blanco sin usar en desktop. Dos cambios,
+acotados a esa vista y a un bug chico encontrado de paso.
+
+### "Promedio por semestre": barras en vez de línea con pocos datos
+
+La guía de gráficos del skill es explícita: una línea de tendencia necesita
+≥4 puntos para tener sentido — con 2 o 3, una línea sugiere una tendencia
+continua que todavía no existe, y sugiere en su lugar una comparación
+directa. `renderProgreso()` ahora decide entre las dos según
+`puntos.length` (el mismo array que ya armaba `computeProgresoPorSemestre()`,
+sin tocar ese cálculo):
+
+- **≥4 semestres con notas**: sigue usando `buildProgresoChartSvg()` tal
+  cual estaba, sin cambios — ahí la línea sí gana sentido.
+- **1 a 3 semestres**: `renderProgresoBarras()` (nueva), que arma una fila
+  por semestre reusando el patrón `.nota-row`/`.bar-wrap`/`.bar-fill` que ya
+  usa "Progreso hacia el título" — no un componente nuevo. Cada fila suma
+  el dato de `p.aprobadas`/`p.total` que `computeProgresoPorSemestre()` ya
+  traía y no se usaba en ningún lado, y el semestre activo queda marcado
+  con "· actual" en el propio label (mismo criterio "sin ícono nuevo" que el
+  resto de la vista).
+
+### "Estado de todas tus materias" (card nueva)
+
+Antes esa mitad de la vista era la barra hacia el título y nada más. La
+card nueva es una barra segmentada (una franja por `estado`, ancho
+proporcional a la cantidad) más su leyenda con conteo exacto — reusa
+`ESTADO_LABEL`/`ESTADO_TONE` (el mismo vocabulario ya usado en los filtros
+de Materias) y la plantilla `leyenda-item` que ya arma `buildLeyendaItem()`
+para Calendario/Horario, así que no agrega clasificación, copy ni
+componente nuevos. El color nunca es la única señal — la leyenda siempre
+nombra el estado y su número, siguiendo la guía de accesibilidad del skill
+para gráficos proporcionales ("no depender sólo del color").
+
+**Alcance: todas las materias de la cuenta, no sólo el semestre activo.**
+A diferencia de Materias/Inicio/Horario, esta vista (como toda la sección
+Progreso) muestra histórico completo a propósito — ver
+`cursada-conventions` y la sección "Semestres" más arriba. La card nueva
+sigue ese mismo criterio (`computeMaterias()` sin `semestreId`, el mismo
+alcance que ya usaba `materiasAprobadasCount()` para la meta hacia el
+título), no el alcance acotado que tienen Materias/Inicio.
+
+`renderProgresoDistribucion()` sólo se llama después de confirmar
+`puntos.length > 0` (mismo guard que ya tenía el resto de la vista) — no se
+agregó un estado vacío propio para esta card en particular, para no sumar
+un tercer estado posible (vacío total / con historial de notas pero sin
+materias / con materias) a una vista que ya tenía su empty-state general
+bien resuelto.
+
+### Fix de paso: el wordmark "cursada" se pintaba como ítem activo
+
+Encontrado auditando el sidenav, no reportado por nadie: el botón
+"cursada" del `.app-toolbar` (arriba de todo, sólo visible en el rango
+mobile/tablet) reusa `class="nav-item" data-nav="inicio"` únicamente para
+heredar el reset de botón y el listener genérico de `[data-nav]` que ya
+navega por `location.hash`. El problema es que `renderSidenav()` togglea
+`.is-active` con el selector `.nav-item[data-nav]` a secas, que también
+matcheaba ese botón — cada vez que `STATE.route.view === 'inicio'`, el
+wordmark quedaba con `background:var(--c-accent)` sólido (confirmado por
+`getComputedStyle`, aunque en el layout donde lo vi no llegaba a pintarse
+porque esa barra está fuera de flujo en ese ancho — igual era un bug real
+de estado, no sólo cosmético en potencia). Fix de una línea: el selector de
+`renderSidenav()` pasa a `#sidenav-nav .nav-item[data-nav]`, el contenedor
+real de los 6 destinos del sidenav — el wordmark, que vive en
+`.app-toolbar`, queda afuera. Nada más cambió: mismo listener de click,
+mismo comportamiento de navegación.
+
+### Qué no se tocó, a propósito
+
+- `computeProgresoPorSemestre()`, `computeMateriasDelActivo()`,
+  `buildProgresoChartSvg()`: sin cambios, sólo se agregó código alrededor.
+- No se intentó una tendencia por materia entre semestres (qué materia
+  mejoró/empeoró de un cuatrimestre al otro): las materias no están
+  vinculadas entre semestres más que por nombre en texto libre, y
+  emparejarlas por nombre para armar una serie histórica es una regla de
+  negocio nueva que nadie pidió — se prefirió quedarse con datos que el
+  modelo ya garantiza correctos.
+- No se tocó nada de la landing (`src/landing.html`) — quedó fuera de esta
+  pasada a pedido explícito.
