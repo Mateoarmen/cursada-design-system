@@ -2377,3 +2377,240 @@ documento por estar fuera de flujo normal; no genera scroll visible ni
 perceptible en uso real. Preexistente, no relacionado con Calendario/Agenda
 que era el pedido explícito de E1 — se deja anotado acá en vez de
 tocarlo sin que se pida.
+
+## Fases 1-7 — separar evaluaciones de tareas, rehacer el simulador, y una
+## tanda de UI (ver/editar, tick, etiquetas, ajustes visuales, tema)
+
+Tanda grande pedida en un solo prompt con 7 fases + cierre. Se implementó
+y verificó fase por fase, en el navegador, con un commit por fase. Esta
+sección documenta las 7 juntas para no repetir contexto compartido (el
+modelo de datos de Fase 1 es la base de casi todo lo demás).
+
+### Fase 1 — separar tareas de evaluaciones
+
+Antes, `agenda` (evaluaciones + entregas ligadas a una materia) era una
+sola entidad sin distinguir "esto tiene nota" de "esto no" — el `tipo`
+(Parcial/Final/Entrega/Tarea/...) era texto libre sin ninguna regla, y no
+había forma de que una evaluación tuviera su propia nota máxima (requisito
+de Fase 2).
+
+**Migración** (`f1_agenda_kind_nota_maxima`): `agenda.kind`
+(`'tarea'|'evaluacion'`, `NOT NULL`) + `agenda.nota_maxima` (numeric,
+nullable) + `CHECK(kind = 'tarea' OR nota_maxima IS NOT NULL)`. Backfill
+mostrado y aprobado antes de correrlo: evaluación si `tipo` es uno de los
+clásicos de examen (`Parcial`, `Final`, `Obligatorio`, `Presentación`) o
+ya tenía `nota` cargada; el resto (Tarea, Entrega, Estudiar, Estudio,
+"Estudiar repasar") pasa a ser tarea — coincide con el propio ejemplo del
+pedido ("entregar informe" = tarea). Resultado real: 23 evaluaciones y 8
+tareas de 31 filas. `nota_maxima` de las evaluaciones migradas = `esc.total`
+de su materia (la nota ya se interpretaba implícitamente sobre esa escala).
+RLS no cambió: `agenda_all_own` (`auth.uid() = user_id`) ya cubre columnas
+nuevas sin tocar la policy.
+
+**Decisión de modelo** (confirmada con el usuario antes de tocar código):
+una sola tabla `agenda` con columna `kind`, no dos tablas separadas —
+reutiliza `CACHE.agenda`, el mapeo `agendaToRow`/`rowToAgenda` y los ~15
+puntos de lectura existentes (Inicio, Agenda, Calendario, Detalle,
+simulador) en vez de duplicarlos.
+
+**Creación explícita**: el modal de evaluación/tarea gana un primer paso
+(`STATE.editing.modo === 'elegir-kind'`) con dos tarjetas — Tarea / Evaluación
+— antes de mostrar el form; los campos de nota sólo aparecen para
+evaluación. Los accesos contextuales (`+ Nueva evaluación`/`+ Nueva tarea`
+en Detalle, los ítems del menú "+ Nuevo") saltan directo al kind
+correspondiente; los accesos genéricos (`+ Nuevo` de Agenda, el FAB, la
+hoja rápida de mobile) muestran el picker.
+
+**`computeMateria()` se partió en dos campos**: `items` (tareas +
+evaluaciones de la materia, para el listado de Detalle) y `evaluaciones`
+(sólo `kind==='evaluacion'`, la única fuente del promedio/simulador/ring de
+aprobación) — antes una tarea sin nota se colaba en el cálculo de
+aprobación de la materia. Bug real encontrado probando: el widget
+"Progreso del semestre" de Inicio contaba tareas como "evaluaciones
+esperando nota" (2/9 en vez de 2/7) porque `agendaDeSemestre()` trae ambos
+kinds — se filtró a `kind==='evaluacion'` en `computeProgresoSemestreActivo()`.
+
+### Fase 2 — simulador de notas como función pura
+
+El simulador viejo promediaba notas reales+simuladas asumiendo que todas
+compartían la escala de la materia. Con nota_maxima por evaluación (Fase 1)
+esa cuenta ya no cierra: "20/25 en una y 30/30 en otra" promediado da 25,
+no responde "¿cuánto falta para aprobar?".
+
+`src/simulador.js` (nuevo, función pura `calcularSimulacion(esc,
+evaluaciones, valoresSimulados)`, sin DOM/Supabase) suma puntos en vez de
+promediar: `puntosReales` (suma de notas reales, fija — no la mueve el
+slider de otra fila), `puntosProyectados` (suma de lo que dice cada slider
+ahora), `disponibles` (Σ nota_maxima de las sin nota), `faltanAprobacion`/
+`faltanExoneracion`, `imposible`/`asegurado` (calculados sobre lo YA real,
+ignoran los sliders — no deberían prenderse y apagarse solos al arrastrar),
+`promedioNecesario`, `escalaInconsistente` (aviso si Σnota_maxima ≠
+esc.total, no rompe nada). Se concatena como `<script>` propio ANTES de
+`runtime.js` (`build-app.mjs`/`build-test.mjs`) sin IIFE a propósito, para
+quedar como función global igual que cualquier script sin módulos —
+`runtime.js` la llama por nombre, sin namespacing.
+
+Tests: `npm run test:sim` (`node --test`, sin dependencias nuevas) — 11
+casos, incluyendo los 5 bordes pedidos explícitamente (sin evaluaciones,
+Σnota_maxima≠total, nota>nota_maxima bloqueada, decimales, división por
+cero).
+
+Un slider por CADA evaluación registrada (antes sólo las sin nota), rango
+`0…nota_maxima` propio de cada una; las que ya tienen nota real arrancan
+ahí marcadas "Real" — tocar el slider las pasa a "Simulado" (se puede
+simular igual, como pide el pedido).
+
+Nuevo `esc.exoneracion` (opcional, JSONB, sin migración — `esc` ya es un
+objeto libre): pill "Sin exoneración"/"Otro" en el modal de materia, junto
+a los presets de aprobación existentes.
+
+### Fase 3 — ver vs. editar
+
+El mismo modal gana un modo lectura (`STATE.editing.modo === 'ver'`) que se
+muestra primero al editar un ítem existente — materia, fecha, hora, nota
+máxima/obtenida (sólo evaluación), estado, etiqueta, notas — con un botón
+"Editar" que recién ahí revela el form de siempre. Crear uno nuevo salta
+directo al picker/form (nada que ver todavía). "Eliminar" desde el modo
+lectura dispara el click del botón real del form (mismo patrón que
+`btn-perfil-logout`/`btn-ajustes-logout`) en vez de duplicar la lógica de
+borrado.
+
+Bug de paso, encontrado probando: el `confirm()` de borrado decía
+"¿Eliminar esta evaluación?" para cualquier ítem, incluidas tareas — ahora
+dice tarea/evaluación según `kind`.
+
+### Fase 4 — tick verde: bug de raíz + menú de evaluación
+
+La estructura vieja (`<input type=checkbox>` con un `<span>` visual encima,
+`pointer-events:none` para dejar pasar el click al input real) ya
+funcionaba para el toggle simple, pero no tenía forma limpia de colgar el
+menú nuevo que pide esta fase. Se reemplazó por un `<button>` real: un solo
+elemento interactivo (sin ambigüedad de a quién le llega el click),
+`stopPropagation()` explícito, Enter/Espacio nativos por ser `<button>`
+(nada que reimplementar), área de toque 22px → 28px, `aria-label`/
+`aria-pressed` correctos.
+
+Tarea → toggle directo. Evaluación → popover chico (`#tick-menu`, nuevo)
+con "Esperando nota" (marca hecho, nota null) o "Cargar nota" (input
+acotado a `nota_maxima`, sin abrir el modal entero). Popover propio, no
+`#row-menu` (el menú contextual de mobile ya existente): ese es
+`display:none` fuera de su `@media(max-width:760px)` a propósito (mobile
+only, 4 acciones de toda la fila); el del tick tiene que andar en
+cualquier ancho.
+
+Verificado con clicks reales resueltos por referencia de accesibilidad
+(`find` + click por `ref`), no por coordenadas de pantalla — las
+coordenadas de los screenshots de este entorno no se corresponden 1:1 con
+las coordenadas reales del viewport (confirmado comparando
+`getBoundingClientRect()` contra dónde aterrizaba un click por coordenada);
+para cualquier verificación futura acá, conviene resolver el elemento por
+`find`/`ref` en vez de calcular píxeles a mano.
+
+### Fase 5 — etiquetas unificadas
+
+La sección "Etiquetas" de Ajustes (renombrar/eliminar) duplicaba la idea
+original de los tags — el selector de chips ya reusado en evaluación/
+tarea/evento personal. Se sacó de Ajustes; renombrar (✎, `prompt()`) y
+eliminar (🗑, `confirm()` + mismo `ON DELETE SET NULL`) pasan a vivir en
+cada chip del selector (`.tag-chip-wrap`, visible al hover en desktop,
+siempre visible en mobile) — reusa `.semestre-row-edit`/`-delete`, ninguna
+clase nueva.
+
+Presets de creación rápida (un tap crea y selecciona si no existe):
+Parcial/Examen/Final/Oral para evaluaciones, Estudiar/Leer/Entrega/Grupal
+para tareas y eventos personales. `event_tags.kind` (`'academico'|
+'personal'`) no cambió — sigue siendo "ligado a materia" vs "personal";
+el preset es un parámetro aparte (`ids.presetKind`) que no toca el
+esquema.
+
+### Fase 6 — ajustes de UI
+
+- **Completadas**: tareas/evaluaciones con `hecho:true` se sacan de sus
+  grupos de fecha y van a una sección "Completadas (n)" colapsable al
+  fondo (Agenda y Detalle de materia) — colapsada por default, estado
+  persistido en `localStorage` por scope (`agenda`, `detalle-<materiaId>`),
+  transición vía `grid-template-rows` (1fr↔0fr) para no medir alturas a
+  mano ni saltar de layout.
+- **Margen de riesgo**: se saca la edición desde Ajustes (7 pills para un
+  concepto — cuánto margen antes de pasar de "en riesgo" a "en peligro" —
+  que casi nadie tocaba). Queda fijo en `MARGEN_RIESGO` (constante ya
+  existente). No se borra la columna `profiles.margen_riesgo` — dato
+  inerte, no vale una migración destructiva sólo por esto.
+- **Toggle Mes/Semana**: vuelve a la topbar (junto a flechas y título) en
+  vez de su propia fila (`.cal-toolbar`, que se elimina) — Bloque E lo
+  había sacado de ahí por overflow real a 375px; esta vez se resolvió con
+  un `#cal-view-toggle` compacto y, en mobile, labels de una letra (M/S,
+  mismo patrón `.lp-txt-l`/`.lp-txt-s` que ya usaba la landing) en vez de
+  "Mes"/"Semana" completo. Verificado sin overflow (`scrollWidth` =
+  `innerWidth`, con margen real medido) a ~360px, no sólo por lectura de
+  CSS — el primer intento (sólo achicar tipografía/padding) todavía tocaba
+  el borde de la pantalla.
+- **Horario**: hairlines en `.hg-cell` (antes transparente del todo, ver
+  Bloque "grilla en tablero") — `--c-line-faint2` en las filas de media
+  hora, `--c-line-faint` (un toque más marcado) en las horas en punto.
+- **Tabla de materias**: punto de color por fila (`dotStyle()`, ya
+  existente — mismo color que tarjetas/Progreso, no uno nuevo).
+- **Bug de solapamiento**: `#cal-side-list` (panel del día en Calendario)
+  no tenía `gap`/`overflow-y` propio — un día con muchos eventos hacía
+  crecer `.cal-side` sin límite (los flex item miden `min-height:auto` por
+  default). Ahora scrollea internamente (`flex:1;min-height:0;overflow-y:
+  auto`), "+ Agregar en este día" queda siempre visible abajo. Verificado
+  sembrando un día de prueba con 9 eventos (`test-harness/mock-supabase-
+  client.js`): sin overlaps reales (`getBoundingClientRect()` de cada
+  tarjeta, ninguna se pisa) en desktop y mobile.
+
+### Fase 7 — tema por defecto y landing oscura
+
+El sistema de tema de 3 estados (Sistema/Claro/Oscuro, `temaEfectivo()` en
+`runtime.js`) ya default-eaba a Sistema y reaccionaba en vivo desde Bloque
+E — no se tocó esa lógica. Lo que faltaba era la landing (`src/
+landing.html`), 100% clara con ~140 colores en hex literal inline (sin
+CSS classes reusables para color, cada `style=` los repetía).
+
+Se agregaron tokens propios (`--lp-bg`, `--lp-surface`, `--lp-ink`/`-ink2`/
+`-ink3`, `--lp-accent`/`-accent-to`, `--lp-fill`, `--lp-border`, mismos
+valores que `--c-*` de `styles.css` para las dos escalas) + un override
+`[data-theme="oscuro"]`, y un `<script>` bloqueante al principio de
+`<body>` (la landing no carga `runtime.js`, así que `temaEfectivo()` se
+repite ahí en miniatura) que resuelve `localStorage['cursada:theme']` →
+`prefers-color-scheme` antes de que la página pinte nada — sin esto habría
+flash de tema incorrecto en cada carga.
+
+Los degradés fijos del isotipo (`#2C7BFF → #0847B4`, el mismo del favicon)
+y el blanco puro sobre fondos de acento (avatares, footer, chips) quedan
+literales a propósito, no dependen del tema.
+
+**Dos bugs reales, encontrados armando esto (no en el pedido):**
+- Un comentario CSS que abreviaba "--c-ink, --c-ink2, --c-ink3" como
+  `--c-ink*` seguido de `/--c-accent*` — la secuencia `*/` que quedó ahí en
+  el medio cerró el comentario a mitad de camino; todo el texto en
+  castellano que seguía se parseó como CSS inválido, y el navegador
+  descartó la regla `:root{}` entera en la recuperación de errores (ningún
+  token `--lp-*` llegaba a definirse — toda la página caía al color
+  inicial del navegador). Mismo tipo de bug que el HTML mal cerrado de
+  Bloque E, esta vez del lado CSS — encontrado con `document.styleSheets`
+  y comparando qué reglas habían parseado, no a simple vista.
+- 3 franjas de "contraste oscuro sobre página clara" (footer, sección
+  final "Creá tu cuenta", una tarjeta de Funciones) tenían
+  `background:var(--lp-ink)` — correcto mientras `--lp-ink` fuera siempre
+  oscuro (es el color de texto, se aclara en tema oscuro), así que en
+  oscuro esas franjas casi desaparecían (fondo casi blanco con texto
+  gris clarito encima). Quedan con fondo fijo `#12161C` en los dos temas —
+  son una franja de contraste, no texto, no tienen que seguir la escala de
+  tinta.
+
+### Cierre
+
+- `npm run test:sim` (11/11) y `npm run build` (app + landing) sin errores
+  en cada fase, no sólo al final.
+- Verificado en el navegador con clicks/estado reales contra
+  `out/Cursada.test.html` (mock) en cada fase — Inicio, Materias, Agenda,
+  Calendario, Detalle, Ajustes, y la landing en `out/index.html`, desktop
+  y mobile (~360-375px).
+- Supabase: RLS de `agenda` (`agenda_all_own`, `auth.uid() = user_id`) sin
+  cambios — cubre las columnas nuevas sin tocar la policy; `get_advisors`
+  sin lints nuevos (el único WARN existente, `auth_leaked_password_
+  protection`, es previo y no relacionado); auth y el resto de las tablas
+  sin tocar. Verificado además que `out/Cursada.html` (build real, contra
+  Supabase real) carga sin errores de consola y con `window.CURSADA_
+  SUPABASE` inicializado.
