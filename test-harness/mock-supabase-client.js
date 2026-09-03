@@ -50,7 +50,18 @@
     personal: [
       { id: 'p-1', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(0), hora: '19:00', todo_el_dia: false, tag_id: 'tag-2' },
       { id: 'p-3', user_id: 'test-user-id-000', titulo: 'Llamar al dentista', fecha: todayPlus(0), hora: '11:00', todo_el_dia: false },
-      { id: 'p-2', user_id: 'test-user-id-000', titulo: 'Cumpleaños de Ana', fecha: todayPlus(5), hora: null, todo_el_dia: true }
+      { id: 'p-2', user_id: 'test-user-id-000', titulo: 'Cumpleaños de Ana', fecha: todayPlus(5), hora: null, todo_el_dia: true },
+      // Fase 6, caso borde a propósito: un día con muchos eventos (bug de
+      // solapamiento en el panel lateral del Calendario).
+      { id: 'p-busy-1', user_id: 'test-user-id-000', titulo: 'Reunión de equipo', fecha: todayPlus(3), hora: '08:00', todo_el_dia: false },
+      { id: 'p-busy-2', user_id: 'test-user-id-000', titulo: 'Desayuno con Fer', fecha: todayPlus(3), hora: '09:00', todo_el_dia: false },
+      { id: 'p-busy-3', user_id: 'test-user-id-000', titulo: 'Dentista (control)', fecha: todayPlus(3), hora: '10:30', todo_el_dia: false },
+      { id: 'p-busy-4', user_id: 'test-user-id-000', titulo: 'Almuerzo con la familia', fecha: todayPlus(3), hora: '12:30', todo_el_dia: false },
+      { id: 'p-busy-5', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(3), hora: '14:00', todo_el_dia: false },
+      { id: 'p-busy-6', user_id: 'test-user-id-000', titulo: 'Llamada con el tutor', fecha: todayPlus(3), hora: '15:30', todo_el_dia: false },
+      { id: 'p-busy-7', user_id: 'test-user-id-000', titulo: 'Cumpleaños de Nico', fecha: todayPlus(3), hora: null, todo_el_dia: true },
+      { id: 'p-busy-8', user_id: 'test-user-id-000', titulo: 'Turno peluquería', fecha: todayPlus(3), hora: '17:00', todo_el_dia: false },
+      { id: 'p-busy-9', user_id: 'test-user-id-000', titulo: 'Cena con amigos', fecha: todayPlus(3), hora: '20:30', todo_el_dia: false }
     ]
   };
   function todayPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }

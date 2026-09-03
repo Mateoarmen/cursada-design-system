@@ -504,6 +504,10 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .materias-table td{padding:12px;border-bottom:1px solid var(--c-line-faint);font-size:14px;vertical-align:middle}
 .materias-table tr{cursor:pointer}
 .materias-table tr:hover td{background:var(--c-surfaceAlt)}
+/* Fase 6: color de materia en la tabla — mismo dotStyle() que ya usa el
+   resto de la app (Materias en tarjetas, Progreso), sólo el margen es
+   propio de este contexto. */
+.materia-table-dot{display:inline-block;margin-right:8px;vertical-align:middle}
 
 /* ---------- Detalle ---------- */
 .detalle-head{display:flex;align-items:center;gap:20px;padding:22px 24px;flex-wrap:wrap}
@@ -613,6 +617,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-group-head .t.danger{color:var(--c-danger)}
 .agenda-group-head .n{font-size:12px;color:var(--c-ink3)}
 .agenda-group-head .rule{flex:1;height:1px;background:var(--c-line-faint)}
+/* Fase 6: sección "Completadas" colapsable — grid-template-rows 1fr↔0fr
+   anima el alto sin medir nada en JS ni saltar de layout. */
+.agenda-group-head.is-toggle{cursor:pointer}
+.agenda-group-chevron{font-size:10px;color:var(--c-ink3);transition:transform 150ms ease;flex:none}
+.agenda-group-collapsible.is-collapsed .agenda-group-chevron{transform:rotate(-90deg)}
+.agenda-collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows 220ms ease}
+.agenda-collapse-inner{overflow:hidden;min-height:0}
+.agenda-collapse.is-collapsed{grid-template-rows:0fr}
 .agenda-list{overflow:hidden}
 .agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px 13px 26px;border-top:1px solid var(--c-line-faint);position:relative}
 /* Riel de color del borde izquierdo (bloque D1) — antes vivía en el flujo
@@ -638,7 +650,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 
 /* ---------- Calendario ---------- */
 .cal-header-nav{gap:14px}
-.cal-toolbar{padding:10px 34px 0}
+/* Fase 6: toggle Mes/Semana compacto, ahora dentro de .cal-header-nav —
+   .seg-item por defecto (30px/0 14px) ya es más chico que en Materias
+   (que usa el mismo .seg a 36px vía la regla mobile genérica); acá se
+   fija el tamaño explícitamente para que no herede esa regla mobile más
+   ancha, que fue justamente el motivo por el que antes desbordaba. */
+#cal-view-toggle{flex:none}
+#cal-view-toggle .seg-item{height:28px;padding:0 10px;font-size:12px}
+/* .cal-seg-s ("M"/"S") es la versión de una letra para mobile muy angosto
+   — mismo patrón que .lp-txt-l/.lp-txt-s en landing.html. */
+.cal-seg-s{display:none}
 .calendario-wrap{flex:1;min-height:0;display:flex;gap:0}
 .calendario-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 .cal-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0}
@@ -677,16 +698,22 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .cal-item-dot{width:7px;height:7px;border-radius:50%;flex:none}
 .cal-item-label{font-size:11px;color:var(--c-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-item-more{font-size:10px;color:var(--c-ink3);padding:1px 2px}
-.cal-side{width:312px;flex:none;background:var(--c-sidenav);border-left:1px solid var(--c-line);padding:22px;display:flex;flex-direction:column;gap:16px}
-.cal-side-head{display:flex;flex-direction:column;gap:4px}
+.cal-side{width:312px;flex:none;background:var(--c-sidenav);border-left:1px solid var(--c-line);padding:22px;display:flex;flex-direction:column;gap:16px;min-height:0}
+.cal-side-head{display:flex;flex-direction:column;gap:4px;flex:none}
 .cal-side-head .t{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-.015em}
 .cal-side-head .m{font-size:12px;color:var(--c-ink3)}
-.cal-day-card{display:flex;flex-direction:column;gap:7px;padding:14px;border-radius:14px;background:var(--c-surface);box-shadow:var(--c-shadow);border-left:3px solid}
+/* Fase 6: bug de solapamiento — sin esto, un día con muchos eventos hacía
+   crecer .cal-side sin límite (los flex item miden min-height:auto por
+   default) y las cards terminaban pisándose contra el resto del layout en
+   vez de entrar en su propio scroll. flex:1+min-height:0 acá, scroll
+   interno, "+ Agregar" (flex:none, margin-top:auto) siempre visible abajo. */
+#cal-side-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.cal-day-card{display:flex;flex-direction:column;gap:7px;padding:14px;border-radius:14px;background:var(--c-surface);box-shadow:var(--c-shadow);border-left:3px solid;flex:none}
 .cal-day-card .row{display:flex;align-items:center;justify-content:space-between}
 .cal-day-card .t{font-size:14px;font-weight:600;line-height:1.35}
 .cal-day-card .m{font-size:12px;color:var(--c-ink3)}
 .cal-side-empty{font-size:13px;color:var(--c-ink3)}
-.cal-side-add{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.cal-side-add{margin-top:auto;display:flex;flex-direction:column;gap:8px;flex:none}
 .cal-side-add .btn-block{height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--c-accent);font-size:14px;font-weight:600;border:none;color:#fff}
 .cal-side-add .hint{font-size:11px;color:var(--c-ink3);text-align:center;line-height:1.5}
 .cal-nav{display:flex;gap:6px}
@@ -707,7 +734,15 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    queda es la de hora en punto (::before), mucho más sutil que un grid
    completo. Compartida entre temas (no vive bajo html[data-theme], así
    que el ajuste aplica igual en claro y en oscuro). */
-.hg-cell{background:transparent;border:none;border-radius:0}
+/* Fase 6: hairlines que delimitan los bloques de media hora — casi
+   imperceptibles (--c-line-faint2), un toque más marcadas en las horas en
+   punto (.is-hour, --c-line-faint) para poder ubicarse sin que la grilla
+   vuelva a leerse como un tablero de casilleros (ver README, "grilla en
+   tablero", motivo por el que antes se sacó el borde por completo). Sin
+   borde a la derecha en la última columna, no queda un marco cerrado. */
+.hg-cell{background:transparent;border:none;border-radius:0;border-bottom:1px solid var(--c-line-faint2);border-right:1px solid var(--c-line-faint2)}
+.hg-cell.is-hour{border-bottom-color:var(--c-line-faint)}
+.hg-cell.is-last-col{border-right:none}
 .hg-block{border-radius:12px;padding:9px 10px;display:flex;flex-direction:column;gap:3px;overflow:hidden;margin:1px;cursor:pointer;border:none;border-left-width:4px;border-left-style:solid}
 .hg-block .n{font-size:13px;font-weight:600;letter-spacing:-.005em;line-height:1.25}
 .hg-block .h{font-size:10px;opacity:.85;font-variant-numeric:tabular-nums}
@@ -911,7 +946,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 @media(max-width:900px){
   .view{padding:18px 16px}
   .topbar{padding:0 16px}
-  .cal-toolbar{padding:10px 16px 0}
   .detalle-cols{flex-direction:column}
   .cal-side{width:100%;border-left:none;border-top:1px solid var(--c-line)}
   .calendario-wrap{flex-direction:column}
@@ -1238,19 +1272,28 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .agenda-toolbar{flex-direction:column;align-items:stretch}
   .agenda-toolbar > .filtros-row{width:100%;min-width:0}
   .pill,.chip-materia,.agenda-group-head .t,.agenda-group-head .n{white-space:nowrap}
-  /* .cal-header-nav (mes + flechas + "hoy") vive en la topbar como un div
-     suelto, no como .topbar-title — así que no hereda el flex:1/overflow
-     que .topbar-title recibe más arriba en este mismo media. Achicar sólo
-     el gap decorativo (no los botones de .cal-nav: esos son touch target,
-     44px a propósito, no se tocan) alcanza para que entre junto al ☰ y la
-     marca sin desbordar (probado en 375px, antes se salía de la topbar). */
+  /* .cal-header-nav (mes + flechas + toggle + "hoy") vive en la topbar como
+     un div suelto, no como .topbar-title — así que no hereda el flex:1/
+     overflow que .topbar-title recibe más arriba en este mismo media.
+     Achicar el gap decorativo (no los botones de .cal-nav: esos son touch
+     target, 44px a propósito, no se tocan) alcanza para que entre junto al
+     ☰ y la marca sin desbordar (probado en 375px, antes se salía de la
+     topbar). Fase 6: el toggle Mes/Semana volvió a vivir acá adentro (antes
+     tenía su propia fila, .cal-toolbar) — con su propio tamaño reducido
+     (#cal-view-toggle más arriba) entra sin repetir el desborde original;
+     "hoy" se esconde a este ancho (ya se puede volver a hoy tocando ‹/›
+     hasta llegar, y el acceso #hoy sigue andando por URL) para dejarle el
+     lugar al toggle, que es la acción que de verdad no tiene otro camino. */
   /* !important porque font-size vive en el style= inline del <h1> (varias
      otras propiedades del componente están ahí) — un inline style le gana
      a cualquier regla externa sin !important, mismo motivo documentado
      para .lp-header-signin en landing.html. */
   .cal-header-nav{gap:4px}
   .cal-header-nav #cal-month-label{font-size:13px!important}
-  .cal-toolbar{padding:10px 14px 0}
+  #cal-view-toggle .seg-item{height:30px;padding:0 12px;font-size:13px}
+  .cal-seg-l{display:none}
+  .cal-seg-s{display:inline}
+  #cal-today-label{display:none}
 
   /* ---------- Inicio ---------- */
   .inicio-head{flex-direction:column;align-items:flex-start;gap:4px}

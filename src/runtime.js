@@ -39,9 +39,8 @@
   // de fuente del sistema (ver styles.css); MONO queda como alias para no
   // tocar cada llamada de chip()/badge()/ring() una por una.
   var MONO = "-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif";
-  // Margen de riesgo (escala 0-12): ahora vive en profiles.margen_riesgo
-  // (panel de Ajustes), esto es sólo el fallback mientras el perfil no
-  // cargó todavía — ver margenDe() más abajo.
+  // Margen de riesgo (escala 0-12) — valor fijo (Fase 6: se sacó la
+  // edición desde Ajustes, confundía y no sumaba). Ver margenDe() más abajo.
   var MARGEN_RIESGO = 1;
   var NOTA_APROBACION_DEFECTO = 3;
 
@@ -224,9 +223,10 @@
   function uni(e) { return e.tipo === 'nota' ? '' : (e.tipo === 'pct' ? '%' : ' pts'); }
   function valU(v, e) { return v == null ? '—' : val(v, e) + uni(e); }
   function escLabel(e) { return e.tipo === 'nota' ? 'Nota 0–12' : (e.tipo === 'pct' ? 'Porcentaje' : 'Puntaje ' + e.total); }
+  // Fase 6: valor fijo (ya no editable desde Ajustes) — ver nota en
+  // openAjustesModal.
   function margenDe(e) {
-    var margen = CURRENT_PROFILE && CURRENT_PROFILE.margen_riesgo != null ? CURRENT_PROFILE.margen_riesgo : MARGEN_RIESGO;
-    return margen / 12 * e.total;
+    return MARGEN_RIESGO / 12 * e.total;
   }
   function toneDe(estado, esc, parciales) {
     if (estado === 'aprobada') return 'success';
@@ -1323,6 +1323,7 @@
       clear(tbody);
       filtradas.forEach(function (m) {
         var row = tpl('materia-table-row');
+        qf(row, 'dot').setAttribute('style', dotStyle(m.strong, '50%'));
         qf(row, 'nombre').textContent = m.nombre;
         qf(row, 'doc').textContent = m.doc;
         qf(row, 'notaTxt').textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
@@ -1421,22 +1422,12 @@
     var evalList = document.getElementById('detalle-eval-list');
     clear(evalList);
     var t = today();
-    evals.forEach(function (a) {
-      var node = tpl('eval-row');
-      node.title = 'Editar este ítem';
-      wireTickButton(qf(node, 'check'), a);
-      var titulo = qf(node, 'titulo'); titulo.textContent = a.titulo; titulo.classList.toggle('done', !!a.hecho);
-      qf(node, 'metaTxt').textContent = a.tipo + ' · ' + formatFechaAgenda(a.fecha, a.hora) + (a.nota != null ? ' · ' + valU(a.nota, m.esc) : '');
-      renderTagChipInto(qf(node, 'tag'), a.tagId);
-      var info = agendaBadgeInfo(a, t);
-      var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
-      makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar ' + a.titulo);
-      // Swipe para marcar entregado, sin long-press acá: ya estás en el
-      // detalle de la materia, y editar/eliminar ya están a un toque
-      // (la fila abre el modal, que tiene su propio botón de eliminar).
-      attachSwipeToComplete(node, function () { toggleAgendaHecho(a.id, true); });
-      evalList.appendChild(node);
-    });
+    // Fase 6: completadas al fondo, en su propia sección colapsable — igual
+    // que en Agenda (buildCompletadasSection), no una lista aparte.
+    var pendientesEvals = evals.filter(function (a) { return !a.hecho; });
+    var completadasEvals = evals.filter(function (a) { return a.hecho; });
+    evalList.appendChild(buildEvalRowsList(pendientesEvals, m, t));
+    if (completadasEvals.length) evalList.appendChild(buildCompletadasSection('detalle-' + m.id, completadasEvals.length, buildEvalRowsList(completadasEvals, m, t)));
 
     var miniDays = document.getElementById('detalle-mini-days');
     clear(miniDays);
@@ -1462,6 +1453,30 @@
     document.getElementById('btn-detalle-cargar-nota').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion', modoNota: true }); };
     document.getElementById('btn-detalle-escala').onclick = function () { openMateriaModal(m.id); };
     renderDetalleSimulador(m);
+  }
+
+  // Fase 6: extraído de renderDetalle para reusarlo en la sección
+  // "Completadas" colapsable — misma fila (eval-row), sin repetir tick/
+  // swipe/click.
+  function buildEvalRowsList(items, m, t) {
+    var list = el('div', 'eval-list');
+    items.forEach(function (a) {
+      var node = tpl('eval-row');
+      node.title = 'Editar este ítem';
+      wireTickButton(qf(node, 'check'), a);
+      var titulo = qf(node, 'titulo'); titulo.textContent = a.titulo; titulo.classList.toggle('done', !!a.hecho);
+      qf(node, 'metaTxt').textContent = a.tipo + ' · ' + formatFechaAgenda(a.fecha, a.hora) + (a.nota != null ? ' · ' + valU(a.nota, m.esc) : '');
+      renderTagChipInto(qf(node, 'tag'), a.tagId);
+      var info = agendaBadgeInfo(a, t);
+      var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
+      makeRowClickable(node, function () { openEvaluacionModal({ editId: a.id }); }, 'Editar ' + a.titulo);
+      // Swipe para marcar entregado, sin long-press acá: ya estás en el
+      // detalle de la materia, y editar/eliminar ya están a un toque
+      // (la fila abre el modal, que tiene su propio botón de eliminar).
+      attachSwipeToComplete(node, function () { toggleAgendaHecho(a.id, true); });
+      list.appendChild(node);
+    });
+    return list;
   }
 
   // ----------------------------------------------------------------
@@ -1726,14 +1741,22 @@
       return true;
     });
 
+    // Fase 6: las completadas se sacan de Vencidas/Esta semana/Próximamente
+    // y van a su propia sección al fondo — salvo que el filtro de estado ya
+    // esté puesto en "Hecho" a propósito, ahí no tiene sentido re-agruparlas
+    // aparte (es lo único que se está pidiendo ver).
+    var separarCompletadas = STATE.agendaFiltroEstado !== 'hecho';
+    var pendientesEntries = separarCompletadas ? entries.filter(function (e) { return !e.hecho; }) : entries;
+    var completadasEntries = separarCompletadas ? entries.filter(function (e) { return e.hecho; }) : [];
+
     var vencidas = [], estaSemana = [], proximamente = [];
-    entries.forEach(function (e) {
+    pendientesEntries.forEach(function (e) {
       var d = parseISODate(e.fecha);
       var diff = diffDias(d, t);
       if (diff < 0) vencidas.push(e); else if (diff <= 6) estaSemana.push(e); else proximamente.push(e);
     });
     var sortFn = function (a, b) { return parseISODate(a.fecha) - parseISODate(b.fecha) || (a.hora || '').localeCompare(b.hora || ''); };
-    vencidas.sort(sortFn); estaSemana.sort(sortFn); proximamente.sort(sortFn);
+    vencidas.sort(sortFn); estaSemana.sort(sortFn); proximamente.sort(sortFn); completadasEntries.sort(sortFn);
 
     document.getElementById('agenda-count').textContent = entries.length + (entries.length === 1 ? ' ítem' : ' ítems') + (vencidas.length ? ' · ' + vencidas.length + (vencidas.length === 1 ? ' vencido' : ' vencidos') : '');
 
@@ -1743,6 +1766,7 @@
       if (!g[1].length) return;
       groupsNode.appendChild(buildAgendaGroup(g[0], g[1], g[2], t));
     });
+    if (completadasEntries.length) groupsNode.appendChild(buildCompletadasSection('agenda', completadasEntries.length, buildAgendaRowsList(completadasEntries, t)));
     if (!entries.length) {
       var empty = el('div'); empty.style.cssText = 'padding:40px 0;text-align:center;color:var(--c-ink3);font-size:14px';
       empty.textContent = 'No hay ítems con estos filtros.';
@@ -1757,6 +1781,13 @@
     var n = el('span', 'n'); n.textContent = items.length + (items.length === 1 ? ' ítem' : ' ítems');
     var rule = el('div', 'rule');
     head.appendChild(tEl); head.appendChild(n); head.appendChild(rule);
+    wrap.appendChild(head); wrap.appendChild(buildAgendaRowsList(items, t));
+    return wrap;
+  }
+  // Extraído de buildAgendaGroup (Fase 6) para reusarlo en la sección
+  // "Completadas" colapsable — misma fila, sin repetir la lógica de tick/
+  // swipe/click.
+  function buildAgendaRowsList(items, t) {
     var list = el('div', 'card agenda-list');
     items.forEach(function (item) {
       var node = tpl('agenda-row');
@@ -1796,7 +1827,45 @@
       }
       list.appendChild(node);
     });
-    wrap.appendChild(head); wrap.appendChild(list);
+    return list;
+  }
+
+  // Fase 6: sección "Completadas (n)" colapsable — mismo patrón de
+  // localStorage que cursada:theme. Colapsada por default (no debería
+  // dominar la vista); se acuerda del estado por scope (agenda/detalle-X)
+  // para no compartirlo entre vistas distintas.
+  function completadasCollapsedKey(scope) { return 'cursada:completadas-collapsed:' + scope; }
+  function isCompletadasCollapsed(scope) {
+    try { return localStorage.getItem(completadasCollapsedKey(scope)) !== '0'; } catch (e) { return true; }
+  }
+  function setCompletadasCollapsed(scope, collapsed) {
+    try { localStorage.setItem(completadasCollapsedKey(scope), collapsed ? '1' : '0'); } catch (e) {}
+  }
+  // `rowsListEl` ya viene armado por el caller (buildAgendaRowsList en
+  // Agenda, buildEvalRowsList en Detalle) — esta función sólo pone el
+  // encabezado colapsable alrededor, sin saber qué tipo de fila contiene.
+  function buildCompletadasSection(scope, count, rowsListEl) {
+    var wrap = el('div', 'agenda-group agenda-group-collapsible');
+    var collapsed = isCompletadasCollapsed(scope);
+    wrap.classList.toggle('is-collapsed', collapsed);
+    var head = el('div', 'agenda-group-head is-toggle');
+    var chevron = el('span', 'agenda-group-chevron'); chevron.textContent = '▾';
+    var tEl = el('span', 't'); tEl.textContent = 'Completadas';
+    var n = el('span', 'n'); n.textContent = '(' + count + ')';
+    var rule = el('div', 'rule');
+    head.appendChild(chevron); head.appendChild(tEl); head.appendChild(n); head.appendChild(rule);
+    var collapseOuter = el('div', 'agenda-collapse' + (collapsed ? ' is-collapsed' : ''));
+    var collapseInner = el('div', 'agenda-collapse-inner');
+    collapseInner.appendChild(rowsListEl);
+    collapseOuter.appendChild(collapseInner);
+    makeRowClickable(head, function () {
+      var abrir = collapseOuter.classList.contains('is-collapsed');
+      collapseOuter.classList.toggle('is-collapsed', !abrir);
+      wrap.classList.toggle('is-collapsed', !abrir);
+      setCompletadasCollapsed(scope, !abrir);
+      head.setAttribute('aria-label', (abrir ? 'Ocultar' : 'Mostrar') + ' completadas');
+    }, (collapsed ? 'Mostrar' : 'Ocultar') + ' completadas');
+    wrap.appendChild(head); wrap.appendChild(collapseOuter);
     return wrap;
   }
 
@@ -2097,7 +2166,8 @@
       var lbl = el('div', 'hg-hour-label'); lbl.style.gridColumn = 1; lbl.style.gridRow = r + 2; lbl.textContent = (hh % 1 === 0) ? pad2(hh) + ':00' : '';
       grid.appendChild(lbl);
       for (var c = 0; c < cols; c++) {
-        var cell = el('div', 'hg-cell'); cell.style.gridColumn = c + 2; cell.style.gridRow = r + 2;
+        var cell = el('div', 'hg-cell' + (hh % 1 === 0 ? ' is-hour' : '') + (c === cols - 1 ? ' is-last-col' : ''));
+        cell.style.gridColumn = c + 2; cell.style.gridRow = r + 2;
         grid.appendChild(cell);
       }
     });
@@ -2233,8 +2303,7 @@
   var MODAL_EXTRA_STATE = {
     'modal-materia': function () { return { colorId: STATE.editing.colorId, esc: STATE.editing.esc, horarioRows: STATE.editing.horarioRows }; },
     'modal-evaluacion': function () { return { kind: STATE.editing.kind, evalMateriaId: STATE.editing.evalMateriaId, evalTipo: STATE.editing.evalTipo, evalTipoCustom: STATE.editing.evalTipoCustom, evalNotaMaxima: STATE.editing.evalNotaMaxima }; },
-    'modal-personal': function () { return { todoElDia: STATE.editing.todoElDia }; },
-    'modal-ajustes': function () { return { margen: AJUSTES_MARGEN_ACTUAL }; }
+    'modal-personal': function () { return { todoElDia: STATE.editing.todoElDia }; }
   };
   var MODAL_SNAPSHOTS = {};
   function modalSnapshotValue(modalId) {
@@ -4182,28 +4251,15 @@
   // ================================================================
   // AJUSTES
   // ================================================================
-  // 7 valores discretos (0 a 3, pasos de .5) — no hace falta la escotilla de
-  // "Otro" que sí tienen los presets de puntaje/aprobación (esc.total/esc.aprob),
-  // ahí el rango es abierto; acá es cerrado y chico. Reusa buildNumPill(),
-  // el mismo builder que ya arma esos presets.
-  var MARGEN_RIESGO_OPCIONES = [0, .5, 1, 1.5, 2, 2.5, 3];
-  var AJUSTES_MARGEN_ACTUAL = 1;
-  function renderAjustesMargenPills() {
-    var wrap = document.getElementById('ajustes-margen-presets');
-    clear(wrap);
-    MARGEN_RIESGO_OPCIONES.forEach(function (n) {
-      wrap.appendChild(buildNumPill(n === AJUSTES_MARGEN_ACTUAL, String(n), function () {
-        AJUSTES_MARGEN_ACTUAL = n;
-        renderAjustesMargenPills();
-      }));
-    });
-  }
+  // Fase 6: se saca la edición del margen de riesgo — confundía y no
+  // sumaba (7 pills para un concepto que casi nadie tocaba). Queda fijo en
+  // MARGEN_RIESGO (margenDe() ya no lee profiles.margen_riesgo). La
+  // columna sigue existiendo en `profiles` con datos viejos — no vale una
+  // migración destructiva sólo para borrar un campo que ya no se lee.
   function openAjustesModal() {
     var p = CURRENT_PROFILE || {};
     var form = document.getElementById('form-ajustes');
     form.materias_carrera.value = p.materias_carrera != null ? p.materias_carrera : '';
-    AJUSTES_MARGEN_ACTUAL = p.margen_riesgo != null ? p.margen_riesgo : MARGEN_RIESGO;
-    renderAjustesMargenPills();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
@@ -4374,8 +4430,7 @@
       var materiasTxt = form.materias_carrera.value.trim();
       var patch = {
         id: CURRENT_USER.id,
-        materias_carrera: materiasTxt === '' ? null : Number(materiasTxt),
-        margen_riesgo: AJUSTES_MARGEN_ACTUAL
+        materias_carrera: materiasTxt === '' ? null : Number(materiasTxt)
       };
       var btn = document.getElementById('btn-ajustes-guardar');
       setBtnBusy(btn, true, 'Guardando…');

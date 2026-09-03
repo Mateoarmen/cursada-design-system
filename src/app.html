@@ -448,24 +448,20 @@
         <div class="cal-header-nav" style="display:flex;align-items:center">
           <h1 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;flex:none" id="cal-month-label"></h1>
           <div class="cal-nav"><button id="cal-prev" aria-label="Mes/semana anterior"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button><button id="cal-next" aria-label="Mes/semana siguiente"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button></div>
+          <!-- Fase 6: mismo control, ahora en la barra superior junto a las
+               flechas y el título en vez de en su propia fila — compacto
+               (ver #cal-view-toggle en styles.css) para entrar en mobile,
+               a diferencia del intento anterior con las labels de siempre. -->
+          <div class="seg" id="cal-view-toggle">
+            <button type="button" class="seg-item is-on" data-cal-view="mes"><span class="cal-seg-l">Mes</span><span class="cal-seg-s">M</span></button>
+            <button type="button" class="seg-item" data-cal-view="semana"><span class="cal-seg-l">Semana</span><span class="cal-seg-s">S</span></button>
+          </div>
           <button class="mono" id="cal-today-label" style="font-size:12px;color:var(--c-ink3);background:none;border:none;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;flex:none" title="Volver a hoy"></button>
         </div>
         <div class="topbar-actions">
           <button class="btn btn-primary" id="btn-cal-evento">+ Evento personal</button>
         </div>
       </header>
-      <!-- Mes/Semana no es decorativo (cambia STATE.calViewMode y qué se
-           renderiza, ver runtime.js) — a diferencia de Materias, en mobile
-           no se puede esconder. Vive en su propia fila fuera de
-           .topbar-actions porque adentro, con flex-wrap:nowrap en mobile,
-           desbordaba la topbar (bug real, visto probando en 375px: el
-           .seg terminaba casi entero fuera de la pantalla). -->
-      <div class="cal-toolbar">
-        <div class="seg" id="cal-view-toggle">
-          <button type="button" class="seg-item is-on" data-cal-view="mes">Mes</button>
-          <button type="button" class="seg-item" data-cal-view="semana">Semana</button>
-        </div>
-      </div>
       <div class="calendario-wrap">
         <div class="calendario-main">
           <!-- Mobile (≤760px) + vista Semana: tira de 7 días en vez de la
@@ -904,11 +900,6 @@
           <span style="font-size:11px;color:var(--c-ink3)">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
         </div>
         <div class="perfil-group">
-          <span class="perfil-group-lbl">Margen de riesgo</span>
-          <div class="num-pill-row"><span class="lbl">De 0 a 3</span><div class="num-pills" id="ajustes-margen-presets"></div></div>
-          <span style="font-size:11px;color:var(--c-ink3)">Define cuánto margen le das a una materia antes de que pase de "en riesgo" a "en peligro" en los semáforos de Inicio y Materias.</span>
-        </div>
-        <div class="perfil-group">
           <span class="perfil-group-lbl">Datos y cuenta</span>
           <div class="accesos-row">
             <button type="button" class="btn" id="btn-exportar">Exportar</button>
@@ -984,7 +975,7 @@
 
 <template data-template="materia-table-row">
   <tr>
-    <td data-f="nombre"></td>
+    <td><span class="materia-table-dot" data-f="dot"></span><span data-f="nombre"></span></td>
     <td data-f="doc"></td>
     <td class="mono" data-f="notaTxt"></td>
     <td><span class="badge" data-f="badge"></span></td>
