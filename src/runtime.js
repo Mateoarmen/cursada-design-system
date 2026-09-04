@@ -4556,7 +4556,9 @@
     if (mode === 'signup') {
       poblarSelectNacimiento('auth-nac');
       initSelectPais('auth-tel-pais', 'auth-telefono', null, null);
-      initSelectUniversidad('auth-universidad', 'auth-universidad-otra-wrap', 'auth-universidad-otra', null, null);
+      initSelectUniversidad('auth-universidad', 'auth-universidad-otra-wrap', 'auth-universidad-otra', null, null, function (universityId, esPrecarga) {
+        initSelectCarrera('auth-carrera-select-wrap', 'auth-carrera-select', 'auth-carrera-wrap', 'auth-carrera', universityId, esPrecarga ? document.getElementById('auth-carrera').value : '');
+      });
     }
     // No tiene sentido "¿olvidaste tu contraseña?" en el formulario de
     // registro (todavía no existe una).
@@ -4736,10 +4738,19 @@
       return UNIVERSIDADES_CACHE;
     });
   }
-  function initSelectUniversidad(selectId, otraWrapId, otraInputId, universityId, universityOther) {
+  // onUniversidadChange(universityId|null, esPrecarga): opcional, la usa el
+  // selector de carrera para saber de qué institución traer el catálogo.
+  // esPrecarga=true sólo en la carga inicial (con el valor ya guardado del
+  // perfil) — en un cambio manual del usuario esPrecarga es false, así el
+  // que escucha sabe que tiene que arrancar de cero (la carrera ya elegida
+  // puede no existir en la universidad nueva).
+  function initSelectUniversidad(selectId, otraWrapId, otraInputId, universityId, universityOther, onUniversidadChange) {
     var sel = document.getElementById(selectId);
     var wrap = document.getElementById(otraWrapId);
     var otraInput = document.getElementById(otraInputId);
+    function notificar(esPrecarga) {
+      if (onUniversidadChange) onUniversidadChange(sel.value && sel.value !== 'otra' ? sel.value : null, esPrecarga);
+    }
     cargarUniversidades().then(function (unis) {
       if (!sel.options.length) {
         var optVacia = el('option'); optVacia.value = ''; optVacia.textContent = 'Elegí tu universidad'; sel.appendChild(optVacia);
@@ -4749,8 +4760,79 @@
       if (universityId) { sel.value = universityId; wrap.classList.add('hidden'); otraInput.value = ''; }
       else if (universityOther) { sel.value = 'otra'; wrap.classList.remove('hidden'); otraInput.value = universityOther; }
       else { sel.value = ''; wrap.classList.add('hidden'); otraInput.value = ''; }
+      notificar(true);
     });
-    sel.onchange = function () { wrap.classList.toggle('hidden', sel.value !== 'otra'); };
+    sel.onchange = function () { wrap.classList.toggle('hidden', sel.value !== 'otra'); notificar(false); };
+  }
+
+  // Carreras por universidad: catálogo real (misma RPC `cat_carreras_de` que
+  // usa el wizard de onboarding, ver wizCargarCarreras) — hoy sólo ORT tiene
+  // datos cargados, pero esta función no asume eso: cualquier universidad
+  // para la que la RPC devuelva carreras pasa a elegirse de una lista en vez
+  // de tipearse; el resto (todas menos ORT, hoy) sigue cayendo directo al
+  // campo de texto libre de siempre. El día que se cargue el catálogo de
+  // otra institución, esto arranca a funcionar solo, sin tocar este código.
+  var CARRERAS_CACHE_POR_UNI = {};
+  function cargarCarrerasDeUniversidad(universityId) {
+    if (!universityId) return Promise.resolve([]);
+    if (!CARRERAS_CACHE_POR_UNI[universityId]) {
+      CARRERAS_CACHE_POR_UNI[universityId] = rpc('cat_carreras_de', { p_university_id: universityId })
+        .then(function (carreras) { return carreras || []; })
+        .catch(function () { return []; });
+    }
+    return CARRERAS_CACHE_POR_UNI[universityId];
+  }
+  // El campo que se guarda (`profiles.carrera`) sigue siendo texto libre —
+  // esto sólo le precarga un valor elegido de una lista en vez de tipeado a
+  // mano; no toca `carrera_id` (eso lo asigna el wizard de catálogo más
+  // adelante, con su propio paso dedicado — ver WIZ_PASOS). Mientras no hay
+  // catálogo, o mientras no se eligió nada todavía, el select y el campo de
+  // texto conviven visibles (se puede elegir de la lista o escribir directo);
+  // sólo se oculta el texto cuando el select tiene una carrera real elegida
+  // (ahí el input ya quedó sincronizado con ese valor, nunca vacío).
+  function initSelectCarrera(selectWrapId, selectId, inputWrapId, inputId, universityId, carreraActual) {
+    var wrapSel = document.getElementById(selectWrapId);
+    var sel = document.getElementById(selectId);
+    var wrapInput = document.getElementById(inputWrapId);
+    var input = document.getElementById(inputId);
+    var label = document.getElementById(inputId + '-label');
+    clear(sel);
+    wrapSel.classList.add('hidden');
+    wrapInput.classList.remove('hidden');
+    input.value = carreraActual || '';
+    if (label) label.textContent = 'Carrera';
+    function sincronizarVisibilidad() {
+      var esCatalogo = sel.value && sel.value !== 'otra';
+      wrapInput.classList.toggle('hidden', esCatalogo);
+      if (esCatalogo) input.value = sel.value;
+    }
+    cargarCarrerasDeUniversidad(universityId).then(function (carreras) {
+      if (!carreras.length) return; // sin catálogo para esta institución: sigue siendo texto libre
+      var optVacia = el('option'); optVacia.value = ''; optVacia.textContent = 'Elegí tu carrera'; sel.appendChild(optVacia);
+      carreras.forEach(function (c) {
+        // Mismo criterio que el wizard (wizCargarCarreras): si hay dos
+        // carreras con el mismo nombre (planes distintos) hay que poder
+        // distinguirlas en la lista, aunque acá el valor guardado sea sólo
+        // el nombre — no hace falta el id porque este campo no elige un plan.
+        var dup = carreras.filter(function (x) { return x.nombre === c.nombre; }).length > 1;
+        var o = el('option'); o.value = c.nombre;
+        o.textContent = dup && c.facultad ? c.nombre + ' — ' + c.facultad : c.nombre;
+        sel.appendChild(o);
+      });
+      var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'Otra…'; sel.appendChild(optOtra);
+      var coincide = carreraActual && carreras.some(function (c) { return c.nombre === carreraActual; });
+      sel.value = coincide ? carreraActual : (carreraActual ? 'otra' : '');
+      wrapSel.classList.remove('hidden');
+      // Con las dos visibles a la vez (nada elegido todavía) "Carrera" dos
+      // veces seguidas confunde — se aclara cuál es la de respaldo.
+      if (label) label.textContent = '¿No está en la lista? Escribila';
+      sincronizarVisibilidad();
+    });
+    sel.onchange = function () {
+      if (sel.value === 'otra') input.value = '';
+      sincronizarVisibilidad();
+      if (sel.value === 'otra') input.focus();
+    };
   }
 
   function bindAuthUI() {
@@ -4966,8 +5048,9 @@
     form.apellido.value = p.apellido || '';
     initNacimiento('perfil-nac', p.birth_date || null);
     initSelectPais('perfil-tel-pais', 'perfil-telefono', p.telefono_e164 || null, p.telefono_pais || null);
-    initSelectUniversidad('perfil-universidad', 'perfil-universidad-otra-wrap', 'perfil-universidad-otra', p.university_id || null, p.university_other || null);
-    form.carrera.value = p.carrera || '';
+    initSelectUniversidad('perfil-universidad', 'perfil-universidad-otra-wrap', 'perfil-universidad-otra', p.university_id || null, p.university_other || null, function (universityId, esPrecarga) {
+      initSelectCarrera('perfil-carrera-select-wrap', 'perfil-carrera-select', 'perfil-carrera-wrap', 'perfil-carrera', universityId, esPrecarga ? (p.carrera || '') : '');
+    });
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
     // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
     // propia con su propia identidad grande (.perfil-hero) — el subtítulo

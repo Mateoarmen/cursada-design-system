@@ -3150,3 +3150,80 @@ Matutino/Nocturno, semestre 3 (sin dictados cargados en el catálogo de
 prueba) cae al fallback de materias sugeridas sin horario de siempre,
 semestre 4 se acota a "LA_M4B" en matutino y cambia a "LA_N4A" al tocar
 Nocturno sin re-pedir la RPC.
+
+## Carrera elegible de una lista (no sólo texto libre) + evaluaciones duplicadas
+
+Pedido: en el registro/perfil, la Carrera se pudiera elegir de una lista
+asociada a la universidad, en vez de tipearla siempre a mano — aclarando
+que hoy sólo ORT tiene ese catálogo cargado, pero dejando el código
+funcionando para cuando otra institución lo tenga. De paso, un reporte
+suelto en la misma sesión ("el onboarding carga evaluaciones duplicadas
+para todas las materias") llevó a un bug real en la base, no en el
+frontend — documentado abajo.
+
+### Selector de carrera (`src/app.html`, `src/runtime.js`)
+
+- **Reusa el mismo catálogo que el wizard**, no uno nuevo: `cat_carreras_de`
+  (la RPC que ya usa `wizCargarCarreras()`) ahora también alimenta
+  `initSelectCarrera()`, una función nueva simétrica a
+  `initSelectUniversidad()` — mismo patrón de "select + wrap de texto libre
+  condicional" que ya existía para universidad/"Otra…".
+- **El campo sigue siendo `profiles.carrera` (texto libre)**, no
+  `carrera_id` — elegir de la lista sólo precarga ese texto con el nombre
+  de la carrera elegida; no toca `carrera_id` (eso lo sigue asignando sólo
+  el wizard, con su propio paso). Eran dos conceptos distintos antes de
+  este cambio y siguen siéndolo.
+- **Generalizado a cualquier universidad, no sólo ORT**: si `cat_carreras_de`
+  devuelve una lista vacía para la universidad elegida (hoy, cualquiera
+  que no sea ORT), el selector queda oculto y el campo de texto libre de
+  siempre es el único visible — nada hardcodeado a `ORT_UNIVERSITY_ID` en
+  este selector nuevo. El día que se cargue el catálogo de otra
+  institución, empieza a ofrecer el selector solo, sin tocar este código.
+- **Select y texto libre pueden convivir** mientras no se eligió nada
+  (mismo catálogo, pero la carrera del usuario no está en la lista, o
+  todavía no la tocó): se muestran los dos, con la etiqueta del texto
+  libre cambiando a "¿No está en la lista? Escribila" para no repetir
+  "Carrera" dos veces seguidas (encontrado probando: con las dos visibles
+  y la misma etiqueta se veía como un campo duplicado por error). El texto
+  libre se oculta recién cuando el select tiene una carrera real elegida
+  (ahí ya quedó sincronizado con ese valor, nunca vacío) — evita a
+  propósito el caso de un campo oculto y vacío en el medio de un guardado
+  obligatorio (perfil de cuenta de Google) que bloquearía el submit sin
+  ningún error visible.
+- Probado contra el mock (`test-harness/mock-supabase-client.js`, que ahora
+  sí filtra `cat_carreras_de` por `p_university_id` como la RPC real —
+  antes devolvía siempre el mismo fixture sin importar la universidad,
+  encontrado al probar el fallback de "sin catálogo"): registro y perfil,
+  ORT con carrera en catálogo / carrera fuera de catálogo ("Otra…") /
+  universidad sin catálogo, en los dos formularios.
+
+### Bug encontrado en la base real (no en el frontend): evaluaciones duplicadas
+
+Investigando el reporte, `catalogo.hitos` tenía **974 de 1519 filas
+duplicadas exactas** (487 pares con mismo `instancia_id`/`etiqueta`/
+`fecha`/`hora`/`turno`, sólo el `id` distinto) — la carga del catálogo
+insertó cada hito dos veces. `aplicar_agenda` no lo detectaba porque su
+`on conflict (user_id, catalogo_hito_id)` es por `catalogo_hito_id`
+específico: dos filas-catálogo distintas para el mismo evento real
+generan dos filas de agenda igual de "distintas" para ese índice.
+`public.agenda` estaba vacía en el momento del arreglo (nadie había
+pasado por el wizard todavía en esta base) — cero riesgo de tocar datos
+de un estudiante real, el fix fue puramente preventivo:
+
+1. `DELETE` de las 974 filas duplicadas (dejando una por grupo, la de
+   `id` menor).
+2. Índice único nuevo, `catalogo_hitos_evento_unico` sobre
+   `(instancia_id, etiqueta, fecha, hora, turno)` con `nulls not distinct`
+   — para que una futura carga del catálogo no pueda volver a duplicar.
+
+De paso apareció un segundo bug, más chico, en `aplicar_agenda`: para una
+materia sin turno resuelto (`catalogo_dictado_id` nulo — el camino
+"materias sin horario" del wizard), el filtro `h.turno is null or h.turno
+= coalesce(d.turno, p_turno, h.turno)` no excluía nada cuando ambos lados
+del `coalesce` daban `NULL`, así que insertaba **las dos variantes de
+turno** (matutino y nocturno) del mismo examen para esa materia. Se
+reescribió como un `distinct on (materia, instancia, etiqueta)` que
+prioriza el turno real de la materia si se conoce y, si no, elige una sola
+fila de forma determinística en vez de dejarlas pasar todas — verificado
+con una consulta de sólo lectura reproduciendo la lógica a mano contra una
+instancia real con hitos de los dos turnos.

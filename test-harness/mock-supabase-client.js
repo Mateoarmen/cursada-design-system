@@ -131,7 +131,13 @@
         };
       },
       delete: function () { return api; },
-      then: function (resolve) { resolve({ data: applyFilters(), error: null }); }
+      // Tiene que ser un thenable de verdad (devolver la promesa, no sólo
+      // invocar resolve) — si no, `sb().from(x)....then(fn)` no es
+      // encadenable y un segundo `.then()` del caller sobre ese resultado
+      // explota con "Cannot read properties of undefined (reading 'then')"
+      // la primera vez que se llama (antes de que algún caché lo evite).
+      // Encontrado con cargarUniversidades(), que hace exactamente eso.
+      then: function (resolve, reject) { return Promise.resolve({ data: applyFilters(), error: null }).then(resolve, reject); }
     };
     function applyFilters() {
       return TABLES[table].filter(function (row) {
@@ -297,7 +303,11 @@
   function mockRpc(name, params) {
     params = params || {};
     var data;
-    if (name === 'cat_carreras_de') data = CAT_CARRERAS;
+    // Igual que la RPC real: sólo ORT tiene catálogo cargado — cualquier
+    // otra universidad tiene que recibir una lista vacía (así el selector
+    // de carrera del login/perfil cae al campo de texto libre, no una
+    // lista fantasma con los datos de otra institución).
+    if (name === 'cat_carreras_de') data = params.p_university_id === ORT_UNIVERSITY_ID ? CAT_CARRERAS : [];
     else if (name === 'cat_grupos') data = params.p_semestre === 4 ? CAT_GRUPOS_SEM4 : [];
     else if (name === 'cat_dictados') {
       var semestres = params.p_semestres || [];

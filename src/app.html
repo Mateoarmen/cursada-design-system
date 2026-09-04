@@ -64,7 +64,8 @@
             <select id="auth-universidad" name="universidad" aria-label="Universidad"></select>
           </div>
           <div class="field hidden" id="auth-universidad-otra-wrap"><label for="auth-universidad-otra">¿Cuál?</label><input id="auth-universidad-otra" name="universidad_otra" placeholder="Nombre de tu universidad"></div>
-          <div class="field"><label for="auth-carrera">Carrera</label><input id="auth-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+          <div class="field hidden" id="auth-carrera-select-wrap"><label for="auth-carrera-select">Carrera</label><select id="auth-carrera-select" aria-label="Carrera"></select></div>
+          <div class="field" id="auth-carrera-wrap"><label for="auth-carrera" id="auth-carrera-label">Carrera</label><input id="auth-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
         </div>
         <span class="auth-error hidden" id="auth-error" role="alert" aria-live="polite"></span>
         <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
@@ -922,7 +923,8 @@
             <select id="perfil-universidad" name="universidad" aria-label="Universidad"></select>
           </div>
           <div class="field hidden" id="perfil-universidad-otra-wrap"><label for="perfil-universidad-otra">¿Cuál?</label><input id="perfil-universidad-otra" name="universidad_otra" placeholder="Nombre de tu universidad"></div>
-          <div class="field"><label for="perfil-carrera">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+          <div class="field hidden" id="perfil-carrera-select-wrap"><label for="perfil-carrera-select">Carrera</label><select id="perfil-carrera-select" aria-label="Carrera"></select></div>
+          <div class="field" id="perfil-carrera-wrap"><label for="perfil-carrera" id="perfil-carrera-label">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
       </div>
