@@ -2700,3 +2700,453 @@ mismo comportamiento de navegación.
   modelo ya garantiza correctos.
 - No se tocó nada de la landing (`src/landing.html`) — quedó fuera de esta
   pasada a pedido explícito.
+
+## Onboarding automático desde el catálogo (ORT)
+
+Hasta acá, una cuenta nueva arrancaba siempre en blanco: la primera materia,
+la primera franja horaria y la primera fecha de parcial se cargaban a mano.
+Este pedido agrega un wizard de 5 pasos que, para instituciones con
+catálogo cargado del lado de la base (hoy sólo ORT), arma el semestre
+entero — materias, horario, salón, sistema de calificación y agenda de
+parciales/entregas reales — a partir de RPCs de sólo lectura que ya
+existían en Supabase (`cat_carreras_de`, `cat_grupos`, `cat_dictados`,
+`cat_materias_sugeridas`, `cat_electivas`, `cat_conflictos`) y tres RPCs de
+escritura (`aplicar_grupo`, `aplicar_dictados`, `aplicar_plan`,
+`aplicar_agenda`) que ya venían implementadas y probadas del lado de la
+base — este PR es 100% frontend, no se tocó el esquema.
+
+### Dónde vive
+
+Todo el código nuevo entra en `src/runtime.js` (sección "WIZARD DE
+ONBOARDING", después de `hideOnboarding()`), siguiendo la convención del
+archivo de un solo IIFE — no se creó un módulo aparte. El overlay (`src/
+app.html`, `#wizard-onboarding`) y sus estilos (`src/styles.css`, bloque
+"Wizard de onboarding") son nuevos; el resto se apoya en componentes que ya
+existían (`.seg-card`, `.chip-materia`/toggle-button, `buildNumPill()`,
+`asignarColumnas()`).
+
+### Decisiones de arquitectura
+
+- **Overlay post-reveal, no gate bloqueante.** El precedente más cercano en
+  el código (el modal de perfil obligatorio de cuentas de Google) se
+  resuelve *antes* de revelar `#app`, porque no se puede posponer. Este
+  wizard es lo opuesto — siempre salteable ("Prefiero cargarlo a mano", en
+  los 5 pasos) y tiene que poder reabrirse desde Ajustes con la app ya en
+  uso — así que se modela igual que `#onboarding` (overlay `position:fixed`
+  encima del dashboard ya revelado, mismo z-index), con un array de pasos +
+  una función que togglea cuál se ve (`WIZ_PASOS`/`wizMostrarPaso()`),
+  calcado del patrón que ya usa el auth-card de 5 paneles
+  (`AUTH_PANELS`/`showAuthPanel()`).
+- **Primer uso de `sb().rpc(...)` en el archivo.** Hasta ahora todo el
+  acceso a Supabase era CRUD directo (`.from(tabla).select/upsert/delete`).
+  Se agregó un único punto de llamada (`rpc(name, params)`, al lado de
+  `supaUpsert`/`supaDelete`) que tira la excepción tal cual — las RPCs de
+  escritura ya traen mensaje en español, así que no hace falta traducir
+  nada, sólo mostrarlo (`wizMostrarError`, mismo tratamiento visual que
+  `auth-error`).
+- **Punto de enganche**: los dos lugares donde el código decidía "no hay
+  materias → mostrar `#onboarding`" (dentro de `onSignedIn()` y dentro del
+  handler "No, gracias" de importar datos locales) pasan a llamar a
+  `mostrarOnboardingOCatalogo()`, que abre el wizard sólo si
+  `profiles.university_id === ORT_UNIVERSITY_ID` (constante nueva) **y**
+  `profiles.carrera_id` todavía no se eligió — cualquier otra institución,
+  o una cuenta que ya pasó por el wizard antes, sigue viendo el
+  `#onboarding` de siempre. Ninguna institución sin catálogo llega a ver un
+  dropdown vacío.
+- **Reusar el layout de Horario para la previsualización, no reimplementarlo.**
+  El Paso 5 tiene que verse pixel-idéntico a la grilla semanal real. En vez
+  de armar una segunda versión del algoritmo de columnas para
+  superposiciones, se extrajo `buildHorarioGridInto(grid, items,
+  mostrarSabado, opts)` de `renderHorario()` — la vista real le pasa
+  `computeMateriasDelActivo()`, el wizard le pasa un array armado en
+  memoria con las materias todavía sin guardar (`wizItemsPreview()`). El
+  refactor es sólo extracción; `renderHorario()` produce exactamente el
+  mismo DOM que antes (probado: Horario semanal real, con materias del
+  grupo aplicado, se ve igual que antes de este cambio).
+- **Conflictos con datos reales, no aceptación ciega.** Antes de confirmar
+  se llama `cat_conflictos` con todos los `dictado_id` en juego (los del
+  camino elegido en el Paso 3 más las electivas del Paso 4). Si hay
+  superposición, no se puede confirmar sin tildar "Confirmar igual, ya sé
+  que se pisan" — mismo criterio que el enunciado pedía explícitamente.
+- **Tres niveles de fallback en la oferta (Paso 3), nunca una pantalla
+  vacía.** `cat_grupos` primero (camino rápido, sólo tiene sentido con un
+  único semestre elegido); si viene vacío, `cat_dictados` (camino manual,
+  cruza semestres); para cualquier semestre elegido que tampoco tenga
+  dictados ahí, `cat_materias_sugeridas` de ese semestre puntual (materias
+  del plan sin horario, con una nota explícita de "lo completás vos
+  después"). Los tres niveles conviven en la misma pantalla del camino
+  manual, sección por semestre.
+- **`profiles.carrera_id` y `semestres.periodo` son campos nuevos,
+  aditivos.** `profiles.carrera` (texto libre) y `profiles.university_id`
+  ya existían de antes (formulario de registro/perfil) y no se tocaron —
+  `carrera_id` es un campo distinto, con su propia semántica (referencia al
+  catálogo). `semestreToRow`/`rowToSemestre` suman `periodo`; un semestre
+  creado a mano (`crearSemestre()`) sigue quedando con `periodo:null`, no
+  cruza con nada. `rowToMateria` suma `catalogoMateriaId`/`catalogoDictadoId`
+  de sólo lectura (las escriben las RPCs, nunca este cliente, así que una
+  edición manual posterior de la materia no las pisa) — quedan accesibles
+  desde el objeto de materia para la futura calculadora de exoneración
+  (`cat_esquema`/`calcular_nota`, explícitamente fuera de alcance de este
+  PR), sin ninguna UI nueva que las muestre todavía.
+- **Reingreso desde Ajustes.** Botón nuevo "Rehacer configuración inicial"
+  en el grupo "Datos y cuenta" (oculto salvo que `university_id` sea ORT),
+  que cierra Ajustes y abre el wizard sin la condición de "sin materias
+  todavía" — las RPCs de escritura son idempotentes (buscan por
+  `catalogo_dictado_id`/`catalogo_materia_id` antes de crear), así que
+  correrlo de nuevo con la misma selección no duplica nada; probado a mano
+  contra el mock (ver más abajo).
+
+### Bug encontrado probando (no por lectura de código)
+
+La previsualización del Paso 5 (`#wiz-horario-grid`) se renderizaba
+**invisible, con altura 0**, la primera vez que se probó en el navegador.
+Causa: `.horario-grid-wrap`/`.horario-grid` usan `flex:1` para expandirse
+dentro de un padre con altura ya acotada — en la vista Horario real ese
+padre es `.view` (`height:100%` heredado del layout de la app), pero
+`.wiz-panel` no tiene ninguna altura fija. Fix: `#wiz-panel-revision
+.horario-grid-wrap` pasa a tener una altura explícita (`460px`) en vez de
+depender de `flex:1`. De paso apareció un segundo problema relacionado: la
+regla mobile de la vista Horario real (`.horario-grid-wrap{display:none}`,
+que ahí tiene sentido porque la reemplaza `renderHorarioMobile()` con un
+timeline) apagaba también la grilla del wizard en pantallas chicas — el
+wizard no tiene ese timeline alternativo, así que se la exceptúa
+explícitamente de ese `display:none` en vez de construir una vista mobile
+nueva sólo para esta previsualización.
+
+### Probado contra el mock (`test-harness/mock-supabase-client.js`)
+
+Se agregó `rpc: mockRpc` al cliente mock, con datos fixture: 2 carreras
+(mismo `nombre`, `plan_version` distinto), grupos/dictados sólo para el
+semestre 4 (`LA_M4B` matutino / `LA_N4A` nocturno, 4 materias cada uno,
+mismo horario docente corrido 10hs), `cat_materias_sugeridas` para los
+semestres 2 y 3 (sin horario), una electiva con 2 secciones abiertas y otra
+con una sección `sin_minimo`, y `cat_conflictos` calculado de verdad
+(overlap real entre los `bloques` de cualquier combinación de ids, no una
+lista de pares hardcodeada). Nuevo flag `?onboarding=1` arranca la cuenta
+de test sin semestres/materias/agenda (el resto de los tests de este
+harness dependen del fixture con datos, que no dispara el wizard). Casos
+verificados a mano en el navegador:
+
+- Camino rápido completo (ORT → Plan actual → semestre 4 → `LA_M4B` →
+  confirmar): 4 materias con horario, salón y escala de nota, agenda con
+  parcial el 10 de diciembre a las **09:00** (turno matutino) y entrega el
+  20 de noviembre — igual que si se hubieran cargado a mano.
+- Semestre sin grupos ni dictados (semestre 2): cae directo al aviso +
+  camino manual con `cat_materias_sugeridas`; confirmando queda la materia
+  cargada sin horario, sin pantalla rota.
+- Electiva que se pisa con una materia del grupo: el Paso 5 muestra el
+  conflicto real (día y horario correctos) y no deja confirmar sin tildar
+  la aceptación explícita.
+- Re-ejecutar el wizard completo dos veces con la misma selección (desde
+  Ajustes): la Agenda sigue en 8 ítems, Materias sigue en 4 — no duplica.
+- "Prefiero cargarlo a mano" cierra el wizard y abre el modal de alta
+  manual de siempre, en cualquier paso.
+
+### Dos bugs reportados en uso real contra Supabase (corregidos)
+
+El primer despliegue contra la base real (no el mock) mostró dos problemas
+que el fixture del test-harness no reproducía:
+
+- **Electivas mostraban "Sección N" en vez del nombre de la materia.**
+  `wizCargarElectivasSegunTurno()` ponía el nombre de la materia sólo en un
+  `<span>` agrupador arriba de la lista, y cada fila (`wiz-item-row`)
+  mostraba únicamente `'Sección ' + e.seccion`. Con una sola sección
+  abierta para el turno elegido (caso típico: nocturno con una sola
+  sección "N"), la fila quedaba sin ningún nombre reconocible. Se sacó el
+  `<span>` agrupador y el nombre de la materia pasó a ser siempre el
+  título de la fila; "— Sección X" se agrega sólo cuando esa materia tiene
+  más de una sección en la lista (para no repetir "Sección M" cuando no
+  hace falta desambiguar nada).
+- **Paso 5 ("Revisá tu semestre") no pintaba el horario del grupo elegido
+  en el camino rápido, sólo el de las electivas.** Esto confirma la
+  sospecha que había quedado documentada acá (y sin poder chequear porque
+  el MCP de Supabase estuvo caído toda la sesión anterior): `cat_grupos()`
+  en la base real no trae `dictado_id`/`bloques` por cada fila de
+  `grupo.materias` de la forma en que el fixture del mock sí lo hacía, y
+  el código dependía de eso tanto para pintar la previsualización como
+  para el chequeo de conflictos (`cat_conflictos`) contra las electivas —
+  en la práctica esto significaba que un solapamiento entre una materia
+  del grupo y una electiva podía pasar sin avisar. Se resolvió sacando esa
+  dependencia por completo: al elegir un grupo (`wizRenderGrupos`, click) y
+  de nuevo justo antes de armar el Paso 5 (`wizRenderRevision`, por si el
+  primer llamado no llegó a tiempo) se llama a `wizResolverMateriasDeGrupo()`,
+  que pide `cat_dictados(carrera_id, periodo, [semestre], turno)` — la
+  misma RPC que ya usa el camino manual y cuya forma sí está confirmada —
+  y filtra por `dictado.grupo === grupo.codigo` para reemplazar
+  `grupo.materias` con el detalle real. `wizItemsPreview()` y
+  `wizDictadoIdsParaConflictos()` no cambiaron de forma, sólo dejaron de
+  asumir algo que ahora se garantiza antes de que se los llame. Verificado
+  simulando en el mock la forma "pobre" real de `cat_grupos` (materias sin
+  `dictado_id`/`bloques`, sólo `materia_id`/`nombre`) y confirmando que el
+  Paso 5 igual arma las 4 materias con horario y detecta el conflicto con
+  la electiva — la corrección se revirtió del mock después de probar, así
+  que el fixture quedó como estaba.
+
+### Dos bugs más, mismo patrón: no confiar en lo que las RPCs de catálogo dejan escrito
+
+Un segundo reporte contra la base real mostró dos problemas más, ambos con
+la misma causa raíz que el de arriba — las 4 RPCs de escritura corren del
+lado del servidor y no hay forma de inspeccionar (sin el MCP de Supabase)
+exactamente qué le quedan escribiendo a cada materia:
+
+- **Todas las materias creadas por el wizard quedaban con el mismo color
+  gris**, en vez de un color distinto cada una. `aplicar_grupo`/
+  `aplicar_dictados`/`aplicar_plan` evidentemente le ponen un `color_id`
+  fijo por defecto a toda materia que crean (el mock ya reproducía esto
+  con `'azul'` hardcodeado en `mockUpsertMateriaDesdeDictado` — incluso el
+  mock tenía el mismo bug, sólo que con otro color).
+- **La materia en sí no quedaba con su nota de aprobación / exoneración
+  cargada**, aunque las evaluaciones (agenda) sí se veían bien. Esto
+  encaja con que las RPCs de escritura no completan `materias.esc` de
+  forma confiable (o lo dejan incompleto) — algo que ya se había asumido
+  resuelto por una respuesta anterior ("sí, ya lo completan") pero que el
+  uso real contra la base contradice.
+
+La solución, en la misma línea que `wizResolverMateriasDeGrupo()`: dejar
+de confiar en lo que las RPCs de catálogo escriben para estos dos campos
+y reconciliarlo desde el cliente con datos que el wizard ya tiene en
+memoria. `wizReconciliarMateriasCreadas()` (llamada en `wizConfirmar()`
+justo después de `loadAllFromSupabase()`) recorre las materias del
+semestre que tienen `catalogoDictadoId`/`catalogoMateriaId` (es decir,
+las que acaba de tocar el wizard) y para cada una:
+
+- le asigna un color distinto, rotando por `Object.keys(ACCENTS)` (sin
+  `'gris'`, para no confundirlo con "sin color asignado");
+- si su `esc` vino incompleto o ausente (`tipo`/`total`/`aprob` en
+  `null`), lo completa con el `esc` del dictado de catálogo
+  correspondiente (ya lo tenía en memoria de `WIZ.grupoElegido.materias`/
+  `WIZ.dictadoIdsElegidos`/`WIZ.electivaIdsElegidos`), o con el default
+  de "Nota 0–12, aprueba 6" si ni el catálogo lo trae.
+
+Esto escribe con `saveMateriasRaw()` — el mismo camino CRUD directo que
+usa "Editar materia" — no vuelve a llamar ninguna RPC de catálogo.
+`cat_electivas` en el mock no traía `esc` (se agregó, ya que la RPC real
+muy probablemente sí lo trae, igual que `cat_dictados`). Verificado
+simulando en el mock que las RPCs de escritura dejan `esc: null` (en vez
+del valor real) y confirmando que las 4 materias terminan con colores
+distintos y su "aprueba con X" correcto igual — la simulación se revirtió
+después de probar, el fixture quedó como estaba (con `esc` real desde
+`dictado.esc`).
+
+La exoneración es un caso aparte: el catálogo no la define (está
+explícitamente fuera de alcance — ver "calculadora de exoneración" al
+principio de este documento), así que una materia cargada por el wizard
+correctamente queda sin exoneración ("Sin exoneración" en el picker de
+Editar materia) hasta que el usuario la define a mano — eso no es un bug,
+es el comportamiento esperado.
+
+### Tercer reporte: la etiqueta de plan (Paso 1) no aparecía
+
+Confirmado con el usuario que era sobre el Paso 1 del wizard ("¿Dónde
+estudiás?"), no sobre el campo de texto libre "Carrera" del perfil (ese es
+anterior al wizard y no tiene menú — es un input de texto, cambiarlo a un
+selector con catálogo sería un trabajo aparte, no incluido acá). Mismo
+patrón que los dos bugs de arriba: `qf(node, 'plan').textContent =
+c.plan_version` asumía ese nombre de campo exacto — si la RPC real
+(`cat_carreras_de`) usa otro nombre, o no lo trae, el badge queda vacío.
+
+Se resolvió en dos partes:
+
+1. Aceptar más de un nombre de campo (`plan_version` / `planVersion` /
+   `plan`) por si el real no coincide con el asumido.
+2. Si ninguno viene y la carrera es de nombre repetido en la lista (el
+   caso real que la etiqueta existe para resolver: ORT repite el nombre
+   entre "Plan actual" y "Plan 2028"), mostrar "Plan no informado" en vez
+   de ocultar el badge. Esto se probó primero simulando el campo ausente
+   en el mock: el resultado sin este segundo paso eran dos tarjetas
+   "Gerencia y Administración" idénticas e imposibles de distinguir —
+   peor que el bug original, porque parecía que no había ningún problema.
+   Con "Plan no informado" al menos se ve que hay algo sin resolver, en
+   vez de dos botones iguales elegidos a ciegas. Si el nombre no se
+   repite, no hace falta desambiguar nada y el badge se sigue ocultando.
+
+Esto no arregla el dato en sí (seguimos sin saber qué nombre de campo usa
+`cat_carreras_de` en la base real, ni si el catálogo real efectivamente
+tiene cargadas las dos versiones del plan) — sólo evita que la UI se
+rompa o engañe silenciosamente mientras eso se confirma. Vale la pena
+chequear esto contra la base real en cuanto el MCP de Supabase esté
+disponible.
+
+**Actualización — root cause confirmado y corregido en la base real.**
+El MCP de Supabase volvió a estar disponible y se pudo confirmar contra
+el proyecto real (`kbihslsbzyhyiroyzxxq`): la columna `plan_version` sí
+existe en `catalogo.carreras` y sí tiene los valores correctos ("Plan
+actual" / "Plan nuevo 2028" para las dos "Gerencia y Administración de
+Empresas"), pero la función `cat_carreras_de` nunca la seleccionaba —
+su `RETURNS TABLE` ni siquiera la incluía. El nombre de campo que el
+frontend ya asumía (`plan_version`) era correcto desde el principio; el
+bug era enteramente del lado de la RPC. Se aplicó una migración
+(`cat_carreras_de_incluir_plan_version`) que agrega `plan_version` al
+`RETURNS TABLE` y al `select`. Verificado con una llamada directa a la
+función ya corregida: devuelve `plan_version` correctamente para ambas
+carreras. No hizo falta ningún cambio adicional de frontend — el código
+defensivo de esta sección ya sabía leer el campo en cuanto la RPC lo
+trajera.
+
+### Cuarto reporte: las materias quedaban con escala 1–12 en vez de la escala real (sobre 100)
+
+El usuario reportó que las materias cargadas por el wizard quedaban con
+una escala de nota 0–12 (la "escala clásica uruguaya"), cuando en la
+base real todas las escalas de aprobación son sobre 100 — con distintas
+combinaciones de aprobación/exoneración según la materia (algunas
+aprueban directo con 70% y no exoneran; otras aprueban con 70% pero
+exoneran con 86%).
+
+Con el MCP de Supabase disponible se pudo confirmar el root cause exacto:
+ninguna de las RPCs que usa el wizard (`cat_dictados`, `cat_electivas`,
+`cat_grupos`) devuelve la escala de aprobación — nunca la tuvieron. Esa
+data vive en una tabla y una RPC completamente aparte,
+`catalogo.esquemas` / `cat_esquema(materia_id, periodo)` (`sistema`,
+`min_aprobar`, `min_exonerar`), que el wizard nunca llamaba. La sesión
+anterior había asumido (sin poder verificarlo, porque el MCP estaba
+caído) que `cat_dictados`/`cat_electivas` traían un campo `esc` — ese
+campo no existe en la base real; era una invención del mock de prueba.
+Por eso `wizReconciliarMateriasCreadas()` siempre terminaba usando su
+último fallback, `{tipo:'nota', total:12, aprob:6}`.
+
+Se corrigió `wizReconciliarMateriasCreadas()` (`src/runtime.js`) para que,
+en vez de buscar `esc` en los datos del catálogo que el wizard ya tiene
+en memoria (que nunca lo tuvieron), resuelva la escala real llamando a
+`cat_esquema(materia_id, periodo)` para cada materia con escala
+incompleta, y mapee `min_aprobar`/`min_exonerar` (siempre sobre 100) a
+`esc = {tipo:'pct', total:100, aprob, exoneracion}`. Se dedupliquen las
+llamadas por `materia_id` y se resuelven en paralelo con `Promise.all`
+antes de escribir con `saveMateriasRaw`, igual que el resto de esta
+función.
+
+El mock de prueba (`test-harness/mock-supabase-client.js`) se actualizó
+para reflejar el schema real: se sacó el campo `esc` inventado de
+`cat_dictados`/`cat_electivas`/`cat_grupos().materias` (esas RPCs reales
+no lo traen), se agregó un `cat_esquema` mock con una mezcla realista de
+los 3 "sistema" que existen en la base real (aprobación directa sin
+exoneración; aprobación + exoneración más alta; sólo exoneración con
+aprobación en 0), y se corrigió `cat_grupos().materias` para que sea un
+conteo (`bigint`) en vez de un array — así es como lo devuelve la RPC
+real; `wizResolverMateriasDeGrupo()` (ver arriba) ya lo maneja bien
+porque nunca confía en ese array.
+
+Verificado end-to-end en el navegador: wizard con semestre 4 + grupo
+matutino + electiva "Comportamiento del Consumidor" → las 5 materias
+quedan con "Porcentaje · aprueba 70%", "Organización y Gerencia"
+muestra "aprueba con 70% ... Exonera con 86%" en el picker de escala
+(coincide exacto con el dato real de esa materia en producción), y el
+caso límite de aprobación en 0% ("Derecho Empresarial", sólo exonera)
+se muestra sin romper nada ("aprueba 0%").
+
+### Quinto reporte: cuatro bugs de una sola tanda (etiquetas, evaluaciones, onboarding multi-semestre, hitos informativos)
+
+El usuario reportó cuatro problemas juntos, probando contra la cuenta
+real:
+
+1. En Ajustes, las etiquetas predeterminadas aparecían duplicadas y se
+   podían borrar o renombrar (sólo debería poder hacerse con las que
+   crea el usuario).
+2. Las evaluaciones/entregas se cargaban con el nombre de la materia
+   repetido dentro del título — "mucha info al pepe".
+3. El onboarding, con más de un semestre elegido, tiraba todas las
+   materias/grupos de todos los turnos juntas — a diferencia de un solo
+   semestre, que deja elegir por turno primero.
+4. Cosas como el "planteo" de un obligatorio o la "clase de consulta
+   posterior" aparecían con tratamiento de entrega (checkbox, contadas
+   en "X entregas pendientes") sin necesitarlo — son fechas puramente
+   informativas, no algo que el estudiante entregue.
+
+**Etiquetas duplicadas/editables (1).** `ensureDefaultTagsServerSide()`
+siembra cada preset de `TAG_PRESETS.otro` ("Entrega", "Estudiar",
+"Leer", "Grupal") una vez por `kind` (académico Y personal, a propósito
+— para que el preset esté disponible en los dos contextos), lo que hace
+que existan dos filas reales con el mismo nombre. `renderAjustesTags()`
+las mostraba como dos filas sueltas, indistinguibles a simple vista —
+se corrigió para agruparlas en una sola fila por nombre cuando son
+predeterminadas, mostrando "Académica y Personal" como kind combinado.
+Además, `editBtn` (renombrar) no tenía el mismo guard que `deleteBtn`
+contra `esPredeterminada` — se corrigió para que las predeterminadas no
+muestren ningún botón de acción, sólo las que crea el usuario.
+
+**Materia repetida en el título de evaluaciones/entregas y hitos
+informativos tratados como entrega (2 y 4).** Investigando en la base
+real apareció una pieza del sistema que no estaba documentada en este
+README: `aplicar_agenda(p_semestre_id, p_turno)`, una función de
+Postgres que el wizard llama al confirmar (`wizConfirmar()`, después de
+`aplicar_grupo`/`aplicar_dictados`) y que inserta en `public.agenda` una
+fila por cada hito (`catalogo.hitos`, vía `catalogo.instancias` /
+`catalogo.esquemas`) de las materias del semestre — parciales,
+obligatorios, entregas, etc., con fechas reales del catálogo. Dos bugs
+en su SQL:
+
+- El `titulo` se armaba como `materia.nombre || ' — ' || instancia.titulo
+  || ...`, repitiendo el nombre de la materia en el texto del título
+  aun cuando la fila ya lo muestra por separado en su chip de color —
+  exactamente la "mucha info al pepe" del reporte.
+- No excluía los hitos puramente informativos: "Planteo" (la fecha en
+  que se plantea un obligatorio, no en la que se entrega) y la
+  instancia completa "Clase de consulta posterior" (una clase, no algo
+  entregable) se insertaban igual que un examen o una entrega real, con
+  `tipo:'Entrega'` y, en el caso de "Planteo", hasta con `nota_maxima`
+  seteada (copiada del puntaje del obligatorio completo, aunque el
+  planteo en sí no se califica). La función ya excluía "Publicación del
+  acta" por el mismo motivo (la fecha en que se publica la nota
+  tampoco es algo que se entregue) — el patrón ya existía, sólo faltaba
+  aplicarlo a estos dos casos.
+
+Se aplicó una migración (`fix_aplicar_agenda_titulo_y_hitos_
+informativos` + `fix_aplicar_agenda_exclusion_clase_consulta`) que saca
+el nombre de la materia del `titulo` y agrega `and h.etiqueta not ilike
+'planteo%'` y `and i.titulo not ilike 'clase%'` al `where` (el filtro de
+"clase" va por `i.titulo`, no por `h.etiqueta`, porque el único hito de
+esa instancia siempre tiene `etiqueta = 'Fecha'` — el nombre "Clase de
+consulta posterior" vive en la instancia, no en el hito; el primer
+intento de esta migración filtraba por `h.etiqueta ilike 'clase%'` y no
+hacía nada, se corrigió antes de dar el caso por cerrado). Verificado
+con una consulta directa: sólo hay 5 filas "Planteo" ya insertadas en
+la cuenta real (ninguna "Clase de consulta" llegó a insertarse todavía,
+justamente porque el filtro por etiqueta nunca las habría alcanzado).
+
+**Pendiente, no resuelto en esta sesión:** las 5 filas "Planteo" ya
+insertadas en la cuenta real (y el nombre de materia ya grabado en los
+títulos existentes) no se limpiaron retroactivamente — el `DELETE`/
+`UPDATE` correspondiente fue bloqueado por el clasificador de modo
+automático de Claude Code en varios intentos (a diferencia de las
+migraciones `CREATE OR REPLACE FUNCTION`, que sí pasaron). La función
+ya corregida sólo afecta semestres que se confirmen de acá en más — no
+reescribe lo ya insertado, y su `on conflict (user_id, catalogo_hito_id)
+do nothing` tampoco lo hace si se reintenta el wizard. Si el usuario
+quiere limpiar los datos ya cargados, hace falta correrlo a mano o
+pedirlo de nuevo en una sesión donde el clasificador lo permita.
+
+**Materia chip redundante cuando ya se filtra por materia (2, parte
+frontend).** Además del arreglo de `titulo` en la base, en Agenda cada
+fila mostraba su chip de materia aunque la vista ya estuviera filtrada
+a una sola materia (`STATE.agendaFiltroMateria`) — info redundante ahí
+también. `buildAgendaRowsList()`/`buildAgendaGroup()` (`src/runtime.js`)
+ahora reciben un flag `ocultarMateriaChip` (`= !!STATE.
+agendaFiltroMateria`, calculado en `renderAgenda()`) que oculta el chip
+de materia de cada fila cuando ya no aporta nada nuevo.
+
+**Onboarding multi-semestre sin filtro de turno (3).** Con más de un
+semestre elegido, `wizCargarOferta()` fuerza el camino "manual"
+(`WIZ.camino = WIZ.semestresElegidos.length > 1 ? 'manual' : 'rapido'`)
+porque un grupo (`cat_grupos`) es la oferta armada de UN solo semestre.
+El camino manual (`wizCargarDictadosManual`) pedía `cat_dictados` con
+`p_turno: null` — todos los turnos juntos, sin forma de acotar — a
+diferencia del camino rápido, donde elegir un grupo ya fija el turno
+implícitamente. Se agregó un toggle Matutino/Nocturno
+(`#wiz-oferta-turno-toggle`, mismo patrón visual que el de electivas)
+que aparece sólo si los dictados del semestre elegido tienen más de un
+turno cargado. La oferta completa (sin filtrar) se pide una sola vez y
+se cachea en `WIZ.dictadosManualTodos` — el toggle sólo re-filtra y
+re-pinta (`wizRenderDictadosManual()`), sin volver a pegarle a la RPC.
+Default: el turno más común entre los dictados de los semestres
+elegidos (mismo criterio que `wizTurnoPredeterminado()` para
+electivas). Si un semestre tiene dictados cargados pero ninguno en el
+turno elegido, se avisa en vez de mostrar la sección vacía sin
+explicación ("Este semestre no tiene dictados en el turno elegido —
+probá el otro turno, arriba"). El toggle también aparece si el usuario
+elige "Materias sueltas" con un solo semestre (el camino manual está
+disponible ahí también, ver `wiz-camino-toggle`), no sólo con 2+.
+
+Verificado en el navegador: semestres 3+4 elegidos → aparece el toggle
+Matutino/Nocturno, semestre 3 (sin dictados cargados en el catálogo de
+prueba) cae al fallback de materias sugeridas sin horario de siempre,
+semestre 4 se acota a "LA_M4B" en matutino y cambia a "LA_N4A" al tocar
+Nocturno sin re-pedir la RPC.

@@ -3,10 +3,14 @@
  * parte del entregable. */
 (function () {
   'use strict';
+  // Wizard de onboarding (catálogo): mismo UUID que ORT_UNIVERSITY_ID en
+  // runtime.js — si cambia uno, tiene que cambiar el otro.
+  var ORT_UNIVERSITY_ID = '29e5e219-2967-4a63-99d7-5edd936d9b70';
+  var PERIODO_ACTUAL = '2026-2';
   var TABLES = {
-    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: 'uni-ort', university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5 }],
+    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5 }],
     universities: [
-      { id: 'uni-ort', nombre: 'ORT Uruguay', created_at: '2026-08-30T00:00:00Z' },
+      { id: ORT_UNIVERSITY_ID, nombre: 'ORT Uruguay', created_at: '2026-08-30T00:00:00Z' },
       { id: 'uni-ucu', nombre: 'UCU – Universidad Católica del Uruguay', created_at: '2026-08-30T00:00:00Z' },
       { id: 'uni-um', nombre: 'UM – Universidad de Montevideo', created_at: '2026-08-30T00:00:00Z' },
       { id: 'uni-udelar', nombre: 'UdelaR', created_at: '2026-08-30T00:00:00Z' },
@@ -73,6 +77,15 @@
   // en vez del auto-login que usa el resto de los tests de este harness).
   window.__CURSADA_MOCK_NO_SESSION__ = /[?&]nosession=1/.test(location.search);
 
+  // ?onboarding=1: arranca logueado pero sin nada cargado (0 semestres, 0
+  // materias) — el disparador del wizard de onboarding es justamente "no
+  // hay ninguna materia", así que el fixture con datos de siempre (usado
+  // por el resto de los tests de este harness) nunca lo dispararía.
+  if (/[?&]onboarding=1/.test(location.search)) {
+    TABLES.semestres = []; TABLES.materias = []; TABLES.agenda = []; TABLES.personal = [];
+    TABLES.profiles[0].carrera_id = null;
+  }
+
   // Para probar el manejo de sesión vencida sin esperar a que un JWT real
   // venza (~1h): window.__CURSADA_MOCK_FORCE_SESSION_EXPIRED__ = true hace
   // que la próxima escritura (upsert/delete) tire un error con la forma que
@@ -128,6 +141,196 @@
     return api;
   }
 
+  // ---------------------------------------------------------------
+  // Catálogo académico (wizard de onboarding) — fixture de prueba. Sólo el
+  // semestre 4 tiene grupos/dictados cargados, a propósito (mismo
+  // comportamiento que describe el enunciado real): el resto cae al
+  // fallback de materias sugeridas sin horario.
+  // ---------------------------------------------------------------
+  var CARRERA_ACTUAL_ID = 'carrera-ga-actual';
+  var CARRERA_2028_ID = 'carrera-ga-2028';
+  var CAT_CARRERAS = [
+    { id: CARRERA_ACTUAL_ID, nombre: 'Gerencia y Administración', facultad: 'Facultad de Administración y Ciencias Sociales', slug: 'gerencia-administracion-actual', plan_version: 'Plan actual' },
+    { id: CARRERA_2028_ID, nombre: 'Gerencia y Administración', facultad: 'Facultad de Administración y Ciencias Sociales', slug: 'gerencia-administracion-2028', plan_version: 'Plan 2028' }
+  ];
+  var CAT_MATERIAS_SEM4 = [
+    { materia_id: 'mat-orggerencia', nombre: 'Organización y Gerencia', doc: 'Prof. Ana Bianchi' },
+    { materia_id: 'mat-costos', nombre: 'Costos y Presupuestos', doc: 'Cra. Rosa Delgado' },
+    { materia_id: 'mat-derecho', nombre: 'Derecho Empresarial', doc: 'Dr. Iván Ferro' },
+    { materia_id: 'mat-marketing2', nombre: 'Marketing II', doc: 'Prof. Lucía Gómez' }
+  ];
+  // Mismo horario docente, corrido 10hs para el turno nocturno.
+  function bloquesTurno(matutino, diasIni) {
+    return diasIni.map(function (d) { var ini = matutino ? d[1] : d[1] + 10; return { dia: d[0], ini: ini, fin: ini + 2 }; });
+  }
+  var CAT_DICTADOS_SEM4 = [];
+  ['matutino', 'nocturno'].forEach(function (turno) {
+    var mat = turno === 'matutino';
+    var grupoCod = mat ? 'LA_M4B' : 'LA_N4A';
+    [
+      { m: 'mat-orggerencia', dias: [[1, 8], [3, 8]], salon: mat ? 'Aula 301' : 'Aula 210' },
+      { m: 'mat-costos', dias: [[2, 8], [4, 8]], salon: mat ? 'Aula 302' : 'Aula 211' },
+      { m: 'mat-derecho', dias: [[1, 10]], salon: mat ? 'Aula 303' : 'Aula 212' },
+      { m: 'mat-marketing2', dias: [[5, 8]], salon: mat ? 'Aula 304' : 'Aula 213' }
+    ].forEach(function (d) {
+      var nombre = CAT_MATERIAS_SEM4.filter(function (x) { return x.materia_id === d.m; })[0].nombre;
+      CAT_DICTADOS_SEM4.push({ dictado_id: 'dict-' + d.m + '-' + turno, materia_id: d.m, nombre: nombre, semestre_sugerido: 4, obligatoria: true, grupo: grupoCod, turno: turno, seccion: null, salon: d.salon, estado: 'abierto', bloques: bloquesTurno(mat, d.dias) });
+    });
+  });
+  function dictadosDeGrupo(codigo) { return CAT_DICTADOS_SEM4.filter(function (d) { return d.grupo === codigo; }); }
+  var CAT_GRUPOS_SEM4 = ['LA_M4B', 'LA_N4A'].map(function (codigo) {
+    var dictados = dictadosDeGrupo(codigo);
+    return {
+      id: 'grupo-' + codigo.toLowerCase(), codigo: codigo, turno: dictados[0].turno, semestre: 4,
+      edificio: dictados[0].turno === 'matutino' ? 'Edificio Central' : 'Edificio Cuareim',
+      // La RPC real cat_grupos devuelve "materias" como CONTEO (bigint), no
+      // como array — wizResolverMateriasDeGrupo() ignora este array y
+      // siempre resuelve el detalle real contra cat_dictados.
+      materias: dictados.length,
+      materiasDetalle: dictados.map(function (d) {
+        return { materia_id: d.materia_id, dictado_id: d.dictado_id, nombre: d.nombre, salon: d.salon, bloques: d.bloques, doc: CAT_MATERIAS_SEM4.filter(function (m) { return m.materia_id === d.materia_id; })[0].doc };
+      })
+    };
+  });
+  // cat_esquema(materia_id, periodo): escala de aprobación real, ausente de
+  // cat_dictados/cat_electivas/cat_grupos — siempre sobre 100. Mezcla de los
+  // 3 "sistema" que existen en la base real: Curso (aprobación directa, sin
+  // exoneración), Curso+Examen con exoneración (aprobación + exoneración
+  // más alta), y Examen con exoneración (sólo exonera, no hay aprobación
+  // intermedia).
+  var CAT_ESQUEMAS = {
+    'mat-orggerencia': { sistema: 'Curso+Examen con exoneración', min_aprobar: '70', min_exonerar: '86' },
+    'mat-costos': { sistema: 'Curso', min_aprobar: '70', min_exonerar: null },
+    'mat-derecho': { sistema: 'Examen con exoneración', min_aprobar: '0', min_exonerar: '70' },
+    'mat-marketing2': { sistema: 'Curso+Examen con exoneración', min_aprobar: '70', min_exonerar: '86' },
+    'elec-consumidor': { sistema: 'Curso', min_aprobar: '70', min_exonerar: null },
+    'elec-finanzas': { sistema: 'Curso+Examen con exoneración', min_aprobar: '70', min_exonerar: '86' }
+  };
+  // Semestres sin dictados/grupos cargados (todo menos el 4) — fallback a
+  // materias sugeridas sin horario (el usuario completa la grilla después).
+  var CAT_MATERIAS_SUGERIDAS_POR_SEMESTRE = {
+    2: [
+      { materia_id: 'mat-microeco', nombre: 'Microeconomía', creditos: 8, semestre_sugerido: 2, obligatoria: true },
+      { materia_id: 'mat-estadistica', nombre: 'Estadística I', creditos: 8, semestre_sugerido: 2, obligatoria: true }
+    ],
+    3: [
+      { materia_id: 'mat-macroeco', nombre: 'Macroeconomía', creditos: 8, semestre_sugerido: 3, obligatoria: true },
+      { materia_id: 'mat-contabilidad2', nombre: 'Contabilidad II', creditos: 8, semestre_sugerido: 3, obligatoria: true }
+    ]
+  };
+  // Electivas: "Comportamiento del Consumidor" con 2 secciones abiertas;
+  // "Finanzas Personales" con 3, una sin_minimo (deshabilitada con motivo).
+  var CAT_ELECTIVAS = [
+    { dictado_id: 'elec-consumidor-m', materia_id: 'elec-consumidor', nombre: 'Comportamiento del Consumidor', turno: 'matutino', seccion: 'M', estado: 'abierto', salon: 'Aula 401', bloques: [{ dia: 1, ini: 8, fin: 10 }] },
+    { dictado_id: 'elec-consumidor-n', materia_id: 'elec-consumidor', nombre: 'Comportamiento del Consumidor', turno: 'nocturno', seccion: 'N', estado: 'abierto', salon: 'Aula 401', bloques: [{ dia: 1, ini: 18, fin: 20 }] },
+    { dictado_id: 'elec-finanzas-ma', materia_id: 'elec-finanzas', nombre: 'Finanzas Personales', turno: 'matutino', seccion: 'M-A', estado: 'abierto', salon: 'Aula 402', bloques: [{ dia: 2, ini: 10, fin: 12 }] },
+    { dictado_id: 'elec-finanzas-mb', materia_id: 'elec-finanzas', nombre: 'Finanzas Personales', turno: 'matutino', seccion: 'M-B', estado: 'abierto', salon: 'Aula 403', bloques: [{ dia: 4, ini: 10, fin: 12 }] },
+    { dictado_id: 'elec-finanzas-ming', materia_id: 'elec-finanzas', nombre: 'Finanzas Personales', turno: 'matutino', seccion: 'M-ING', estado: 'sin_minimo', salon: null, bloques: [] }
+  ];
+  // Índice de todo dictado con id conocido (dictados del plan + electivas,
+  // comparten el mismo espacio de ids) — permite calcular conflictos reales
+  // entre cualquier combinación, no una lista hardcodeada de pares.
+  var DICTADOS_INDEX = {};
+  CAT_DICTADOS_SEM4.concat(CAT_ELECTIVAS).forEach(function (d) { DICTADOS_INDEX[d.dictado_id] = d; });
+
+  function mockConflictos(dictadoIds) {
+    var out = [];
+    var items = (dictadoIds || []).map(function (id) { return DICTADOS_INDEX[id]; }).filter(Boolean);
+    for (var i = 0; i < items.length; i++) {
+      for (var j = i + 1; j < items.length; j++) {
+        (items[i].bloques || []).forEach(function (a) {
+          (items[j].bloques || []).forEach(function (b) {
+            if (a.dia === b.dia && a.ini < b.fin && b.ini < a.fin) {
+              out.push({ dictado_a: items[i].dictado_id, materia_a: items[i].nombre, dictado_b: items[j].dictado_id, materia_b: items[j].nombre, dia: a.dia, desde: Math.max(a.ini, b.ini), hasta: Math.min(a.fin, b.fin) });
+            }
+          });
+        });
+      }
+    }
+    return out;
+  }
+
+  // aplicar_grupo/aplicar_dictados/aplicar_plan/aplicar_agenda: escriben
+  // directo en TABLES.materias/TABLES.agenda, como harían las RPCs reales —
+  // por eso son idempotentes (buscan por catalogo_dictado_id/
+  // catalogo_materia_id antes de insertar, nunca duplican en un re-run).
+  function mockUpsertMateriaDesdeDictado(semestreId, dictado, extra) {
+    if (!dictado) return;
+    var idx = TABLES.materias.findIndex(function (m) { return m.catalogo_dictado_id === dictado.dictado_id && m.semestre_id === semestreId; });
+    var row = {
+      id: idx >= 0 ? TABLES.materias[idx].id : ('mat-' + dictado.dictado_id),
+      user_id: FAKE_USER.id, semestre_id: semestreId, nombre: dictado.nombre, doc: (extra && extra.doc) || '',
+      color_id: 'azul', salon: dictado.salon || '', bloques: dictado.bloques || [],
+      esc: null, estado: 'cursando',
+      catalogo_materia_id: dictado.materia_id, catalogo_dictado_id: dictado.dictado_id
+    };
+    if (idx >= 0) TABLES.materias[idx] = row; else TABLES.materias.push(row);
+  }
+  function mockUpsertMateriaSinHorario(semestreId, materiaId) {
+    var fila = null;
+    Object.keys(CAT_MATERIAS_SUGERIDAS_POR_SEMESTRE).some(function (s) {
+      var hit = CAT_MATERIAS_SUGERIDAS_POR_SEMESTRE[s].filter(function (m) { return m.materia_id === materiaId; })[0];
+      if (hit) { fila = hit; return true; }
+      return false;
+    });
+    if (!fila) return;
+    var idx = TABLES.materias.findIndex(function (m) { return m.catalogo_materia_id === materiaId && m.semestre_id === semestreId; });
+    var row = { id: idx >= 0 ? TABLES.materias[idx].id : ('mat-' + materiaId), user_id: FAKE_USER.id, semestre_id: semestreId, nombre: fila.nombre, doc: '', color_id: 'gris', salon: '', bloques: [], esc: null, estado: 'cursando', catalogo_materia_id: materiaId, catalogo_dictado_id: null };
+    if (idx >= 0) TABLES.materias[idx] = row; else TABLES.materias.push(row);
+  }
+  // Turno-consciente (regla del enunciado: el mismo parcial es a las 09:00
+  // para matutino y a las 18:00 para nocturno) — sólo genera para materias
+  // con dictado de catálogo (las sin-horario no tienen fecha real todavía).
+  function mockGenerarAgendaParaSemestre(semestreId) {
+    TABLES.materias.filter(function (m) { return m.semestre_id === semestreId && m.catalogo_dictado_id; }).forEach(function (m) {
+      var dictado = DICTADOS_INDEX[m.catalogo_dictado_id];
+      var hora = dictado && dictado.turno === 'nocturno' ? '18:00' : '09:00';
+      if (TABLES.agenda.some(function (a) { return a.catalogo_hito_id === 'parcial-' + m.id; })) return;
+      // Sin el nombre de la materia en el título (feedback real + fix de
+      // aplicar_agenda en la base): el chip de materia de cada fila ya lo
+      // muestra, repetirlo acá era la info redundante del reporte.
+      TABLES.agenda.push({ id: 'ag-cat-parcial-' + m.id, user_id: FAKE_USER.id, materia_id: m.id, kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial', fecha: '2026-12-10', hora: hora, hecho: false, nota: null, nota_maxima: m.esc && m.esc.total, notas: '', tag_id: null, catalogo_hito_id: 'parcial-' + m.id });
+      TABLES.agenda.push({ id: 'ag-cat-entrega-' + m.id, user_id: FAKE_USER.id, materia_id: m.id, kind: 'evaluacion', tipo: 'Obligatorio', titulo: 'Obligatorio (Entrega final on line)', fecha: '2026-11-20', hora: hora, hecho: false, nota: null, nota_maxima: m.esc && m.esc.total, notas: '', tag_id: null, catalogo_hito_id: 'entrega-' + m.id });
+    });
+  }
+
+  function mockRpc(name, params) {
+    params = params || {};
+    var data;
+    if (name === 'cat_carreras_de') data = CAT_CARRERAS;
+    else if (name === 'cat_grupos') data = params.p_semestre === 4 ? CAT_GRUPOS_SEM4 : [];
+    else if (name === 'cat_dictados') {
+      var semestres = params.p_semestres || [];
+      data = CAT_DICTADOS_SEM4.filter(function (d) { return semestres.indexOf(d.semestre_sugerido) >= 0; });
+    } else if (name === 'cat_materias_sugeridas') data = CAT_MATERIAS_SUGERIDAS_POR_SEMESTRE[params.p_semestre] || [];
+    else if (name === 'cat_electivas') data = CAT_ELECTIVAS.filter(function (e) { return !params.p_turno || e.turno === params.p_turno; });
+    else if (name === 'cat_conflictos') data = mockConflictos(params.p_dictado_ids);
+    else if (name === 'cat_esquema') {
+      var esquema = CAT_ESQUEMAS[params.p_materia_id];
+      data = esquema ? [{
+        sistema: esquema.sistema, min_aprobar: esquema.min_aprobar, min_exonerar: esquema.min_exonerar,
+        instancia_id: 'inst-' + params.p_materia_id, orden: 1, seccion: null, titulo: 'Evaluación', puntaje_max: 100, computa: true, fechas: []
+      }] : [];
+    } else if (name === 'aplicar_grupo') {
+      var grupo = CAT_GRUPOS_SEM4.filter(function (g) { return g.id === params.p_grupo_id; })[0];
+      if (!grupo) return Promise.resolve({ data: null, error: { message: 'El grupo no existe.' } });
+      grupo.materiasDetalle.forEach(function (m) { mockUpsertMateriaDesdeDictado(params.p_semestre_id, DICTADOS_INDEX[m.dictado_id], { doc: m.doc }); });
+      data = null;
+    } else if (name === 'aplicar_dictados') {
+      (params.p_dictado_ids || []).forEach(function (id) { mockUpsertMateriaDesdeDictado(params.p_semestre_id, DICTADOS_INDEX[id], {}); });
+      data = null;
+    } else if (name === 'aplicar_plan') {
+      (params.p_materia_ids || []).forEach(function (id) { mockUpsertMateriaSinHorario(params.p_semestre_id, id); });
+      data = null;
+    } else if (name === 'aplicar_agenda') {
+      mockGenerarAgendaParaSemestre(params.p_semestre_id);
+      data = null;
+    } else {
+      return Promise.resolve({ data: null, error: { message: 'RPC no simulada en el mock: ' + name } });
+    }
+    return Promise.resolve({ data: data, error: null });
+  }
+
   window.__CURSADA_MOCK_TABLES__ = TABLES;
   // Para disparar a mano PASSWORD_RECOVERY (volver del link del mail) o un
   // SIGNED_OUT inesperado (sesión vencida sola, sin logout deliberado) sin
@@ -161,6 +364,7 @@
       }
     },
     from: queryBuilder,
+    rpc: mockRpc,
     storage: {
       from: function () {
         return {

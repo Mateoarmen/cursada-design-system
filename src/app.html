@@ -586,6 +586,69 @@
   <div class="ob-right" id="ob-right"></div>
 </div>
 
+<!-- ============ WIZARD DE ONBOARDING (catálogo ORT) ============ -->
+<!-- Reemplaza a #onboarding sólo cuando hay catálogo disponible para la
+     institución del usuario (ver mostrarOnboardingOCatalogo() en
+     runtime.js) — mismo tratamiento full-bleed (position:fixed, mismo
+     z-index) que #onboarding, no un gate bloqueante: siempre salteable
+     ("Prefiero cargarlo a mano") y reingresable desde Ajustes. -->
+<div class="wiz-overlay hidden" id="wizard-onboarding">
+  <div class="wiz-card">
+    <div class="wiz-head">
+      <div class="ob-brand"><div class="mark"></div><span class="name">cursada</span></div>
+      <div class="wiz-steps-track" id="wiz-steps-track"></div>
+      <button type="button" class="link-btn" id="btn-wiz-manual">Prefiero cargarlo a mano</button>
+    </div>
+    <div class="wiz-body" id="wiz-body">
+      <div class="wiz-panel" id="wiz-panel-carrera">
+        <h2 class="wiz-title">¿Dónde estudiás?</h2>
+        <span class="wiz-sub">Con tu carrera precargamos materias, horarios y fechas reales de este semestre.</span>
+        <div id="wiz-carreras-list" class="wiz-cards-list"></div>
+      </div>
+      <div class="wiz-panel hidden" id="wiz-panel-semestre">
+        <h2 class="wiz-title">¿En qué semestre de la carrera estás?</h2>
+        <span class="wiz-sub">Podés marcar más de uno si arrastrás alguna materia de un semestre anterior.</span>
+        <div class="num-pills" id="wiz-semestres-pills"></div>
+      </div>
+      <div class="wiz-panel hidden" id="wiz-panel-oferta">
+        <h2 class="wiz-title">Elegí tu oferta</h2>
+        <span class="wiz-sub" id="wiz-oferta-sub"></span>
+        <div class="seg hidden" id="wiz-camino-toggle">
+          <button type="button" class="seg-item" data-camino="rapido">Camino rápido</button>
+          <button type="button" class="seg-item" data-camino="manual">Materias sueltas</button>
+        </div>
+        <div class="seg hidden" id="wiz-oferta-turno-toggle">
+          <button type="button" class="seg-item" data-turno="matutino">Matutino</button>
+          <button type="button" class="seg-item" data-turno="nocturno">Nocturno</button>
+        </div>
+        <div id="wiz-oferta-content" class="wiz-cards-list"></div>
+      </div>
+      <div class="wiz-panel hidden" id="wiz-panel-electivas">
+        <h2 class="wiz-title">Electivas</h2>
+        <span class="wiz-sub">Opcional — elegí las que estés cursando este semestre.</span>
+        <div class="seg" id="wiz-electivas-turno-toggle">
+          <button type="button" class="seg-item" data-turno="matutino">Matutino</button>
+          <button type="button" class="seg-item" data-turno="nocturno">Nocturno</button>
+        </div>
+        <div id="wiz-electivas-list" class="wiz-cards-list"></div>
+      </div>
+      <div class="wiz-panel hidden" id="wiz-panel-revision">
+        <h2 class="wiz-title">Revisá tu semestre</h2>
+        <div class="wiz-conflictos hidden" id="wiz-conflictos"></div>
+        <div class="horario-grid-wrap"><div class="horario-grid" id="wiz-horario-grid"></div></div>
+        <div id="wiz-revision-resumen" class="wiz-resumen"></div>
+      </div>
+    </div>
+    <div class="wiz-foot">
+      <span class="auth-error hidden" id="wiz-error" role="alert" aria-live="polite"></span>
+      <div style="display:flex;gap:10px;align-items:center;margin-left:auto">
+        <button type="button" class="btn hidden" id="btn-wiz-atras">Atrás</button>
+        <button type="button" class="btn btn-primary" id="btn-wiz-continuar">Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODAL MATERIA ============ -->
 <div class="modal-backdrop" id="modal-materia">
   <div class="modal">
@@ -895,7 +958,7 @@
         </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Etiquetas</span>
-          <span style="font-size:11px;color:var(--c-ink3)">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran. Las predeterminadas no se pueden borrar.</span>
+          <span style="font-size:11px;color:var(--c-ink3)">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
           <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
           <div class="field hidden" id="ajustes-tag-nueva" style="margin-top:8px">
             <div style="display:flex;gap:8px">
@@ -916,6 +979,7 @@
             <button type="button" class="btn" id="btn-exportar">Exportar</button>
             <button type="button" class="btn" id="btn-importar">Importar</button>
             <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
+            <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
             <button type="button" class="btn" id="btn-borrar-todo">Borrar todo</button>
             <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
           </div>
@@ -1117,7 +1181,9 @@
 <!-- Fila de etiqueta en Ajustes (renombrar/eliminar) — el selector de
      etiquetas del modal de evaluación/tarea/evento (renderTagPicker) sólo
      elige/crea, no edita/borra; ese vaivén se probó y resultó confuso.
-     Las predeterminadas (is_default) no muestran el botón de eliminar. -->
+     Las predeterminadas (is_default) no muestran ni editar ni eliminar —
+     sólo se pueden agregar/modificar las que crea el usuario, ver
+     renderAjustesTags(). -->
 <template data-template="tag-row">
   <div class="semestre-row">
     <span class="chip" data-f="chip" style="flex:none"></span>
@@ -1129,4 +1195,35 @@
 
 <template data-template="tipo-item">
   <button type="button" class="tipo-item"><span data-f="label"></span></button>
+</template>
+
+<!-- Templates del wizard de onboarding (catálogo) -->
+<template data-template="wiz-carrera-card">
+  <button type="button" class="wiz-carrera-card" data-f="row">
+    <span class="wiz-plan-badge" data-f="plan"></span>
+    <span class="wiz-carrera-nombre" data-f="nombre"></span>
+    <span class="wiz-carrera-facultad" data-f="facultad"></span>
+  </button>
+</template>
+
+<!-- Fila seleccionable genérica del wizard — cubre grupo (single-select),
+     dictado/materia-sugerida/electiva (multi-select), con estado
+     deshabilitado + motivo (electivas sin_minimo). -->
+<template data-template="wiz-item-row">
+  <button type="button" class="wiz-item-row" data-f="row">
+    <span class="wiz-item-check" data-f="check"></span>
+    <div class="wiz-item-body">
+      <span class="wiz-item-titulo" data-f="titulo"></span>
+      <span class="wiz-item-meta mono" data-f="meta"></span>
+      <span class="wiz-item-motivo hidden" data-f="motivo"></span>
+    </div>
+    <span class="badge hidden" data-f="badge"></span>
+  </button>
+</template>
+
+<template data-template="wiz-conflicto-row">
+  <div class="wiz-conflicto-row">
+    <span class="wiz-conflicto-materias" data-f="materias"></span>
+    <span class="wiz-conflicto-horario mono" data-f="horario"></span>
+  </div>
 </template>
