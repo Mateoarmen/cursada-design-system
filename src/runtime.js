@@ -280,7 +280,7 @@
   // (columnas reales de Supabase) — queda todo acá, nada de conversiones
   // sueltas en el resto del archivo. ----
   function materiaToRow(m) {
-    return { id: m.id, user_id: CURRENT_USER.id, semestre_id: m.semestreId || null, nombre: m.nombre, doc: m.doc, color_id: m.colorId, salon: m.salon, bloques: m.bloques || [], esc: m.esc, estado: m.estado };
+    return { id: m.id, user_id: CURRENT_USER.id, semestre_id: m.semestreId || null, nombre: m.nombre, doc: m.doc, color_id: m.colorId, salon: m.salon, bloques: m.bloques || [], esc: m.esc, estado: m.estado, componentes_fijos: m.componentesFijos || [] };
   }
   function rowToMateria(r) {
     // catalogoMateriaId/catalogoDictadoId: sólo lectura — las escriben las
@@ -289,7 +289,7 @@
     // posterior no las pisa). Se exponen acá para que la vista de materia
     // pueda engancharlas después (calculadora de exoneración, fuera de
     // alcance de este PR) — hoy no se muestran en ningún lado.
-    return { id: r.id, semestreId: r.semestre_id, nombre: r.nombre, doc: r.doc, colorId: r.color_id, salon: r.salon, bloques: r.bloques || [], esc: r.esc, estado: r.estado, catalogoMateriaId: r.catalogo_materia_id || null, catalogoDictadoId: r.catalogo_dictado_id || null };
+    return { id: r.id, semestreId: r.semestre_id, nombre: r.nombre, doc: r.doc, colorId: r.color_id, salon: r.salon, bloques: r.bloques || [], esc: r.esc, estado: r.estado, catalogoMateriaId: r.catalogo_materia_id || null, catalogoDictadoId: r.catalogo_dictado_id || null, componentesFijos: r.componentes_fijos || [] };
   }
   function agendaToRow(a) {
     return { id: a.id, user_id: CURRENT_USER.id, materia_id: a.materiaId || null, kind: a.kind, tipo: a.tipo, titulo: a.titulo, fecha: a.fecha, hora: a.hora || '', hecho: !!a.hecho, nota: a.nota == null ? null : a.nota, nota_maxima: a.notaMaxima == null ? null : a.notaMaxima, notas: a.notas || '', tag_id: a.tagId || null };
@@ -689,7 +689,13 @@
       .sort(function (a, b) { return parseISODate(a.fecha) - parseISODate(b.fecha) || (a.hora || '').localeCompare(b.hora || ''); });
     var evaluaciones = items.filter(function (a) { return a.kind === 'evaluacion'; });
     var notasEvals = evaluaciones.filter(function (a) { return a.nota != null; });
-    var parciales = notasEvals.map(function (a) { return a.nota; });
+    // Puntos fijos del curso sin fecha (participación en clase, etc. — ver
+    // README) ya cargados: cuentan para el promedio igual que cualquier
+    // nota individual, mismo criterio que ya aplica la app al promediar
+    // notas de evaluaciones con distinto notaMaxima entre sí.
+    var componentesFijos = m.componentesFijos || [];
+    var parciales = notasEvals.map(function (a) { return a.nota; })
+      .concat(componentesFijos.filter(function (c) { return c.valor != null; }).map(function (c) { return c.valor; }));
     var e = m.esc;
     var actual = parciales.length ? parciales.reduce(function (a, b) { return a + b; }, 0) / parciales.length : null;
     var tone = toneDe(m.estado, e, parciales);
@@ -1471,6 +1477,39 @@
   // ================================================================
   // DETALLE
   // ================================================================
+  // Puntos fijos del curso (sin fecha, ej. "Participación en clase") — no
+  // viven en agenda (no hay ningún hito al que atarlos, ver
+  // wizReconciliarMateriasCreadas), así que se editan directo acá y se
+  // guardan como parte de la materia, no como una evaluación más.
+  function renderDetalleFijos(m) {
+    var wrap = document.getElementById('detalle-fijos');
+    var list = document.getElementById('detalle-fijos-list');
+    var componentes = m.componentesFijos || [];
+    wrap.classList.toggle('hidden', !componentes.length);
+    clear(list);
+    componentes.forEach(function (c, idx) {
+      var node = tpl('fijo-row');
+      qf(node, 'label').textContent = c.titulo;
+      var input = qf(node, 'input');
+      input.max = String(c.puntajeMax);
+      input.value = c.valor != null ? String(c.valor) : '';
+      input.setAttribute('aria-label', 'Puntos de ' + c.titulo);
+      qf(node, 'max').textContent = '/ ' + c.puntajeMax + ' pts';
+      input.addEventListener('change', async function () {
+        var v = input.value.trim() === '' ? null : Math.max(0, Math.min(Number(input.value), c.puntajeMax));
+        input.value = v != null ? String(v) : '';
+        var arr = loadMateriasRaw().map(function (x) {
+          if (x.id !== m.id) return x;
+          var nuevos = (x.componentesFijos || []).map(function (cc, i2) { return i2 === idx ? Object.assign({}, cc, { valor: v }) : cc; });
+          return Object.assign({}, x, { componentesFijos: nuevos });
+        });
+        if (!(await saveMateriasRaw(arr))) { avisarError(); return; }
+        renderDetalle(m.id);
+      });
+      list.appendChild(node);
+    });
+  }
+
   function renderDetalle(id) {
     var m = computeMateriaById(id);
     if (!m) { location.hash = '#materias'; return; }
@@ -1529,6 +1568,8 @@
       document.getElementById('detalle-callout-t').textContent = 'Te faltan ' + valU(m.necesita, m.esc) + ' para llegar a la aprobación';
       document.getElementById('detalle-callout-s').textContent = 'Esta materia se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Con ' + count + (count === 1 ? ' nota cargada' : ' notas cargadas') + ' tu promedio es ' + valU(m.actual, m.esc) + ', así que te faltan ' + valU(m.necesita, m.esc) + ' para llegar al mínimo.';
     }
+
+    renderDetalleFijos(m);
 
     // Fase 1: m.items = tareas + evaluaciones de esta materia (todo lo que
     // aparecía acá antes de separar los kinds) — m.evaluaciones quedó
@@ -1616,7 +1657,7 @@
   // función pura, testeada aparte con `npm run test:sim`) — acá sólo se
   // arma el estado de los sliders y se pinta el resultado.
   function recalcularSimulacion(m, evaluaciones, valores) {
-    var r = calcularSimulacion(m.esc, evaluaciones, valores);
+    var r = calcularSimulacion(m.esc, evaluaciones, valores, m.componentesFijos);
     var tone = r.asegurado ? 'success' : (r.imposible ? 'danger' : (r.faltanAprobacion === 0 ? 'success' : 'warning'));
     document.getElementById('detalle-sim-ring').setAttribute('style', ringStyle(r.puntosProyectados, TONE[tone], 72, r.total || 1));
     var ringInner = document.getElementById('detalle-sim-ring-inner');
@@ -1666,7 +1707,10 @@
     var evaluaciones = m.evaluaciones;
     var toggleBtn = document.getElementById('btn-detalle-sim-toggle');
     var panel = document.getElementById('detalle-sim');
-    if (!evaluaciones.length) {
+    // Con evaluaciones vacías pero puntos fijos pendientes (p. ej. una
+    // materia recién armada por el catálogo que sólo tiene "Participación
+    // en clase" sin ninguna fecha todavía) igual hay algo que simular.
+    if (!evaluaciones.length && !(m.componentesFijos || []).length) {
       toggleBtn.classList.add('hidden');
       panel.classList.add('hidden');
       return;
@@ -1931,7 +1975,11 @@
       } else {
         chip.classList.remove('hidden');
         chip.setAttribute('style', m ? chipStyle(m.colorId) : personalChipStyle());
-        chip.textContent = m ? truncate(m.nombre, 16) : 'Personal';
+        // 16 cortaba nombres reales de materia a la mitad sin relación con
+        // el espacio disponible de verdad — el corte fino por ancho real
+        // ahora lo hace el CSS (.agenda-meta .chip, ver styles.css), esto
+        // sólo pone un techo generoso para no mandar un string gigante al DOM.
+        chip.textContent = m ? truncate(m.nombre, 30) : 'Personal';
       }
       qf(node, 'tipo').textContent = item.tipo;
       renderTagChipInto(qf(node, 'tag'), item.tagId);
@@ -2781,17 +2829,27 @@
           semestreId = idNuevoSemestre;
         }
       }
-      var record = {
-        id: STATE.editing.materiaId || uid(),
-        semestreId: semestreId,
-        nombre: form.nombre.value.trim(),
-        doc: form.doc.value.trim(),
-        colorId: STATE.editing.colorId,
-        salon: form.salon.value.trim(),
-        bloques: bloques,
-        esc: STATE.editing.esc,
-        estado: form.estado.value
-      };
+      // Se parte de la materia cruda existente (si la hay) en vez de un
+      // literal desde cero: campos que este modal no edita —
+      // catalogoMateriaId/catalogoDictadoId (de sólo lectura, ver
+      // rowToMateria) y componentesFijos (los puntos fijos que carga el
+      // estudiante en Detalle) — tienen que sobrevivir a un guardado desde
+      // acá, no perderse porque el objeto nuevo nunca los mencionó.
+      var record = Object.assign(
+        {},
+        STATE.editing.materiaId ? materiaRawById(STATE.editing.materiaId) : null,
+        {
+          id: STATE.editing.materiaId || uid(),
+          semestreId: semestreId,
+          nombre: form.nombre.value.trim(),
+          doc: form.doc.value.trim(),
+          colorId: STATE.editing.colorId,
+          salon: form.salon.value.trim(),
+          bloques: bloques,
+          esc: STATE.editing.esc,
+          estado: form.estado.value
+        }
+      );
       var arr = loadMateriasRaw();
       if (STATE.editing.materiaId) {
         arr = arr.map(function (m) { return m.id === record.id ? record : m; });
@@ -3314,10 +3372,9 @@
       semestresElegidos: [],
       camino: 'rapido', // 'rapido' (grupo) | 'manual' (dictados/materias sueltas)
       grupoElegido: null, // fila cruda de cat_grupos
-      dictadosManualPorSemestre: {}, // { semestre: [fila cat_dictados], ya filtrado por dictadosManualTurno }
-      dictadosManualTodos: [], // cat_dictados sin filtrar por turno (todos los semestres elegidos) — cache para no repetir la RPC al tocar el toggle de turno
-      dictadosManualTurno: null, // turno elegido en el camino manual (feedback: con 2+ semestres se caía directo a elegir entre TODAS las materias/grupos sin poder acotar por turno, a diferencia del camino rápido)
-      dictadosManualTurnosDisponibles: [],
+      dictadosManualPorSemestre: {}, // { semestre: [fila cat_dictados], ya filtrado por el turno de ESE semestre }
+      dictadosManualTodos: [], // cat_dictados sin filtrar por turno (todos los semestres elegidos) — cache para no repetir la RPC al tocar cualquier toggle de turno
+      dictadosManualTurnoPorSemestre: {}, // { semestre: turno elegido } — un toggle por semestre, no uno global (feedback: con 2+ semestres en turnos distintos, un solo toggle para todos era poco intuitivo)
       materiasSugeridasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — sólo semestres sin dictados cargados
       dictadoIdsElegidos: {}, // { dictado_id: fila } — camino manual, cruza semestres
       materiaIdsSinHorario: {}, // { materia_id: fila } — fallback de cat_materias_sugeridas
@@ -3496,32 +3553,35 @@
     }));
     pendientes.forEach(function (s, i) { WIZ.materiasSugeridasPorSemestre[s] = resultados[i] || []; });
 
-    var turnosDisponibles = [];
-    WIZ.dictadosManualTodos.forEach(function (d) { if (d.turno && turnosDisponibles.indexOf(d.turno) < 0) turnosDisponibles.push(d.turno); });
-    WIZ.dictadosManualTurnosDisponibles = turnosDisponibles;
-    if (!WIZ.dictadosManualTurno || turnosDisponibles.indexOf(WIZ.dictadosManualTurno) < 0) {
-      // Default: el turno más común entre los dictados elegibles (mismo
-      // criterio que wizTurnoPredeterminado() para electivas), para no
-      // arrancar mostrando una lista vacía.
-      var conteo = {};
-      WIZ.dictadosManualTodos.forEach(function (d) { if (d.turno) conteo[d.turno] = (conteo[d.turno] || 0) + 1; });
-      var mejor = null, max = 0;
-      Object.keys(conteo).forEach(function (t) { if (conteo[t] > max) { max = conteo[t]; mejor = t; } });
-      WIZ.dictadosManualTurno = mejor;
-    }
+    // Default de turno POR SEMESTRE: el más común entre los dictados de
+    // ESE semestre en particular (antes era uno global calculado sobre
+    // todos los semestres juntos, mismo problema que el toggle único de
+    // abajo — un semestre mayoritariamente nocturno podía arrancar
+    // filtrado en matutino sólo porque el OTRO semestre elegido tenía más
+    // dictados matutinos).
+    WIZ.semestresElegidos.forEach(function (s) {
+      var deEsteSemestre = porSemestreSinFiltrar[s] || [];
+      var turnosDeEsteSemestre = [];
+      deEsteSemestre.forEach(function (d) { if (d.turno && turnosDeEsteSemestre.indexOf(d.turno) < 0) turnosDeEsteSemestre.push(d.turno); });
+      var turnoActual = WIZ.dictadosManualTurnoPorSemestre[s];
+      if (!turnoActual || turnosDeEsteSemestre.indexOf(turnoActual) < 0) {
+        var conteo = {};
+        deEsteSemestre.forEach(function (d) { if (d.turno) conteo[d.turno] = (conteo[d.turno] || 0) + 1; });
+        var mejor = null, max = 0;
+        Object.keys(conteo).forEach(function (t) { if (conteo[t] > max) { max = conteo[t]; mejor = t; } });
+        WIZ.dictadosManualTurnoPorSemestre[s] = mejor;
+      }
+    });
     wizRenderDictadosManual(content);
   }
 
   function wizRenderDictadosManual(content) {
-    var toggle = document.getElementById('wiz-oferta-turno-toggle');
-    toggle.classList.toggle('hidden', WIZ.dictadosManualTurnosDisponibles.length < 2);
-    toggle.querySelectorAll('[data-turno]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-turno') === WIZ.dictadosManualTurno); });
-
     var porSemestreSinFiltrar = {};
     WIZ.dictadosManualTodos.forEach(function (d) { (porSemestreSinFiltrar[d.semestre_sugerido] = porSemestreSinFiltrar[d.semestre_sugerido] || []).push(d); });
     var porSemestre = {};
     WIZ.dictadosManualTodos.forEach(function (d) {
-      if (WIZ.dictadosManualTurno && d.turno && d.turno !== WIZ.dictadosManualTurno) return;
+      var turno = WIZ.dictadosManualTurnoPorSemestre[d.semestre_sugerido];
+      if (turno && d.turno && d.turno !== turno) return;
       (porSemestre[d.semestre_sugerido] = porSemestre[d.semestre_sugerido] || []).push(d);
     });
     WIZ.dictadosManualPorSemestre = porSemestre;
@@ -3531,6 +3591,28 @@
       var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
       titulo.textContent = 'Semestre ' + s;
       content.appendChild(titulo);
+      // Toggle propio de ESTE semestre — nada de un único toggle global
+      // para todos los semestres elegidos (feedback: con turnos distintos
+      // entre semestres, un solo control para todos confundía). Sólo
+      // aparece si el semestre en cuestión realmente tiene más de un
+      // turno cargado en el catálogo.
+      var turnosDeEsteSemestre = [];
+      (porSemestreSinFiltrar[s] || []).forEach(function (d) { if (d.turno && turnosDeEsteSemestre.indexOf(d.turno) < 0) turnosDeEsteSemestre.push(d.turno); });
+      if (turnosDeEsteSemestre.length > 1) {
+        var toggle = el('div', 'seg');
+        toggle.style.cssText = 'align-self:flex-start';
+        turnosDeEsteSemestre.slice().sort().forEach(function (t) {
+          var btn = el('button', 'seg-item' + (WIZ.dictadosManualTurnoPorSemestre[s] === t ? ' is-on' : ''));
+          btn.type = 'button';
+          btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+          btn.addEventListener('click', function () {
+            WIZ.dictadosManualTurnoPorSemestre[s] = t;
+            wizRenderDictadosManual(content);
+          });
+          toggle.appendChild(btn);
+        });
+        content.appendChild(toggle);
+      }
       if (porSemestre[s] && porSemestre[s].length) {
         porSemestre[s].forEach(function (d) {
           var node = tpl('wiz-item-row');
@@ -3581,7 +3663,6 @@
     content.appendChild(loading);
     try {
       if (WIZ.camino === 'rapido') {
-        document.getElementById('wiz-oferta-turno-toggle').classList.add('hidden');
         var semestre = WIZ.semestresElegidos[0];
         var grupos = await rpc('cat_grupos', { p_carrera_id: WIZ.carreraId, p_periodo: PERIODO_ACTUAL, p_semestre: semestre });
         clear(content);
@@ -3589,10 +3670,22 @@
           sub.textContent = 'Elegí el grupo que estás cursando.';
           wizRenderGrupos(content, grupos);
         } else {
+          // No dejar sólo un texto que menciona un botón que vive arriba,
+          // fuera de la vista si el usuario no lo notó — un botón acá mismo
+          // hace el cambio de camino por él, en vez de pedirle que vuelva a
+          // tocar el toggle de más arriba.
           sub.textContent = 'Todavía no hay grupos armados para este semestre.';
+          var avisoWrap = el('div'); avisoWrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;align-items:flex-start';
           var aviso = el('span'); aviso.style.cssText = 'font-size:13px;color:var(--c-ink3)';
-          aviso.textContent = 'Probá con "Materias sueltas" para elegir materia por materia.';
-          content.appendChild(aviso);
+          aviso.textContent = 'Podés elegir materia por materia en vez de un grupo armado.';
+          var btnManual = el('button', 'btn btn-sm'); btnManual.type = 'button'; btnManual.textContent = 'Elegir materias sueltas';
+          btnManual.addEventListener('click', async function () {
+            WIZ.camino = 'manual';
+            wizActualizarCaminoToggle();
+            await wizCargarOfertaSegunCamino();
+          });
+          avisoWrap.appendChild(aviso); avisoWrap.appendChild(btnManual);
+          content.appendChild(avisoWrap);
         }
         return;
       }
@@ -3774,12 +3867,23 @@
   // Las RPCs de catálogo escriben materias/agenda del lado del servidor —
   // no controlamos qué color_id/esc terminan dejando ahí, y ninguna de
   // cat_dictados/cat_electivas/cat_grupos devuelve la escala de aprobación
-  // (eso vive aparte, en cat_esquema(materia_id, periodo) → sistema/
-  // min_aprobar/min_exonerar, siempre sobre 100). Antes de mostrar el
-  // semestre armado se reconcilia: colores distintos por materia (si el
-  // server les puso el mismo default fijo a todas) y esc completo resuelto
-  // contra cat_esquema si la RPC de catálogo no lo dejó cargado. Se escribe
-  // con saveMateriasRaw, el mismo camino CRUD que usa "Editar materia" — no
+  // (eso vive aparte, en cat_esquema(materia_id, periodo): una fila por
+  // instancia, con su propio puntaje_max — min_aprobar/min_exonerar son
+  // PORCENTAJES, pero cada evaluación real que arma aplicar_agenda ya
+  // guarda su nota_maxima en puntos (i.puntaje_max de esa instancia, no un
+  // porcentaje) — así que la materia tiene que calificarse en la MISMA
+  // unidad: puntos, con el total real de sumar los puntaje_max de las
+  // instancias que computan (no siempre 100 — hay materias del catálogo
+  // real que suman menos). Antes de mostrar el semestre armado se
+  // reconcilia: colores distintos por materia (si el server les puso el
+  // mismo default fijo a todas), esc en puntos resuelto contra cat_esquema
+  // si la RPC de catálogo no lo dejó cargado, y los componentes de la nota
+  // que computan pero no tienen ningún hito (fecha) en el catálogo — hoy
+  // "Participación en clase" — se guardan en `componentesFijos` para que
+  // el estudiante los cargue a mano (ver sección nueva en Detalle; no hay
+  // ninguna fila de agenda a la que atarlos, aplicar_agenda nunca los
+  // inserta porque hace join con catalogo.hitos). Se escribe con
+  // saveMateriasRaw, el mismo camino CRUD que usa "Editar materia" — no
   // vuelve a tocar las RPCs de catálogo.
   async function wizReconciliarMateriasCreadas() {
     var raw = loadMateriasRaw();
@@ -3790,18 +3894,28 @@
       .filter(function (id, i, self) { return id && self.indexOf(id) === i; });
 
     var escPorMateria = {};
+    var componentesFijosPorMateria = {};
     await Promise.all(idsAResolver.map(async function (id) {
       try {
         var filas = await rpc('cat_esquema', { p_materia_id: id, p_periodo: PERIODO_ACTUAL });
-        var f = (filas || [])[0];
-        if (f) {
-          escPorMateria[id] = {
-            tipo: 'pct',
-            total: 100,
-            aprob: Number(f.min_aprobar),
-            exoneracion: f.min_exonerar != null ? Number(f.min_exonerar) : null
-          };
-        }
+        var f0 = (filas || [])[0];
+        if (!f0) return;
+        var totalPuntos = (filas || [])
+          .filter(function (f) { return f.computa; })
+          .reduce(function (sum, f) { return sum + (Number(f.puntaje_max) || 0); }, 0);
+        var aprobPct = Number(f0.min_aprobar) || 0;
+        var exonPct = f0.min_exonerar != null ? Number(f0.min_exonerar) : null;
+        escPorMateria[id] = {
+          tipo: 'puntos',
+          total: totalPuntos,
+          aprob: totalPuntos > 0 ? Math.round(aprobPct / 100 * totalPuntos) : 0,
+          exoneracion: exonPct != null && totalPuntos > 0 ? Math.round(exonPct / 100 * totalPuntos) : null
+        };
+        // Instancias que computan pero no tienen ningún hito — sin fecha a
+        // la que atarse en agenda, así que quedan sueltas en la materia.
+        componentesFijosPorMateria[id] = (filas || [])
+          .filter(function (f) { return f.computa && (!f.fechas || !f.fechas.length); })
+          .map(function (f) { return { id: f.instancia_id, titulo: f.titulo, puntajeMax: Number(f.puntaje_max) || 0, valor: null }; });
       } catch (e) {
         console.warn('Cursada: no se pudo resolver la escala de aprobación de una materia', e);
       }
@@ -3815,7 +3929,10 @@
       var cambios = { colorId: colorKeys[colorIdx % colorKeys.length] };
       colorIdx++;
       var escIncompleto = !m.esc || m.esc.tipo == null || m.esc.total == null || m.esc.aprob == null;
-      if (escIncompleto) cambios.esc = escPorMateria[m.catalogoMateriaId] || { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
+      if (escIncompleto) {
+        cambios.esc = escPorMateria[m.catalogoMateriaId] || { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
+        cambios.componentesFijos = componentesFijosPorMateria[m.catalogoMateriaId] || [];
+      }
       huboCambios = true;
       return Object.assign({}, m, cambios);
     });
@@ -3924,12 +4041,6 @@
         WIZ.electivaTurno = b.getAttribute('data-turno');
         wizActualizarTurnoToggle();
         await wizCargarElectivasSegunTurno();
-      });
-    });
-    document.querySelectorAll('#wiz-oferta-turno-toggle [data-turno]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        WIZ.dictadosManualTurno = b.getAttribute('data-turno');
-        wizRenderDictadosManual(document.getElementById('wiz-oferta-content'));
       });
     });
     document.getElementById('btn-rehacer-onboarding').addEventListener('click', function () {

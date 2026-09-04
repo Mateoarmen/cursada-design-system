@@ -204,8 +204,16 @@
   // exoneración), Curso+Examen con exoneración (aprobación + exoneración
   // más alta), y Examen con exoneración (sólo exonera, no hay aprobación
   // intermedia).
+  // `instancias`: opcional, sólo para probar el desglose real por
+  // instancia (total en puntos + componentes fijos sin fecha) — si falta,
+  // cae al esquema genérico de siempre (una sola instancia "Evaluación" de
+  // 100 puntos, con fecha, para no generar puntos fijos donde no se están
+  // probando explícitamente).
   var CAT_ESQUEMAS = {
-    'mat-orggerencia': { sistema: 'Curso+Examen con exoneración', min_aprobar: '70', min_exonerar: '86' },
+    'mat-orggerencia': { sistema: 'Curso+Examen con exoneración', min_aprobar: '70', min_exonerar: '86', instancias: [
+      { titulo: 'Parcial', puntaje_max: 85, tieneFecha: true },
+      { titulo: 'Participación en clase', puntaje_max: 15, tieneFecha: false }
+    ] },
     'mat-costos': { sistema: 'Curso', min_aprobar: '70', min_exonerar: null },
     'mat-derecho': { sistema: 'Examen con exoneración', min_aprobar: '0', min_exonerar: '70' },
     'mat-marketing2': { sistema: 'Curso+Examen con exoneración', min_aprobar: '70', min_exonerar: '86' },
@@ -287,6 +295,15 @@
   // Turno-consciente (regla del enunciado: el mismo parcial es a las 09:00
   // para matutino y a las 18:00 para nocturno) — sólo genera para materias
   // con dictado de catálogo (las sin-horario no tienen fecha real todavía).
+  // Puntaje real de una instancia con nombre puntual (Parcial, etc.) si la
+  // materia trae `instancias` en CAT_ESQUEMAS (ver cat_esquema arriba);
+  // si no, cae al fallback de siempre — mismo motivo por el que
+  // cat_esquema también cae a su forma genérica sin `instancias`.
+  function mockPuntajeInstancia(materiaId, titulo, fallback) {
+    var esquema = CAT_ESQUEMAS[materiaId];
+    var inst = esquema && esquema.instancias && esquema.instancias.filter(function (i) { return i.titulo === titulo; })[0];
+    return inst ? inst.puntaje_max : fallback;
+  }
   function mockGenerarAgendaParaSemestre(semestreId) {
     TABLES.materias.filter(function (m) { return m.semestre_id === semestreId && m.catalogo_dictado_id; }).forEach(function (m) {
       var dictado = DICTADOS_INDEX[m.catalogo_dictado_id];
@@ -295,8 +312,8 @@
       // Sin el nombre de la materia en el título (feedback real + fix de
       // aplicar_agenda en la base): el chip de materia de cada fila ya lo
       // muestra, repetirlo acá era la info redundante del reporte.
-      TABLES.agenda.push({ id: 'ag-cat-parcial-' + m.id, user_id: FAKE_USER.id, materia_id: m.id, kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial', fecha: '2026-12-10', hora: hora, hecho: false, nota: null, nota_maxima: m.esc && m.esc.total, notas: '', tag_id: null, catalogo_hito_id: 'parcial-' + m.id });
-      TABLES.agenda.push({ id: 'ag-cat-entrega-' + m.id, user_id: FAKE_USER.id, materia_id: m.id, kind: 'evaluacion', tipo: 'Obligatorio', titulo: 'Obligatorio (Entrega final on line)', fecha: '2026-11-20', hora: hora, hecho: false, nota: null, nota_maxima: m.esc && m.esc.total, notas: '', tag_id: null, catalogo_hito_id: 'entrega-' + m.id });
+      TABLES.agenda.push({ id: 'ag-cat-parcial-' + m.id, user_id: FAKE_USER.id, materia_id: m.id, kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial', fecha: '2026-12-10', hora: hora, hecho: false, nota: null, nota_maxima: mockPuntajeInstancia(m.catalogo_materia_id, 'Parcial', m.esc && m.esc.total), notas: '', tag_id: null, catalogo_hito_id: 'parcial-' + m.id });
+      TABLES.agenda.push({ id: 'ag-cat-entrega-' + m.id, user_id: FAKE_USER.id, materia_id: m.id, kind: 'evaluacion', tipo: 'Obligatorio', titulo: 'Obligatorio (Entrega final on line)', fecha: '2026-11-20', hora: hora, hecho: false, nota: null, nota_maxima: mockPuntajeInstancia(m.catalogo_materia_id, 'Obligatorio', m.esc && m.esc.total), notas: '', tag_id: null, catalogo_hito_id: 'entrega-' + m.id });
     });
   }
 
@@ -317,10 +334,23 @@
     else if (name === 'cat_conflictos') data = mockConflictos(params.p_dictado_ids);
     else if (name === 'cat_esquema') {
       var esquema = CAT_ESQUEMAS[params.p_materia_id];
-      data = esquema ? [{
-        sistema: esquema.sistema, min_aprobar: esquema.min_aprobar, min_exonerar: esquema.min_exonerar,
-        instancia_id: 'inst-' + params.p_materia_id, orden: 1, seccion: null, titulo: 'Evaluación', puntaje_max: 100, computa: true, fechas: []
-      }] : [];
+      if (!esquema) data = [];
+      else if (esquema.instancias) {
+        data = esquema.instancias.map(function (inst, i) {
+          return {
+            sistema: esquema.sistema, min_aprobar: esquema.min_aprobar, min_exonerar: esquema.min_exonerar,
+            instancia_id: 'inst-' + params.p_materia_id + '-' + i, orden: i + 1, seccion: null,
+            titulo: inst.titulo, puntaje_max: inst.puntaje_max, computa: true,
+            fechas: inst.tieneFecha ? [{ etiqueta: 'Fecha', fecha: '2026-12-10', hora: '09:00:00', turno: null }] : []
+          };
+        });
+      } else {
+        data = [{
+          sistema: esquema.sistema, min_aprobar: esquema.min_aprobar, min_exonerar: esquema.min_exonerar,
+          instancia_id: 'inst-' + params.p_materia_id, orden: 1, seccion: null, titulo: 'Evaluación', puntaje_max: 100, computa: true,
+          fechas: [{ etiqueta: 'Fecha', fecha: '2026-12-10', hora: '09:00:00', turno: null }]
+        }];
+      }
     } else if (name === 'aplicar_grupo') {
       var grupo = CAT_GRUPOS_SEM4.filter(function (g) { return g.id === params.p_grupo_id; })[0];
       if (!grupo) return Promise.resolve({ data: null, error: { message: 'El grupo no existe.' } });

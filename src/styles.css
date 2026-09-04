@@ -529,6 +529,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .callout span{font-size:14px;line-height:1.5;color:var(--c-ink2)}
 .detalle-actions{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap}
 
+/* ---------- Puntos fijos del curso (sin fecha, ej. participación) ---------- */
+.detalle-fijos{display:flex;flex-direction:column;gap:10px;padding-top:16px;border-top:1px solid var(--c-line-faint)}
+.detalle-fijos-title{font-size:13px;font-weight:600;color:var(--c-ink)}
+.detalle-fijos-hint{font-size:12px;color:var(--c-ink3);line-height:1.4;margin-top:-6px}
+.detalle-fijo-row{display:flex;align-items:center;gap:12px}
+.detalle-fijo-row + .detalle-fijo-row{margin-top:6px}
+.detalle-fijo-label{flex:1;min-width:0;font-size:13px;color:var(--c-ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detalle-fijo-input{flex:none;width:64px;height:32px;padding:0 8px;border-radius:8px;border:1px solid var(--c-line);background:var(--c-surface);color:var(--c-ink);font-size:13px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.detalle-fijo-input:focus-visible{outline:none;box-shadow:var(--c-focus)}
+.detalle-fijo-max{flex:none;width:56px;font-size:12px;color:var(--c-ink3)}
+
 /* ---------- Simulador de escenario (Detalle) ---------- */
 .detalle-sim{display:flex;flex-direction:column;gap:16px;padding-top:16px;border-top:1px solid var(--c-line-faint)}
 .detalle-sim-head{display:flex;align-items:center;gap:16px}
@@ -626,8 +637,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .agenda-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .agenda-title.done{color:var(--c-ink3);text-decoration:line-through}
-.agenda-meta{display:flex;align-items:center;gap:8px}
-.agenda-meta .m{font-size:13px;color:var(--c-ink3)}
+.agenda-meta{display:flex;align-items:center;gap:10px}
+/* Chip de materia: antes se cortaba a mano a 16 caracteres en JS sin
+   relación con el ancho real disponible — acá se le da un techo real y
+   que el navegador decida el "…", más generoso en desktop que en mobile
+   (ver override abajo). El tipo (Parcial/Entrega/Obligatorio) pasa de
+   texto gris plano — casi idéntico en peso/tono a la fecha de al lado —
+   a semibold en un tono más oscuro, para que se lea como una etiqueta
+   propia y no como relleno (feedback: "todo muy parecido y mezclado"). */
+.agenda-meta .chip{max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.agenda-meta .m{font-size:13px;font-weight:600;color:var(--c-ink2)}
 .agenda-fecha-col{display:flex;flex-direction:column;gap:2px;width:170px;text-align:right;flex:none}
 .agenda-fecha{font-size:14px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
 .agenda-fecha-col .prox-countdown{align-self:flex-end}
@@ -1013,6 +1032,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   .agenda-body{flex:1 1 180px}
   .agenda-fecha-col{width:auto;text-align:left;align-items:flex-start;margin-left:37px} /* 22px checkbox + 15px gap: alinea bajo el título (la barra ya no ocupa espacio en el flujo, ver .agenda-row .bar4) */
   .agenda-fecha-col .prox-countdown{align-self:flex-start}
+  .agenda-meta .chip{max-width:130px}
   /* Varios .field dentro de un .field-row traen un width fijo puesto para
      desktop (ej. Código 130px, Créditos 112px en el modal de materia) que
      nunca cede — con el resto de los .field angostándose alrededor, "Nombre

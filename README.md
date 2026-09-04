@@ -3227,3 +3227,131 @@ prioriza el turno real de la materia si se conoce y, si no, elige una sola
 fila de forma determinística en vez de dejarlas pasar todas — verificado
 con una consulta de sólo lectura reproduciendo la lógica a mano contra una
 instancia real con hitos de los dos turnos.
+
+## Onboarding por turno-por-semestre, escala en puntos reales y puntos fijos de clase
+
+Cuatro pedidos de una sesión de feedback probando la app real: el toggle
+de turno del onboarding era global en vez de por semestre, las materias
+del catálogo se querían calificar "por puntos" con los números reales en
+vez de un porcentaje fijo, faltaba dónde cargar los puntos de
+participación en clase (sin fecha, ya en el catálogo), y la fila de
+Agenda no mostraba el nombre completo de la materia con el resto de la
+info muy parecida entre sí.
+
+**Toggle de turno por semestre (`wizCargarDictadosManual`/
+`wizRenderDictadosManual`, `src/runtime.js`).** `WIZ.dictadosManualTurno`
+(un string único para todos los semestres elegidos) pasa a
+`WIZ.dictadosManualTurnoPorSemestre` (`{semestre: turno}`). El toggle
+global `#wiz-oferta-turno-toggle` (HTML estático) se reemplaza por un
+`.seg` armado en memoria dentro del loop por semestre de
+`wizRenderDictadosManual`, que sólo aparece si ESE semestre en particular
+tiene más de un turno cargado — antes, con 2+ semestres elegidos, un solo
+control decidía el turno de todos, aunque cada uno tuviera su propia
+oferta matutina/nocturna independiente. Verificado con semestres 3
+(sin dictados, sin toggle) y 4 (con dictados en los dos turnos, toggle
+propio): cambiar el turno de un semestre no toca al otro.
+
+**Escala en puntos reales, no porcentaje fijo
+(`wizReconciliarMateriasCreadas`, `src/runtime.js`).** Investigando
+contra la base real (Supabase) apareció que `catalogo.esquemas.min_aprobar`/
+`min_exonerar` son porcentajes, pero cada evaluación real que arma
+`aplicar_agenda` ya guarda su `nota_maxima` en puntos (`i.puntaje_max`,
+no un porcentaje) — y esos puntos no siempre suman 100 (una materia real,
+"Econometría avanzada", suma 40). El wizard ignoraba esto: armaba
+`esc:{tipo:'pct', total:100, ...}` siempre, usando sólo la primera fila de
+`cat_esquema`. Ahora usa TODAS las filas: `total` = suma de `puntaje_max`
+de las instancias que computan, y `aprob`/`exoneracion` se convierten de
+porcentaje a puntos absolutos sobre ese total real
+(`Math.round(min_aprobar/100 * total)`). `tipo:'puntos'` ya existía como
+escala soportada en toda la app (`ESC_DEFAULTS`, `val()`/`uni()`/`valU()`,
+el simulador, el picker de escala del modal de materia) — este cambio es
+sólo en cómo se arma `esc` al reconciliar, no en cómo se muestra en
+ningún lado.
+
+**Puntos fijos de clase, sin fecha (`materias.componentes_fijos`,
+migración nueva en Supabase).** Las instancias de "PARTICIPACIÓN EN
+CLASE" del catálogo real (`computa:true`, 10-15 puntos típicos) no tienen
+ningún hito/fecha en `catalogo.hitos`, así que `aplicar_agenda` (que hace
+`join` con hitos) nunca las inserta en `agenda` — son puntos reales que
+cuentan para el 100% de la materia, pero sin ningún lugar donde
+cargarlos. `wizReconciliarMateriasCreadas` ahora también extrae, de esas
+mismas filas de `cat_esquema`, las que computan y no tienen fechas, y las
+guarda en `materias.componentes_fijos` (`[{id, titulo, puntajeMax,
+valor:null}]`, columna jsonb nueva). Sección nueva en Detalle ("Puntos
+fijos del curso", oculta si la materia no tiene ninguno) con un input
+numérico por componente — no vive en `agenda` ni en la lista de
+evaluaciones/tareas (no es una fecha, no es algo que "rendir"), se guarda
+directo en la materia con el mismo `saveMateriasRaw` de siempre.
+`calcularSimulacion` (`src/simulador.js`) suma un 4º parámetro opcional
+`componentesFijos` — cada uno con valor cargado cuenta como puntos reales
+fijos (sin slider, no hay nada que simular, el profesor ya lo decidió o
+todavía no existe), cada uno sin cargar cuenta como disponible; firma
+retrocompatible, no rompe `test/simulador.test.js`. `computeMateria`
+sólo agrega los valores cargados al array de notas que ya promedia para
+la card (mismo criterio que ya aplica a cualquier nota individual, no una
+regla nueva). De paso se corrigió un bug encontrado al conectar esto: el
+submit de `#form-materia` armaba `record` como objeto literal desde cero
+(perdía `catalogoMateriaId`/`catalogoDictadoId`/`componentesFijos` al
+guardar cualquier edición manual) — ahora parte de la materia cruda
+existente con `Object.assign`. Verificado en el navegador: una materia
+con "Participación en clase" (85 pts de Parcial + 15 de participación)
+queda con escala "Puntaje 100 · aprueba 70 pts", cargar 15 en el input
+sube el promedio y el simulador a 15/100, editar la materia (cambiar el
+salón) no borra nada de lo anterior.
+
+**Agenda: jerarquía visual (`buildAgendaRowsList`, `src/runtime.js`;
+`.agenda-*`, `src/styles.css`).** El chip de materia se cortaba a mano a
+16 caracteres (`truncate(m.nombre, 16)`) sin relación con el espacio real
+— se sube el techo a 30 y el corte fino por ancho disponible pasa a
+`.agenda-meta .chip{max-width;overflow:hidden;text-overflow:ellipsis}`
+(200px desktop, 130px en el breakpoint mobile de 900px). El tipo
+("Parcial"/"Entrega"/"Obligatorio", antes texto gris 13px casi idéntico a
+la fecha de al lado) pasa a semibold en un tono más oscuro
+(`--c-ink2` en vez de `--c-ink3`) para leerse como una etiqueta propia, no
+como relleno — sin introducir ningún color/token nuevo. Un solo template
+sirve para desktop y mobile (no hay una vista mobile aparte, sólo
+overrides de media query), así que el fix aplica a los dos con las mismas
+reglas base — verificado con `resize_window` en ambos anchos.
+
+## Auditoría del catálogo real: grupos faltantes y electivas mal modeladas
+
+El usuario reportó, probando contra la base real: "hay carreras que no
+tienen grupo para elegir" y "mezcla los grupos con 'Grupos de electivas'
+que en realidad para nuestro uso no cambia". Investigando contra
+Supabase (no había nada que arreglar en el frontend, `wizRenderGrupos`
+sólo pinta `codigo`/`turno`/`edificio` tal cual vienen de `cat_grupos`,
+sin ninguna categorización propia):
+
+**`catalogo.grupos` (el "camino rápido" de un clic) está incompleto en 6
+de 8 carreras/planes** — sólo Contador Público y Licenciatura en Gerencia
+y Administración (Plan actual) tienen grupos armados en los 8 semestres.
+El resto tiene huecos grandes (Economía/Negocios Digitales: sólo
+semestres pares; Estudios Internacionales/Marketing: falta 1,3,5;
+Finanzas y Gerencia Plan nuevo 2028: **sólo semestre 2**, nada más).
+`catalogo.dictados` (los cursos sueltos del camino manual) sí está
+completo 1-8 en las 8 carreras — el wizard no se rompe ni deja una
+pantalla vacía, cae solo al camino manual, pero esos datos de grupos
+armados no existen y hace falta cargarlos desde el lado de la
+información real de ORT — no es algo que se pueda inventar. Lo que sí se
+mejoró (`wizCargarOfertaSegunCamino`, `src/runtime.js`): antes, sin
+grupos, el aviso era sólo texto ("Probá con 'Materias sueltas'…") que
+mencionaba un botón que vivía arriba, fuera de foco; ahora un botón
+("Elegir materias sueltas") vive al lado del aviso y cambia el camino por
+el usuario, sin que tenga que volver a tocar el toggle de más arriba.
+
+**5 "grupos" de Estudios Internacionales (semestre 2) eran en realidad
+electivas mal modeladas.** `LI_M2A-Elec_F1`, `LI_M2A-Elec_P1`,
+`LI_M2A-Elec-IPR1`, `LI_M2A-Elec-ITCD` y `LI_M2B-Elec_F1` tenían una sola
+materia cada uno (Francés 1, Portugués 1, Introducción a la programación
+1, Introducción a la Tecnología y Cultura Digital) — no son horarios
+alternativos de un grupo real, son las opciones de electiva que un
+alumno de LI_M2A/LI_M2B elige. El problema no era sólo visual: `cat_electivas`
+sólo trae dictados con `grupo_id is null`, así que con esos 4 dictados
+apuntando a esos grupos falsos, **las electivas no aparecían en el paso
+dedicado de Electivas para nadie** — sólo se colaban disfrazadas de
+"grupo" compitiendo con el LI_M2A/LI_M2B real en el Paso 3. Se aplicó una
+migración de datos: `grupo_id = null` en esos 5 dictados (ahora
+`cat_electivas` los trae donde corresponde) y se borraron los 5 grupos
+falsos, que quedaban sin sentido sin dictados asociados. Verificado
+llamando a `cat_electivas` directo: las 4 materias ahora aparecen en el
+resultado.

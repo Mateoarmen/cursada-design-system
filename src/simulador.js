@@ -21,11 +21,17 @@
 // (nota null = todavía sin calificar). valoresSimulados: {id: number} — el
 // valor ACTUAL del slider de cada evaluación (quien llama decide el default
 // de las que no tienen nota real; las que sí tienen arrancan en su nota,
-// pero también se pueden simular — ver README, Fase 2).
-function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
+// pero también se pueden simular — ver README, Fase 2). componentesFijos
+// (opcional): [{puntajeMax, valor}] — puntos del curso sin fecha (p. ej.
+// "Participación en clase", ver README) que el estudiante carga a mano;
+// cuentan para el total/aprobación igual que una evaluación, pero no se
+// simulan con slider (no hay "próxima instancia" que rendir, el profesor ya
+// decidió el valor o todavía no).
+function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijos) {
   esc = esc || {};
   evaluaciones = evaluaciones || [];
   valoresSimulados = valoresSimulados || {};
+  componentesFijos = componentesFijos || [];
   var total = Number(esc.total) || 0;
   var aprob = Number(esc.aprob) || 0;
   var exoneracion = esc.exoneracion != null ? Number(esc.exoneracion) : null;
@@ -47,6 +53,22 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados) {
     var simulado = valoresSimulados[e.id];
     var valorProyectado = simulado != null ? Number(simulado) : (tieneNota ? notaReal : 0);
     puntosProyectados += Math.max(0, Math.min(valorProyectado, notaMaxima));
+  });
+
+  // Mismo tratamiento que una evaluación calificada/sin calificar, pero sin
+  // slider: un valor cargado es real y proyectado a la vez (no hay nada que
+  // simular), uno sin cargar todavía es "disponible" (el techo lo cuenta,
+  // el piso no).
+  componentesFijos.forEach(function (c) {
+    var puntajeMax = Number(c.puntajeMax) || 0;
+    sumaNotaMaxima += puntajeMax;
+    if (c.valor != null) {
+      var valorFijo = Math.max(0, Math.min(Number(c.valor), puntajeMax));
+      puntosReales += valorFijo;
+      puntosProyectados += valorFijo;
+    } else {
+      disponibles += puntajeMax;
+    }
   });
 
   // "Imposible"/"asegurado" son propiedades de lo YA REAL (ignoran dónde

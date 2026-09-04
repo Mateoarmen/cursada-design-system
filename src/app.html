@@ -375,6 +375,11 @@
               <button class="btn" id="btn-detalle-cargar-nota">Cargar nota</button>
               <button class="btn" id="btn-detalle-escala">Cambiar escala y aprobación</button>
             </div>
+            <div class="detalle-fijos hidden" id="detalle-fijos">
+              <span class="detalle-fijos-title">Puntos fijos del curso</span>
+              <span class="detalle-fijos-hint">No tienen fecha ni son una tarea — cargalos vos cuando el profesor te los dé.</span>
+              <div id="detalle-fijos-list"></div>
+            </div>
             <button type="button" class="btn btn-sm hidden" id="btn-detalle-sim-toggle">Simular escenario</button>
             <div class="detalle-sim hidden" id="detalle-sim">
               <div class="detalle-sim-head">
@@ -617,10 +622,6 @@
         <div class="seg hidden" id="wiz-camino-toggle">
           <button type="button" class="seg-item" data-camino="rapido">Camino rápido</button>
           <button type="button" class="seg-item" data-camino="manual">Materias sueltas</button>
-        </div>
-        <div class="seg hidden" id="wiz-oferta-turno-toggle">
-          <button type="button" class="seg-item" data-turno="matutino">Matutino</button>
-          <button type="button" class="seg-item" data-turno="nocturno">Nocturno</button>
         </div>
         <div id="wiz-oferta-content" class="wiz-cards-list"></div>
       </div>
@@ -1077,6 +1078,14 @@
     <span class="detalle-sim-slider-tag" data-f="tag"></span>
     <input type="range" class="detalle-sim-range" data-f="range">
     <span class="detalle-sim-slider-val mono" data-f="val"></span>
+  </div>
+</template>
+
+<template data-template="fijo-row">
+  <div class="detalle-fijo-row">
+    <span class="detalle-fijo-label" data-f="label"></span>
+    <input type="number" class="detalle-fijo-input" data-f="input" min="0" step="1">
+    <span class="detalle-fijo-max mono" data-f="max"></span>
   </div>
 </template>
 
