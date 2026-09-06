@@ -333,6 +333,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .btn-primary{background:var(--c-accent);color:#fff}
 .btn-primary:hover{filter:brightness(1.06)}
 .btn-ghost{background:transparent;color:var(--c-ink2);font-weight:500}
+.btn-danger{background:transparent;color:var(--c-danger)}
+.btn-danger:hover{background:rgba(255,59,48,.1);filter:none}
 .btn-sm{height:30px;padding:0 12px;font-size:12px}
 .icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2)}
 .icon-btn .ico{width:17px;height:17px}
