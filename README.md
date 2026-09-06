@@ -3516,3 +3516,164 @@ materias (con qué nota las aprobó).
   aviso baja en 1, y reabrir el wizard para confirmar que ambas quedan
   pre-tildadas/deshabilitadas sin duplicar nada. Sin bugs encontrados en
   esta pasada.
+
+## Ronda de bugs de cursada (multi-semestre, nocturno, progreso, horario cortado, Ajustes)
+
+Pedido: cinco reportes sueltos sobre el wizard de onboarding y Ajustes.
+Cuatro eran bugs reales, confirmados leyendo `runtime.js` y, para el más
+turbio (grupo nocturno), consultando directo la base real de Supabase
+(proyecto `kbihslsbzyhyiroyzxxq`) porque el fixture del mock no alcanzaba
+para reproducirlo. El quinto era un pedido de rediseño de una sección de
+Ajustes.
+
+- **2+ semestres elegidos mezclaba TODOS los grupos en una sola lista**:
+  `wizCargarOferta()` forzaba `camino='manual'` apenas había más de un
+  semestre elegido (`WIZ.camino = length>1 ? 'manual' : 'rapido'`), y el
+  camino manual pedía `cat_dictados` sin filtrar por grupo — el resultado
+  eran TODAS las secciones de TODOS los grupos armados de ese semestre en
+  una sola lista plana de checkboxes, sin agrupar. La decisión "grupo
+  armado o materias sueltas" pasó a ser **por semestre**
+  (`WIZ.caminoPorSemestre`, `wizCaminoDeSemestre(s)`), no global: cada
+  semestre elegido arranca en modo grupo si `cat_grupos` trae alguno para
+  ese semestre en particular, si no cae a materias sueltas — mismo
+  fallback de siempre, pero ahora aislado semestre por semestre en vez de
+  contaminar a los demás. `wizRenderOferta()` reemplaza a
+  `wizCargarOfertaSegunCamino()` como render maestro del paso, con una
+  sección por semestre (`wizRenderSemestreGrupo`/`wizRenderSemestreManual`)
+  y un link chico dentro de cada sección ("Prefiero elegir materias
+  sueltas para este semestre" / "Ver los grupos armados para este
+  semestre") para cambiar de modo sin afectar a los otros semestres
+  elegidos — el toggle global `#wiz-camino-toggle` (rápido/manual) se sacó
+  del todo, ya no tiene sentido con la decisión movida a nivel semestre.
+- **Grupo nocturno no dejaba destildar materias — root cause verificado
+  contra la base real**: el reporte era "elijo el grupo nocturno y no
+  puedo tildar/destildar nada más". Con el fixture del mock no se pudo
+  reproducir (`cat_grupos`/`cat_dictados` mock no tienen el problema), así
+  que se consultó `catalogo.grupos`/`catalogo.dictados` reales vía el MCP
+  de Supabase: **no era un bug de datos ni de turno** — un grupo (matutino
+  o nocturno) siempre fue, desde que existe `aplicar_grupo`, un paquete
+  todo-o-nada: se elegía un `grupo_id` entero, sin forma de destildar una
+  sola materia de ese paquete antes de confirmar. El reporte lo notó
+  primero en nocturno simplemente porque en la base real casi todas las
+  carreras tienen 2-3 grupos matutinos alternativos por semestre (ej.
+  `LA_M4A`/`LA_M4B`/`LA_M4C`) pero **un solo grupo nocturno**
+  (`LA_N4A`) — de día hay margen para elegir OTRO paquete si el primero no
+  sirve, de noche no hay ningún otro paquete a mano, así que la limitación
+  de "todo o nada" se siente inmediatamente. Fix: `wizRenderSemestreGrupo`
+  ahora, apenas se elige un grupo, muestra sus materias como checklist
+  individual (todas tildadas por default, `WIZ.grupoMateriasExcluidasPorSemestre`
+  guarda lo que se destilda) — funciona igual en matutino y en nocturno.
+  Esto también simplificó `wizConfirmar()`: en vez de llamar a la RPC
+  `aplicar_grupo` (que del lado del servidor no hace más que resolver los
+  `dictado_id` del grupo y llamar a `aplicar_dictados` con todos — se leyó
+  su definición SQL para confirmarlo) ahora se arma la lista de
+  `dictado_id` ya filtrada en el cliente y se llama directo a
+  `aplicar_dictados`, un solo camino de escritura para grupo + materias
+  sueltas + electivas en vez de dos. De paso, se vio en la base real que
+  `catalogo.dictados.estado` nunca vale `'abierto'` (siempre `'ofrecido'`,
+  salvo 6 filas `'sin_minimo'`) — el badge de "no abierto" de materias
+  sueltas comparaba contra un valor que no existe en producción; se sumó
+  `'ofrecido'` a la comparación para que ese badge deje de aparecer en
+  todas las filas por error.
+- **"Debo rendir examen" en el paso "progreso"**: cada materia tenía un
+  solo estado posible (tildada = aprobada). Ahora son dos botones
+  independientes y mutuamente excluyentes por fila, "Aprobada" / "Debo
+  rendir examen" (`WIZ.pendientesIdsElegidas`, paralelo a
+  `WIZ.aprobadasIdsElegidas`) — al confirmar, las tildadas como "Debo
+  rendir examen" se crean como materia real con `estado:'pendiente'` (el
+  mismo valor que ya usa el selector de estado del modal de materia,
+  ninguna migración ni valor nuevo) en vez de `'aprobada'`
+  (`wizCrearMateriasAprobadas` generalizado para procesar ambos mapas).
+  Reingreso al wizard idempotente para las dos, igual que ya lo era para
+  aprobadas (`WIZ.pendientesIdsYaCargadas`). Nuevo template
+  `wiz-progreso-row` porque esta fila necesita DOS `<button>` propios y el
+  `wiz-item-row` genérico es en sí mismo un `<button>` — no se puede anidar
+  un botón dentro de otro. A 375px el título + los dos botones no entran
+  en una sola línea (se solapaban) — `.wiz-status-row` pasa a
+  `flex-wrap:wrap` en mobile, título arriba y los dos botones abajo
+  ocupando el ancho parejo; de paso se le agregó `text-overflow:ellipsis`
+  a `.wiz-item-titulo` en general (nunca lo tuvo pese a que
+  `.wiz-item-body` ya traía `min-width:0`, la mitad de la preparación para
+  truncar texto largo).
+- **Horario del wizard (paso "Revisá tu semestre") se veía cortado**: el
+  wrap fijo a 460px (`#wiz-panel-revision .horario-grid-wrap`, necesario
+  porque `.wiz-panel` no tiene una altura ya acotada como si la tiene la
+  vista Horario real) no alcanzaba porque `.horario-grid` — el hijo real,
+  con las 28 filas de media hora — no tenía `min-height:0`. Sin eso, un
+  hijo flex no se achica por debajo de su tamaño de contenido aunque el
+  padre le dé una altura fija más chica: la grilla mantenía sus ~903px
+  "naturales" y se salía del wrap de 460px sin recortarse (`overflow-y`
+  del wrap es `visible`), así que sólo se veían las primeras horas del día
+  antes de toparse con el borde del modal (`.wiz-card` sí tiene
+  `overflow:hidden`). Fix de una línea: `min-height:0` en `.horario-grid`
+  — con eso las filas `1fr` sí se reparten dentro del alto real
+  disponible. No afecta a la vista Horario real (esa ya tenía lugar de
+  sobra, nunca dependió de este comportamiento).
+- **Ajustes → "Materias aprobadas" renombrada a "Progreso" y movida a su
+  propio modal**: vivía siempre desplegada dentro del modal de Ajustes,
+  con un `<input>` suelto armado a mano (`el('input')`, sin pasar por
+  `.field`) que no se parecía a ningún otro campo numérico de la app. Ahora
+  la fila de Ajustes es sólo un botón ("Cargar notas pendientes", visible
+  nomás cuando `materiasAprobadasSinNota()` no está vacío) que abre
+  `modal-progreso-pendientes` (mismo patrón `is-sheet` que
+  `modal-semestres`) — ahí la lista completa, con nuevo template
+  `progreso-pendiente-row` que sí usa `.field` para el input de nota
+  (mismo look que cualquier campo numérico del modal de materia/evaluación,
+  con `<label>` real asociado por `for`/`id`). `renderAjustesAprobadas()`
+  quedó reducida a sólo mostrar/ocultar el botón;
+  `renderProgresoPendientesModal()` (nueva) arma la lista dentro del modal
+  nuevo y se vuelve a llamar sola después de guardar una nota, para que la
+  fila recién completada desaparezca sin cerrar el modal.
+- **Probado con el fixture** (`npm run build:test`): wizard completo con
+  semestres 3+4 elegidos a la vez (3 sin grupos → materias sueltas, 4 con
+  grupos → selector), grupo `LA_N4A` (nocturno) con una materia destildada
+  del paquete (confirmé que no se crea al terminar el wizard), progreso
+  con una materia "Aprobada" y otra "Debo rendir examen" (Progreso las
+  mostró como `Aprobada · 4`/`Pendiente · 1` después de confirmar, correcto
+  contra el resto del fixture), horario del paso de revisión visible
+  completo sin cortarse, y carga de nota desde el nuevo modal de Ajustes →
+  Progreso (la fila desapareció sola tras guardar). Probado también en
+  375px y en tema oscuro. Sin errores de consola en ningún paso.
+
+### Ajuste post-entrega: combinar grupos del mismo semestre
+
+Feedback apenas entregado lo de arriba: la primera versión de "elegí por
+grupo" (ver bullet de "2+ semestres elegidos mezclaba TODOS los grupos"
+más arriba) dejaba elegir sólo UN grupo por semestre — si el usuario
+cursaba una materia del grupo nocturno y otra del matutino DEL MISMO
+SEMESTRE, la única salida era soltar el grupo entero e ir a "materias
+sueltas" para todo ese semestre, perdiendo el horario ya armado de ambos
+paquetes. No era la idea (mala usabilidad justo para el caso que el
+selector de grupo existe para simplificar).
+
+- **Grupos con checkbox, no radio**: `wizRenderSemestreGrupo` pasó de
+  `is-radio` (uno solo) a `is-check` — se puede tildar más de un grupo del
+  mismo semestre. Estado: `WIZ.gruposElegidosPorSemestre[s]` ahora es un
+  mapa `{ grupo_id: fila }`, no una fila suelta. El checklist de materias
+  de abajo junta las materias de TODOS los grupos tildados de ese
+  semestre; con más de un grupo elegido, cada fila de materia agrega el
+  código del grupo al texto de meta (`LA_M4B · Aula 301 · …`) para que se
+  note de cuál paquete viene cada una.
+- **Autoexclusión por materia, no por grupo**: si dos grupos tildados
+  ofrecen la MISMA materia (mismo `materia_id`, típico entre la versión
+  matutina y la nocturna de una materia), dejar las dos activas
+  significaría mandarle a `aplicar_dictados` dos dictados de la misma
+  materia — la RPC ya lo protege del lado del servidor (no inserta la
+  segunda, `not exists ... where catalogo_materia_id = m.id`) pero del
+  lado del cliente el preview/conflictos igual las mostraría a las dos
+  como si fueran a cursarse. Se resuelve con un swap automático en dos
+  momentos: (1) al tildar un grupo nuevo, cualquier materia suya que ya
+  esté activa desde un grupo tildado antes arranca destildada (se
+  conserva la elección previa); (2) al tildar a mano una materia
+  destildada, se destilda automáticamente la otra versión activa de esa
+  misma materia si la había (swap explícito, para pasar de "la doy de
+  mañana" a "la doy de noche" sin tener que ir a buscar la fila vieja).
+  En ningún caso pueden quedar dos dictados de la misma materia activos
+  al mismo tiempo.
+- **Probado**: semestre 4 solo, tildar `LA_M4B` (matutino, 4 materias) y
+  después `LA_N4A` (nocturno, 4 materias) — las 4 de `LA_N4A` aparecieron
+  destildadas por default (ya cubiertas por `LA_M4B`), tildar a mano
+  "Organización y Gerencia" nocturna destildó sola la versión matutina, la
+  revisión final mostró exactamente 4 materias (3 matutinas + 1 nocturna,
+  sin duplicados ni conflicto), y Materias tras confirmar mostró esas
+  mismas 4 con los horarios correctos. Sin errores de consola.

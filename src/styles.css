@@ -727,7 +727,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 
 /* ---------- Horario ---------- */
 .horario-grid-wrap{flex:1;min-height:0;display:flex;flex-direction:column}
-.horario-grid{flex:1;display:grid;gap:4px;position:relative}
+.horario-grid{flex:1;min-height:0;display:grid;gap:4px;position:relative}
 .hg-corner{}
 .hg-day-label{display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink2);font-weight:600}
 .hg-hour-label{display:flex;align-items:flex-start;justify-content:flex-end;padding-right:8px;font-size:10px;color:var(--c-muted6);font-variant-numeric:tabular-nums}
@@ -829,6 +829,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 .field textarea{height:86px;padding:12px 13px;resize:vertical}
 .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:none;box-shadow:var(--c-focus)}
+
+/* Fila de "Notas pendientes" (Progreso, ver modal-progreso-pendientes) —
+   usa el mismo .field de siempre para la nota en vez de un input suelto,
+   para que se vea igual que cualquier otro campo numérico de la app. */
+.progreso-row{display:flex;align-items:flex-end;gap:10px;padding:9px 0;border-bottom:1px solid var(--c-line-faint)}
+.progreso-row:last-child{border-bottom:none}
+.progreso-row-dot{width:10px;height:10px;border-radius:50%;flex:none;margin-bottom:12px}
+.progreso-row-nombre{flex:1;min-width:0;font-size:13.5px;font-weight:600;align-self:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progreso-row-field{flex:none;width:84px}
+.progreso-row-field label{font-size:10px}
+.progreso-row-field input{height:38px}
 
 /* Fila de Ajustes: etiqueta a la izquierda, control a la derecha, separadas
    por un hairline entre filas (patrón tomado de una referencia de Figma,
@@ -981,9 +992,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .wiz-item-row.is-check .wiz-item-check{border-radius:6px}
 .wiz-item-row.is-on .wiz-item-check{border-color:var(--c-accent);background:var(--c-accent);box-shadow:inset 0 0 0 3px var(--c-surface)}
 .wiz-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.wiz-item-titulo{font-size:14px;font-weight:600;letter-spacing:-.005em}
+.wiz-item-titulo{font-size:14px;font-weight:600;letter-spacing:-.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wiz-item-meta{font-size:12px;color:var(--c-ink3)}
 .wiz-item-motivo{font-size:11px;color:var(--c-ink3);font-style:italic}
+/* Fila del paso "progreso": .wiz-item-row como contenedor pasivo (no es un
+   <button>, ver wiz-progreso-row en app.html) con dos botones propios —
+   Aprobada / Debo rendir examen, mutuamente excluyentes por JS. */
+.wiz-status-row{cursor:default}
+.wiz-status-acciones{display:flex;gap:6px;flex:none}
+.wiz-status-btn{height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:600;border:none;background:var(--c-surface);color:var(--c-ink2);white-space:nowrap}
+.wiz-status-btn.is-on{background:var(--acc-azul-strong);color:#fff}
+.wiz-status-btn:disabled{opacity:.45;cursor:not-allowed}
 
 .wiz-conflictos{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:14px;background:rgba(255,59,48,.1);border:1px solid rgba(255,59,48,.25)}
 .wiz-conflicto-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;color:var(--c-danger)}
@@ -1645,6 +1664,13 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .wiz-title{font-size:19px}
   .wiz-foot{padding:14px 18px calc(14px + env(safe-area-inset-bottom))}
   .wiz-carrera-card,.wiz-item-row{padding:14px}
+  /* Fila de "progreso" (Aprobada / Debo rendir examen): a 375px el título
+     + los dos botones no entran en una sola línea — título arriba, botones
+     abajo ocupando el ancho parejo en vez de superponerse. */
+  .wiz-status-row{flex-wrap:wrap;row-gap:8px}
+  .wiz-status-row .wiz-item-body{flex:1 1 100%}
+  .wiz-status-acciones{flex:1 1 100%}
+  .wiz-status-btn{flex:1}
   /* La vista Horario real reemplaza la grilla por un timeline en mobile
      (.horario-grid-wrap{display:none} de acá arriba) — el wizard no tiene
      ese timeline alternativo para su previsualización del Paso 5, así que

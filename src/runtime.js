@@ -3450,10 +3450,13 @@
       carreraId: null,
       semestreId: null,
       semestresElegidos: [],
-      camino: 'rapido', // 'rapido' (grupo) | 'manual' (dictados/materias sueltas)
-      grupoElegido: null, // fila cruda de cat_grupos
+      gruposPorSemestre: {}, // { semestre: [fila cat_grupos] } — cache, uno o ninguno por semestre
+      caminoPorSemestre: {}, // { semestre: 'rapido'|'manual' } — override explícito del usuario para ESE semestre (default: 'rapido' si tiene grupos, si no 'manual')
+      gruposElegidosPorSemestre: {}, // { semestre: { grupo_id: fila cruda de cat_grupos, con .materias ya resuelto } } — más de un grupo por semestre (ej. una materia del grupo matutino y otra del nocturno)
+      grupoMateriasExcluidasPorSemestre: {}, // { semestre: { dictado_id: true } } — materias de los grupos elegidos que el usuario destildó
       dictadosManualPorSemestre: {}, // { semestre: [fila cat_dictados], ya filtrado por el turno de ESE semestre }
-      dictadosManualTodos: [], // cat_dictados sin filtrar por turno (todos los semestres elegidos) — cache para no repetir la RPC al tocar cualquier toggle de turno
+      dictadosManualTodos: [], // cat_dictados sin filtrar por turno, de todos los semestres en camino manual — cache para no repetir la RPC al tocar cualquier toggle de turno
+      dictadosManualCargadoPorSemestre: {}, // { semestre: true } — ya se pidió cat_dictados para este semestre, no repetir la RPC
       dictadosManualTurnoPorSemestre: {}, // { semestre: turno elegido } — un toggle por semestre, no uno global (feedback: con 2+ semestres en turnos distintos, un solo toggle para todos era poco intuitivo)
       materiasSugeridasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — sólo semestres sin dictados cargados
       dictadoIdsElegidos: {}, // { dictado_id: fila } — camino manual, cruza semestres
@@ -3461,6 +3464,8 @@
       aprobadasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — plan completo 1..8, paso "progreso"
       aprobadasIdsElegidas: {}, // { materia_id: fila } — tildadas como ya aprobadas
       aprobadasIdsYaCargadas: {}, // { materia_id: true } — ya existen como materia estado:'aprobada' del usuario (reingreso al wizard); pre-tildadas y deshabilitadas, nunca se vuelven a crear
+      pendientesIdsElegidas: {}, // { materia_id: fila } — cursada pero no aprobada, falta rendir examen (se crea con estado:'pendiente')
+      pendientesIdsYaCargadas: {}, // { materia_id: true } — ídem aprobadasIdsYaCargadas, para materias estado:'pendiente' ya existentes
       electivas: [], // último resultado de cat_electivas (turno actual)
       electivaTurno: null,
       electivaIdsElegidos: {}, // { dictado_id: fila }
@@ -3566,15 +3571,22 @@
       }));
       WIZ.aprobadasPorSemestre = {};
       [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s, i) { WIZ.aprobadasPorSemestre[s] = resultados[i] || []; });
-      // Pre-marcar (y bloquear) lo que ya está cargado como aprobada del
-      // lado del usuario — nunca se vuelve a crear al reingresar al wizard
-      // (ver btn-rehacer-onboarding), ni se borra si se destilda acá.
-      var yaAprobadasPorCatalogoId = {};
-      loadMateriasRaw().forEach(function (m) { if (m.estado === 'aprobada' && m.catalogoMateriaId) yaAprobadasPorCatalogoId[m.catalogoMateriaId] = true; });
+      // Pre-marcar (y bloquear) lo que ya está cargado del lado del usuario
+      // — nunca se vuelve a crear al reingresar al wizard (ver
+      // btn-rehacer-onboarding), ni se borra si se destilda acá. Mismo
+      // criterio para 'aprobada' y 'pendiente' (debo rendir examen).
+      var yaAprobadasPorCatalogoId = {}, yaPendientesPorCatalogoId = {};
+      loadMateriasRaw().forEach(function (m) {
+        if (!m.catalogoMateriaId) return;
+        if (m.estado === 'aprobada') yaAprobadasPorCatalogoId[m.catalogoMateriaId] = true;
+        else if (m.estado === 'pendiente') yaPendientesPorCatalogoId[m.catalogoMateriaId] = true;
+      });
       WIZ.aprobadasIdsYaCargadas = yaAprobadasPorCatalogoId;
-      Object.keys(yaAprobadasPorCatalogoId).forEach(function (id) {
-        [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s) {
-          WIZ.aprobadasPorSemestre[s].forEach(function (m) { if (m.materia_id === id) WIZ.aprobadasIdsElegidas[id] = m; });
+      WIZ.pendientesIdsYaCargadas = yaPendientesPorCatalogoId;
+      [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s) {
+        WIZ.aprobadasPorSemestre[s].forEach(function (m) {
+          if (yaAprobadasPorCatalogoId[m.materia_id]) WIZ.aprobadasIdsElegidas[m.materia_id] = m;
+          else if (yaPendientesPorCatalogoId[m.materia_id]) WIZ.pendientesIdsElegidas[m.materia_id] = m;
         });
       });
       wizRenderProgresoAnterior();
@@ -3584,6 +3596,11 @@
     }
   }
 
+  // Cada materia tiene 3 estados posibles acá (mutuamente excluyentes): sin
+  // marcar, Aprobada, o Debo rendir examen (la cursó pero no llegó al
+  // mínimo — se crea como materia estado:'pendiente', no 'aprobada'; ver
+  // wizCrearMateriasAprobadas). Dos botones chicos en vez de un único
+  // check, para dejar los tres estados a un solo click de distancia.
   function wizRenderProgresoAnterior() {
     var wrap = document.getElementById('wiz-progreso-list');
     clear(wrap);
@@ -3596,21 +3613,36 @@
       titulo.textContent = 'Semestre ' + s;
       wrap.appendChild(titulo);
       materias.forEach(function (m) {
-        var yaCargada = !!WIZ.aprobadasIdsYaCargadas[m.materia_id];
-        var node = tpl('wiz-item-row');
-        node.classList.add('is-check');
-        node.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+        var yaAprobada = !!WIZ.aprobadasIdsYaCargadas[m.materia_id];
+        var yaPendiente = !!WIZ.pendientesIdsYaCargadas[m.materia_id];
+        var yaCargada = yaAprobada || yaPendiente;
+        var node = tpl('wiz-progreso-row');
         qf(node, 'titulo').textContent = m.nombre;
         qf(node, 'meta').textContent = (m.creditos ? m.creditos + ' créditos' : '') + (m.obligatoria === false ? ' · electiva de plan' : '');
+        var acciones = qf(node, 'acciones');
+        var btnAprobada = el('button', 'wiz-status-btn'); btnAprobada.type = 'button'; btnAprobada.textContent = 'Aprobada';
+        var btnPendiente = el('button', 'wiz-status-btn'); btnPendiente.type = 'button'; btnPendiente.textContent = 'Debo rendir examen';
+        function refrescar() {
+          btnAprobada.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+          btnPendiente.classList.toggle('is-on', !!WIZ.pendientesIdsElegidas[m.materia_id]);
+        }
         if (yaCargada) {
-          node.disabled = true;
-          var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = 'Ya cargada'; badge.setAttribute('style', badgeStyle('neutral'));
+          btnAprobada.disabled = true; btnPendiente.disabled = true;
+          var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = yaAprobada ? 'Ya cargada' : 'Ya cargada · pendiente'; badge.setAttribute('style', badgeStyle('neutral'));
         } else {
-          node.addEventListener('click', function () {
-            if (WIZ.aprobadasIdsElegidas[m.materia_id]) delete WIZ.aprobadasIdsElegidas[m.materia_id]; else WIZ.aprobadasIdsElegidas[m.materia_id] = m;
-            node.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+          btnAprobada.addEventListener('click', function () {
+            if (WIZ.aprobadasIdsElegidas[m.materia_id]) delete WIZ.aprobadasIdsElegidas[m.materia_id];
+            else { WIZ.aprobadasIdsElegidas[m.materia_id] = m; delete WIZ.pendientesIdsElegidas[m.materia_id]; }
+            refrescar();
+          });
+          btnPendiente.addEventListener('click', function () {
+            if (WIZ.pendientesIdsElegidas[m.materia_id]) delete WIZ.pendientesIdsElegidas[m.materia_id];
+            else { WIZ.pendientesIdsElegidas[m.materia_id] = m; delete WIZ.aprobadasIdsElegidas[m.materia_id]; }
+            refrescar();
           });
         }
+        refrescar();
+        acciones.appendChild(btnAprobada); acciones.appendChild(btnPendiente);
         wrap.appendChild(node);
       });
     });
@@ -3629,8 +3661,13 @@
   // app") — ver README, sección Semestres, sobre qué vistas se acotan por
   // semestre y cuáles no.
   async function wizCrearMateriasAprobadas() {
-    var idsNuevos = Object.keys(WIZ.aprobadasIdsElegidas).filter(function (id) { return !WIZ.aprobadasIdsYaCargadas[id]; });
+    var idsAprobadas = Object.keys(WIZ.aprobadasIdsElegidas).filter(function (id) { return !WIZ.aprobadasIdsYaCargadas[id]; });
+    var idsPendientes = Object.keys(WIZ.pendientesIdsElegidas).filter(function (id) { return !WIZ.pendientesIdsYaCargadas[id]; });
+    var idsNuevos = idsAprobadas.concat(idsPendientes);
     if (!idsNuevos.length) return;
+    var fuentePorId = {};
+    idsAprobadas.forEach(function (id) { fuentePorId[id] = WIZ.aprobadasIdsElegidas[id]; });
+    idsPendientes.forEach(function (id) { fuentePorId[id] = WIZ.pendientesIdsElegidas[id]; });
     var escPorMateria = {};
     await Promise.all(idsNuevos.map(async function (id) {
       try {
@@ -3646,12 +3683,14 @@
     }));
     var colorKeys = Object.keys(ACCENTS).filter(function (k) { return k !== 'gris'; });
     var colorIdx = 0;
+    var idsPendientesSet = {};
+    idsPendientes.forEach(function (id) { idsPendientesSet[id] = true; });
     var nuevas = idsNuevos.map(function (id) {
-      var m = WIZ.aprobadasIdsElegidas[id];
+      var m = fuentePorId[id];
       var esc = escPorMateria[id] && escPorMateria[id].total > 0 ? escPorMateria[id] : { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
       var colorId = colorKeys[colorIdx % colorKeys.length];
       colorIdx++;
-      return { id: uid(), semestreId: null, nombre: m.nombre, doc: '', colorId: colorId, salon: '', bloques: [], esc: esc, estado: 'aprobada', catalogoMateriaId: id, catalogoDictadoId: null, componentesFijos: [] };
+      return { id: uid(), semestreId: null, nombre: m.nombre, doc: '', colorId: colorId, salon: '', bloques: [], esc: esc, estado: idsPendientesSet[id] ? 'pendiente' : 'aprobada', catalogoMateriaId: id, catalogoDictadoId: null, componentesFijos: [] };
     });
     await saveMateriasRaw(loadMateriasRaw().concat(nuevas));
   }
@@ -3672,22 +3711,29 @@
     }
   }
 
-  // ---- Paso 4: oferta (camino rápido = grupo, camino manual = dictados
-  // sueltos, con fallback a materias sugeridas sin horario por semestre) ----
-  function wizActualizarCaminoToggle() {
-    var toggle = document.getElementById('wiz-camino-toggle');
-    // Con más de un semestre elegido sólo tiene sentido el camino manual
-    // (un grupo es la oferta armada de UN semestre) — se oculta el toggle
-    // en vez de dejar una opción que no sirve para nada.
-    toggle.classList.toggle('hidden', WIZ.semestresElegidos.length > 1);
-    toggle.querySelectorAll('[data-camino]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-camino') === WIZ.camino); });
+  // ---- Paso 4: oferta ----
+  // La decisión "grupo armado o materias sueltas" es POR SEMESTRE, no
+  // global (bug real: con 2+ semestres elegidos, el camino manual mezclaba
+  // en una sola lista los dictados de TODOS los grupos de cada semestre —
+  // el usuario no podía elegir un grupo y listo, tenía que revisar materia
+  // por materia igual que si no hubiera grupos armados). Cada semestre
+  // arranca en modo grupo si el catálogo tiene alguno cargado para ese
+  // semestre (cat_grupos), si no cae directo a materias sueltas — mismo
+  // fallback de siempre. wizCaminoDeSemestre() es la única fuente de verdad
+  // sobre qué modo mostrar; wizCaminoPorSemestreOverride guarda el cambio
+  // manual del usuario (el link "elegir materias sueltas"/"ver los grupos")
+  // dentro de la sección de ESE semestre.
+  function wizCaminoDeSemestre(s) {
+    var tieneGrupos = (WIZ.gruposPorSemestre[s] || []).length > 0;
+    if (!tieneGrupos) return 'manual';
+    return WIZ.caminoPorSemestre[s] === 'manual' ? 'manual' : 'rapido';
   }
 
   // cat_grupos().materias no siempre trae dictado_id/bloques por materia
   // (la forma exacta no se pudo confirmar contra la RPC real) — para no
   // depender de eso, apenas se elige un grupo se resuelve su detalle real
   // vía cat_dictados (misma RPC del camino manual) filtrando por g.codigo,
-  // que si tiene ese detalle garantizado. Así Paso 5 (preview + conflictos)
+  // que sí tiene ese detalle garantizado. Así Paso 5 (preview + conflictos)
   // nunca depende de un campo que puede no venir.
   async function wizResolverMateriasDeGrupo(g) {
     if (!g) return;
@@ -3700,54 +3746,230 @@
     }
   }
 
-  function wizRenderGrupos(content, grupos) {
+  // Materias de TODOS los grupos elegidos para el semestre `s`, ya
+  // deduplicadas por materia — si dos dictados (de grupos distintos, ej.
+  // matutino y nocturno) son la MISMA materia y ambos quedaron tildados,
+  // gana el último que se tildó (no tiene sentido cursar la misma materia
+  // dos veces) en vez de mandar las dos a aplicar_dictados.
+  function wizMateriasDeSemestreGrupo(s) {
+    var elegidos = WIZ.gruposElegidosPorSemestre[s] || {};
+    var excluidas = WIZ.grupoMateriasExcluidasPorSemestre[s] || {};
+    var porMateriaId = {}, orden = [];
+    Object.keys(elegidos).forEach(function (gid) {
+      var g = elegidos[gid];
+      if (!Array.isArray(g.materias)) return;
+      g.materias.forEach(function (m) {
+        if (excluidas[m.dictado_id]) return;
+        if (!porMateriaId[m.materia_id]) orden.push(m.materia_id);
+        porMateriaId[m.materia_id] = m; // el último tildado gana si hay más de uno
+      });
+    });
+    return orden.map(function (id) { return porMateriaId[id]; });
+  }
+
+  // Grupos elegidos para el semestre `s`: checkboxes (no radio) — se puede
+  // combinar más de un grupo del mismo semestre (ej. una materia del grupo
+  // matutino y otra del nocturno), justo lo que el camino "materias
+  // sueltas" resolvía pero obligando a soltar el horario ya armado de cada
+  // grupo. Debajo de cada grupo tildado, un checklist de sus materias para
+  // destildar la que no corresponda (bug real: antes un grupo era
+  // todo-o-nada, sin forma de sacar una sola materia del paquete, mucho
+  // más notorio en nocturno porque suele haber un solo grupo armado en vez
+  // de 2-3 alternativas como en matutino).
+  function wizRenderSemestreGrupo(content, s) {
+    var grupos = WIZ.gruposPorSemestre[s] || [];
+    var elegidos = WIZ.gruposElegidosPorSemestre[s] || (WIZ.gruposElegidosPorSemestre[s] = {});
+    var multiple = grupos.length > 1;
     grupos.forEach(function (g) {
       var node = tpl('wiz-item-row');
-      node.classList.add('is-radio');
-      node.classList.toggle('is-on', !!(WIZ.grupoElegido && WIZ.grupoElegido.id === g.id));
+      node.classList.add('is-check');
+      node.classList.toggle('is-on', !!elegidos[g.id]);
       qf(node, 'titulo').textContent = g.codigo;
       var nMaterias = Array.isArray(g.materias) ? g.materias.length : (g.materias || 0);
       qf(node, 'meta').textContent = [g.turno, g.edificio, nMaterias + (nMaterias === 1 ? ' materia' : ' materias')].filter(Boolean).join(' · ');
-      node.addEventListener('click', function () {
-        WIZ.grupoElegido = g;
-        content.querySelectorAll('.wiz-item-row').forEach(function (n) { n.classList.remove('is-on'); });
-        node.classList.add('is-on');
-        wizResolverMateriasDeGrupo(g);
+      node.addEventListener('click', async function () {
+        if (elegidos[g.id]) { delete elegidos[g.id]; await wizRenderOferta(); return; }
+        elegidos[g.id] = g;
+        await wizResolverMateriasDeGrupo(g);
+        // Si el grupo que se acaba de sumar trae una materia que YA está
+        // activa desde otro grupo de este semestre (ej. se suma el
+        // nocturno teniendo el matutino elegido y ambos dictan "Álgebra"),
+        // la del grupo nuevo arranca destildada — se conserva la que ya
+        // estaba, el usuario puede swapearla a mano desde el checklist.
+        if (Array.isArray(g.materias)) {
+          var yaActivasPorMateria = {};
+          Object.keys(elegidos).forEach(function (gid) {
+            if (gid === String(g.id)) return;
+            (elegidos[gid].materias || []).forEach(function (m) {
+              if (!(WIZ.grupoMateriasExcluidasPorSemestre[s] || {})[m.dictado_id]) yaActivasPorMateria[m.materia_id] = true;
+            });
+          });
+          var excluidas = WIZ.grupoMateriasExcluidasPorSemestre[s] || (WIZ.grupoMateriasExcluidasPorSemestre[s] = {});
+          g.materias.forEach(function (m) { if (yaActivasPorMateria[m.materia_id]) excluidas[m.dictado_id] = true; });
+        }
+        await wizRenderOferta();
       });
       content.appendChild(node);
     });
+    var hayMaterias = Object.keys(elegidos).some(function (gid) { return Array.isArray(elegidos[gid].materias); });
+    if (hayMaterias) {
+      var sub = el('span'); sub.style.cssText = 'font-size:12px;color:var(--c-ink3);margin:2px 0 -4px';
+      sub.textContent = 'Ya vienen con horario armado — destildá alguna si no la vas a cursar (ya la aprobaste, por ejemplo).';
+      content.appendChild(sub);
+      var excluidas = WIZ.grupoMateriasExcluidasPorSemestre[s] || (WIZ.grupoMateriasExcluidasPorSemestre[s] = {});
+      // materia_id -> dictado_id actualmente tildado, para autoexcluir el
+      // otro dictado de la MISMA materia si viene de un grupo distinto
+      // (ej. tildar "Organización y Gerencia" nocturna cuando la matutina
+      // ya estaba tildada) — no tiene sentido cursarla dos veces.
+      var dictadoActivoPorMateria = {};
+      Object.keys(elegidos).forEach(function (gid) {
+        (elegidos[gid].materias || []).forEach(function (m) {
+          if (!excluidas[m.dictado_id]) dictadoActivoPorMateria[m.materia_id] = m.dictado_id;
+        });
+      });
+      Object.keys(elegidos).forEach(function (gid) {
+        var g = elegidos[gid];
+        if (!Array.isArray(g.materias)) return;
+        g.materias.forEach(function (m) {
+          var node = tpl('wiz-item-row');
+          node.classList.add('is-check');
+          node.classList.toggle('is-on', !excluidas[m.dictado_id]);
+          qf(node, 'titulo').textContent = m.nombre;
+          var metaPartes = multiple ? [g.codigo, m.salon, formatHorario(m.bloques)] : [m.salon, formatHorario(m.bloques)];
+          qf(node, 'meta').textContent = metaPartes.filter(Boolean).join(' · ');
+          node.addEventListener('click', async function () {
+            if (excluidas[m.dictado_id]) {
+              delete excluidas[m.dictado_id];
+              // Tildar esta versión de la materia destilda automáticamente
+              // cualquier otra versión (de otro grupo) que estuviera activa.
+              var otroDictadoId = dictadoActivoPorMateria[m.materia_id];
+              if (otroDictadoId && otroDictadoId !== m.dictado_id) excluidas[otroDictadoId] = true;
+            } else {
+              excluidas[m.dictado_id] = true;
+            }
+            await wizRenderOferta();
+          });
+          content.appendChild(node);
+        });
+      });
+    }
+    var linkManual = el('button', 'add-link'); linkManual.type = 'button';
+    linkManual.textContent = 'Prefiero elegir materias sueltas para este semestre';
+    linkManual.addEventListener('click', async function () {
+      WIZ.caminoPorSemestre[s] = 'manual';
+      await wizRenderOferta();
+    });
+    content.appendChild(linkManual);
   }
 
-  // Feedback: con 2+ semestres elegidos el camino manual tiraba TODOS los
-  // dictados de TODOS los turnos juntos (p_turno: null) — a diferencia del
-  // camino rápido, que ya acota por turno al elegir un grupo. Se pide una
-  // sola vez toda la oferta (sin turno) y se cachea en WIZ.dictadosManualTodos
-  // para no repetir la RPC — el toggle de turno sólo re-filtra y re-pinta
-  // (wizRenderDictadosManual). El fallback a cat_materias_sugeridas (para
-  // semestres sin ningún dictado cargado) tampoco depende del turno, así que
-  // se resuelve una sola vez acá.
-  async function wizCargarDictadosManual(content) {
-    var dictados = await rpc('cat_dictados', { p_carrera_id: WIZ.carreraId, p_periodo: PERIODO_ACTUAL, p_semestres: WIZ.semestresElegidos, p_turno: null });
-    WIZ.dictadosManualTodos = dictados || [];
+  // Dictados sueltos (+ fallback a materias sugeridas sin horario) para el
+  // semestre `s` — misma lógica de siempre, sólo que ahora se invoca por
+  // semestre en vez de asumir que TODOS los semestres elegidos están en
+  // este modo. WIZ.dictadosManualTodos ya viene filtrado/cargado por
+  // wizAsegurarDictadosManual() antes de llamar acá.
+  function wizRenderSemestreManual(content, s) {
+    var deEsteSemestre = WIZ.dictadosManualTodos.filter(function (d) { return d.semestre_sugerido === s; });
+    WIZ.dictadosManualPorSemestre[s] = deEsteSemestre;
+    var turnosDeEsteSemestre = [];
+    deEsteSemestre.forEach(function (d) { if (d.turno && turnosDeEsteSemestre.indexOf(d.turno) < 0) turnosDeEsteSemestre.push(d.turno); });
+    // Toggle propio de ESTE semestre — nada de un único toggle global para
+    // todos los semestres elegidos (feedback: con turnos distintos entre
+    // semestres, un solo control para todos confundía). Sólo aparece si el
+    // semestre en cuestión realmente tiene más de un turno cargado.
+    if (turnosDeEsteSemestre.length > 1) {
+      var toggle = el('div', 'seg');
+      toggle.style.cssText = 'align-self:flex-start';
+      turnosDeEsteSemestre.slice().sort().forEach(function (t) {
+        var btn = el('button', 'seg-item' + (WIZ.dictadosManualTurnoPorSemestre[s] === t ? ' is-on' : ''));
+        btn.type = 'button';
+        btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+        btn.addEventListener('click', async function () {
+          WIZ.dictadosManualTurnoPorSemestre[s] = t;
+          await wizRenderOferta();
+        });
+        toggle.appendChild(btn);
+      });
+      content.appendChild(toggle);
+    }
+    var turno = WIZ.dictadosManualTurnoPorSemestre[s];
+    var filtrados = deEsteSemestre.filter(function (d) { return !turno || !d.turno || d.turno === turno; });
+    if (filtrados.length) {
+      filtrados.forEach(function (d) {
+        var node = tpl('wiz-item-row');
+        node.classList.add('is-check');
+        node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
+        qf(node, 'titulo').textContent = d.nombre;
+        qf(node, 'meta').textContent = [d.grupo, d.turno, d.salon, formatHorario(d.bloques)].filter(Boolean).join(' · ');
+        if (d.estado && d.estado !== 'abierto' && d.estado !== 'ofrecido') {
+          var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = d.estado; badge.setAttribute('style', badgeStyle('neutral'));
+        }
+        node.addEventListener('click', function () {
+          if (WIZ.dictadoIdsElegidos[d.dictado_id]) delete WIZ.dictadoIdsElegidos[d.dictado_id]; else WIZ.dictadoIdsElegidos[d.dictado_id] = d;
+          node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
+        });
+        content.appendChild(node);
+      });
+    } else if (deEsteSemestre.length) {
+      // Este semestre sí tiene dictados cargados, pero ninguno en el turno
+      // elegido — distinto del caso "sin horario en el catálogo" de abajo.
+      var aviso2 = el('span'); aviso2.style.cssText = 'font-size:12px;color:var(--c-ink3);font-style:italic';
+      aviso2.textContent = 'Este semestre no tiene dictados en el turno elegido — probá el otro turno, arriba.';
+      content.appendChild(aviso2);
+    } else {
+      var nota = el('span'); nota.style.cssText = 'font-size:12px;color:var(--c-ink3);font-style:italic';
+      nota.textContent = 'Sin horario cargado en el catálogo todavía — elegí las materias y completá el horario vos después.';
+      content.appendChild(nota);
+      (WIZ.materiasSugeridasPorSemestre[s] || []).forEach(function (m) {
+        var node = tpl('wiz-item-row');
+        node.classList.add('is-check');
+        node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
+        qf(node, 'titulo').textContent = m.nombre;
+        qf(node, 'meta').textContent = (m.creditos ? m.creditos + ' créditos' : '') + (m.obligatoria === false ? ' · electiva de plan' : '');
+        node.addEventListener('click', function () {
+          if (WIZ.materiaIdsSinHorario[m.materia_id]) delete WIZ.materiaIdsSinHorario[m.materia_id]; else WIZ.materiaIdsSinHorario[m.materia_id] = m;
+          node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
+        });
+        content.appendChild(node);
+      });
+    }
+    if ((WIZ.gruposPorSemestre[s] || []).length) {
+      var linkGrupo = el('button', 'add-link'); linkGrupo.type = 'button';
+      linkGrupo.textContent = 'Ver los grupos armados para este semestre';
+      linkGrupo.addEventListener('click', async function () {
+        WIZ.caminoPorSemestre[s] = 'rapido';
+        await wizRenderOferta();
+      });
+      content.appendChild(linkGrupo);
+    }
+  }
+
+  // Pide cat_dictados (sin turno, para no repetirla al tocar un toggle) y
+  // el fallback cat_materias_sugeridas SÓLO para los semestres que están en
+  // modo manual y todavía no se cargaron — cachea en
+  // WIZ.dictadosManualCargadoPorSemestre para no repetir la RPC si el
+  // usuario alterna entre grupo/manual varias veces para el mismo semestre.
+  async function wizAsegurarDictadosManual(semestres) {
+    var faltantes = semestres.filter(function (s) { return !WIZ.dictadosManualCargadoPorSemestre[s]; });
+    if (!faltantes.length) return;
+    var dictados = await rpc('cat_dictados', { p_carrera_id: WIZ.carreraId, p_periodo: PERIODO_ACTUAL, p_semestres: faltantes, p_turno: null });
+    WIZ.dictadosManualTodos = WIZ.dictadosManualTodos.concat(dictados || []);
+    faltantes.forEach(function (s) { WIZ.dictadosManualCargadoPorSemestre[s] = true; });
 
     var porSemestreSinFiltrar = {};
     WIZ.dictadosManualTodos.forEach(function (d) { (porSemestreSinFiltrar[d.semestre_sugerido] = porSemestreSinFiltrar[d.semestre_sugerido] || []).push(d); });
-    // Semestres sin ningún dictado en la respuesta (hoy, sólo el semestre 4
-    // tiene grupos y dictados cargados, ver enunciado) caen a
+    // Semestres sin ningún dictado en la respuesta caen a
     // cat_materias_sugeridas — nunca una pantalla vacía sin salida.
-    var pendientes = WIZ.semestresElegidos.filter(function (s) { return !(porSemestreSinFiltrar[s] && porSemestreSinFiltrar[s].length); });
+    var pendientes = faltantes.filter(function (s) { return !(porSemestreSinFiltrar[s] && porSemestreSinFiltrar[s].length); });
     var resultados = await Promise.all(pendientes.map(function (s) {
       return rpc('cat_materias_sugeridas', { p_carrera_id: WIZ.carreraId, p_semestre: s, p_periodo: PERIODO_ACTUAL });
     }));
     pendientes.forEach(function (s, i) { WIZ.materiasSugeridasPorSemestre[s] = resultados[i] || []; });
 
-    // Default de turno POR SEMESTRE: el más común entre los dictados de
-    // ESE semestre en particular (antes era uno global calculado sobre
-    // todos los semestres juntos, mismo problema que el toggle único de
-    // abajo — un semestre mayoritariamente nocturno podía arrancar
-    // filtrado en matutino sólo porque el OTRO semestre elegido tenía más
-    // dictados matutinos).
-    WIZ.semestresElegidos.forEach(function (s) {
+    // Default de turno POR SEMESTRE: el más común entre los dictados de ESE
+    // semestre en particular (un semestre mayoritariamente nocturno no
+    // debería arrancar filtrado en matutino sólo porque otro semestre
+    // elegido tenía más dictados matutinos).
+    faltantes.forEach(function (s) {
       var deEsteSemestre = porSemestreSinFiltrar[s] || [];
       var turnosDeEsteSemestre = [];
       deEsteSemestre.forEach(function (d) { if (d.turno && turnosDeEsteSemestre.indexOf(d.turno) < 0) turnosDeEsteSemestre.push(d.turno); });
@@ -3760,144 +3982,66 @@
         WIZ.dictadosManualTurnoPorSemestre[s] = mejor;
       }
     });
-    wizRenderDictadosManual(content);
   }
 
-  function wizRenderDictadosManual(content) {
-    var porSemestreSinFiltrar = {};
-    WIZ.dictadosManualTodos.forEach(function (d) { (porSemestreSinFiltrar[d.semestre_sugerido] = porSemestreSinFiltrar[d.semestre_sugerido] || []).push(d); });
-    var porSemestre = {};
-    WIZ.dictadosManualTodos.forEach(function (d) {
-      var turno = WIZ.dictadosManualTurnoPorSemestre[d.semestre_sugerido];
-      if (turno && d.turno && d.turno !== turno) return;
-      (porSemestre[d.semestre_sugerido] = porSemestre[d.semestre_sugerido] || []).push(d);
-    });
-    WIZ.dictadosManualPorSemestre = porSemestre;
-
-    clear(content);
-    WIZ.semestresElegidos.slice().sort(function (a, b) { return a - b; }).forEach(function (s) {
-      var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
-      titulo.textContent = 'Semestre ' + s;
-      content.appendChild(titulo);
-      // Toggle propio de ESTE semestre — nada de un único toggle global
-      // para todos los semestres elegidos (feedback: con turnos distintos
-      // entre semestres, un solo control para todos confundía). Sólo
-      // aparece si el semestre en cuestión realmente tiene más de un
-      // turno cargado en el catálogo.
-      var turnosDeEsteSemestre = [];
-      (porSemestreSinFiltrar[s] || []).forEach(function (d) { if (d.turno && turnosDeEsteSemestre.indexOf(d.turno) < 0) turnosDeEsteSemestre.push(d.turno); });
-      if (turnosDeEsteSemestre.length > 1) {
-        var toggle = el('div', 'seg');
-        toggle.style.cssText = 'align-self:flex-start';
-        turnosDeEsteSemestre.slice().sort().forEach(function (t) {
-          var btn = el('button', 'seg-item' + (WIZ.dictadosManualTurnoPorSemestre[s] === t ? ' is-on' : ''));
-          btn.type = 'button';
-          btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
-          btn.addEventListener('click', function () {
-            WIZ.dictadosManualTurnoPorSemestre[s] = t;
-            wizRenderDictadosManual(content);
-          });
-          toggle.appendChild(btn);
-        });
-        content.appendChild(toggle);
-      }
-      if (porSemestre[s] && porSemestre[s].length) {
-        porSemestre[s].forEach(function (d) {
-          var node = tpl('wiz-item-row');
-          node.classList.add('is-check');
-          node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
-          qf(node, 'titulo').textContent = d.nombre;
-          qf(node, 'meta').textContent = [d.grupo, d.turno, d.salon, formatHorario(d.bloques)].filter(Boolean).join(' · ');
-          if (d.estado && d.estado !== 'abierto') {
-            var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = d.estado; badge.setAttribute('style', badgeStyle('neutral'));
-          }
-          node.addEventListener('click', function () {
-            if (WIZ.dictadoIdsElegidos[d.dictado_id]) delete WIZ.dictadoIdsElegidos[d.dictado_id]; else WIZ.dictadoIdsElegidos[d.dictado_id] = d;
-            node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
-          });
-          content.appendChild(node);
-        });
-      } else if (porSemestreSinFiltrar[s] && porSemestreSinFiltrar[s].length) {
-        // Este semestre sí tiene dictados cargados, pero ninguno en el turno
-        // elegido — distinto del caso "sin horario en el catálogo" de abajo.
-        var aviso2 = el('span'); aviso2.style.cssText = 'font-size:12px;color:var(--c-ink3);font-style:italic';
-        aviso2.textContent = 'Este semestre no tiene dictados en el turno elegido — probá el otro turno, arriba.';
-        content.appendChild(aviso2);
-      } else {
-        var nota = el('span'); nota.style.cssText = 'font-size:12px;color:var(--c-ink3);font-style:italic';
-        nota.textContent = 'Sin horario cargado en el catálogo todavía — elegí las materias y completá el horario vos después.';
-        content.appendChild(nota);
-        (WIZ.materiasSugeridasPorSemestre[s] || []).forEach(function (m) {
-          var node = tpl('wiz-item-row');
-          node.classList.add('is-check');
-          node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
-          qf(node, 'titulo').textContent = m.nombre;
-          qf(node, 'meta').textContent = (m.creditos ? m.creditos + ' créditos' : '') + (m.obligatoria === false ? ' · electiva de plan' : '');
-          node.addEventListener('click', function () {
-            if (WIZ.materiaIdsSinHorario[m.materia_id]) delete WIZ.materiaIdsSinHorario[m.materia_id]; else WIZ.materiaIdsSinHorario[m.materia_id] = m;
-            node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
-          });
-          content.appendChild(node);
-        });
-      }
-    });
-  }
-
-  async function wizCargarOfertaSegunCamino() {
-    var sub = document.getElementById('wiz-oferta-sub');
+  // Render maestro del Paso 4: una sección por semestre elegido, cada una
+  // en modo grupo o manual según wizCaminoDeSemestre() — nunca una lista
+  // única mezclando todos los semestres/grupos juntos.
+  async function wizRenderOferta() {
     var content = document.getElementById('wiz-oferta-content');
     clear(content);
     var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Buscando tu oferta…';
     content.appendChild(loading);
     try {
-      if (WIZ.camino === 'rapido') {
-        var semestre = WIZ.semestresElegidos[0];
-        var grupos = await rpc('cat_grupos', { p_carrera_id: WIZ.carreraId, p_periodo: PERIODO_ACTUAL, p_semestre: semestre });
-        clear(content);
-        if (grupos && grupos.length) {
-          sub.textContent = 'Elegí el grupo que estás cursando.';
-          wizRenderGrupos(content, grupos);
-        } else {
-          // No dejar sólo un texto que menciona un botón que vive arriba,
-          // fuera de la vista si el usuario no lo notó — un botón acá mismo
-          // hace el cambio de camino por él, en vez de pedirle que vuelva a
-          // tocar el toggle de más arriba.
-          sub.textContent = 'Todavía no hay grupos armados para este semestre.';
-          var avisoWrap = el('div'); avisoWrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;align-items:flex-start';
-          var aviso = el('span'); aviso.style.cssText = 'font-size:13px;color:var(--c-ink3)';
-          aviso.textContent = 'Podés elegir materia por materia en vez de un grupo armado.';
-          var btnManual = el('button', 'btn btn-sm'); btnManual.type = 'button'; btnManual.textContent = 'Elegir materias sueltas';
-          btnManual.addEventListener('click', async function () {
-            WIZ.camino = 'manual';
-            wizActualizarCaminoToggle();
-            await wizCargarOfertaSegunCamino();
-          });
-          avisoWrap.appendChild(aviso); avisoWrap.appendChild(btnManual);
-          content.appendChild(avisoWrap);
+      var semestresManual = WIZ.semestresElegidos.filter(function (s) { return wizCaminoDeSemestre(s) === 'manual'; });
+      if (semestresManual.length) await wizAsegurarDictadosManual(semestresManual);
+      clear(content);
+      var multiple = WIZ.semestresElegidos.length > 1;
+      WIZ.semestresElegidos.slice().sort(function (a, b) { return a - b; }).forEach(function (s) {
+        if (multiple) {
+          var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
+          titulo.textContent = 'Semestre ' + s;
+          content.appendChild(titulo);
         }
-        return;
-      }
-      sub.textContent = 'Tildá los dictados que estás cursando, semestre por semestre.';
-      await wizCargarDictadosManual(content);
+        if (wizCaminoDeSemestre(s) === 'rapido') wizRenderSemestreGrupo(content, s);
+        else wizRenderSemestreManual(content, s);
+      });
     } catch (e) {
       clear(content);
       wizMostrarError(e.message || 'No se pudo cargar la oferta de materias.');
     }
   }
 
+  // Entrada del Paso 4: resuelve qué semestres tienen grupos armados
+  // (cat_grupos, una llamada por semestre — la RPC real sólo acepta un
+  // semestre a la vez) antes del primer render.
   async function wizCargarOferta() {
-    WIZ.camino = WIZ.semestresElegidos.length > 1 ? 'manual' : 'rapido';
-    wizActualizarCaminoToggle();
-    await wizCargarOfertaSegunCamino();
+    var sub = document.getElementById('wiz-oferta-sub');
+    sub.textContent = WIZ.semestresElegidos.length > 1
+      ? 'Elegí un grupo armado o materias sueltas, semestre por semestre.'
+      : 'Elegí el grupo que estás cursando, o materias sueltas.';
+    var faltantes = WIZ.semestresElegidos.filter(function (s) { return !(s in WIZ.gruposPorSemestre); });
+    if (faltantes.length) {
+      var resultados = await Promise.all(faltantes.map(function (s) {
+        return rpc('cat_grupos', { p_carrera_id: WIZ.carreraId, p_periodo: PERIODO_ACTUAL, p_semestre: s });
+      }));
+      faltantes.forEach(function (s, i) { WIZ.gruposPorSemestre[s] = resultados[i] || []; });
+    }
+    await wizRenderOferta();
   }
 
   // ---- Paso 5: electivas ----
-  // Turno por defecto: el del grupo elegido (camino rápido) o el más común
-  // entre los dictados manuales elegidos — el usuario puede cambiarlo (el
-  // enunciado pide poder ver el otro turno si quiere).
+  // Turno por defecto: el más común entre los grupos elegidos (puede haber
+  // más de uno por semestre) y los dictados manuales elegidos — el usuario
+  // puede cambiarlo (el enunciado pide poder ver el otro turno si quiere).
   function wizTurnoPredeterminado() {
-    if (WIZ.camino === 'rapido' && WIZ.grupoElegido) return WIZ.grupoElegido.turno || 'matutino';
     var conteo = {};
+    Object.keys(WIZ.gruposElegidosPorSemestre).forEach(function (s) {
+      Object.keys(WIZ.gruposElegidosPorSemestre[s]).forEach(function (gid) {
+        var g = WIZ.gruposElegidosPorSemestre[s][gid];
+        if (g && g.turno) conteo[g.turno] = (conteo[g.turno] || 0) + 1;
+      });
+    });
     Object.keys(WIZ.dictadoIdsElegidos).forEach(function (id) {
       var t = WIZ.dictadoIdsElegidos[id].turno;
       if (t) conteo[t] = (conteo[t] || 0) + 1;
@@ -3977,20 +4121,30 @@
   // Un color de la paleta de materia por ítem, sólo para que la previsualización
   // se vea coherente — no es una elección real, se resuelve de nuevo (a
   // gusto del usuario) cuando edite la materia después de creada.
+  // Materias de los grupos elegidos de TODOS los semestres (puede haber más
+  // de un grupo por semestre — ver wizMateriasDeSemestreGrupo para el
+  // dedupe por materia dentro de un mismo semestre) — helper compartido
+  // por preview y chequeo de conflictos.
+  function wizMateriasDeGruposElegidos() {
+    var out = [];
+    Object.keys(WIZ.gruposElegidosPorSemestre).forEach(function (s) {
+      out = out.concat(wizMateriasDeSemestreGrupo(s));
+    });
+    return out;
+  }
+
   function wizItemsPreview() {
     var items = [];
     var colorKeys = Object.keys(ACCENTS), colorIdx = 0;
     function colorFor() { var acc = ACCENTS[colorKeys[colorIdx % colorKeys.length]]; colorIdx++; return acc; }
-    // grupoElegido.materias ya fue resuelto contra cat_dictados en
+    // grupo.materias ya fue resuelto contra cat_dictados en
     // wizResolverMateriasDeGrupo() antes de llegar acá, así que siempre
     // trae dictado_id/bloques reales (Array.isArray queda como defensa
     // extra, no como expectativa de que falte).
-    if (WIZ.camino === 'rapido' && WIZ.grupoElegido && Array.isArray(WIZ.grupoElegido.materias)) {
-      WIZ.grupoElegido.materias.forEach(function (m) {
-        var acc = colorFor();
-        items.push({ id: m.dictado_id || m.materia_id || uid(), nombre: m.nombre, salon: m.salon, bloques: m.bloques || [], strong: acc.strong, soft: acc.soft });
-      });
-    }
+    wizMateriasDeGruposElegidos().forEach(function (m) {
+      var acc = colorFor();
+      items.push({ id: m.dictado_id || m.materia_id || uid(), nombre: m.nombre, salon: m.salon, bloques: m.bloques || [], strong: acc.strong, soft: acc.soft });
+    });
     Object.keys(WIZ.dictadoIdsElegidos).forEach(function (id) {
       var d = WIZ.dictadoIdsElegidos[id], acc = colorFor();
       items.push({ id: id, nombre: d.nombre, salon: d.salon, bloques: d.bloques || [], strong: acc.strong, soft: acc.soft });
@@ -4003,10 +4157,7 @@
   }
 
   function wizDictadoIdsParaConflictos() {
-    var ids = [];
-    if (WIZ.camino === 'rapido' && WIZ.grupoElegido && Array.isArray(WIZ.grupoElegido.materias)) {
-      WIZ.grupoElegido.materias.forEach(function (m) { if (m.dictado_id) ids.push(m.dictado_id); });
-    }
+    var ids = wizMateriasDeGruposElegidos().map(function (m) { return m.dictado_id; }).filter(Boolean);
     return ids.concat(Object.keys(WIZ.dictadoIdsElegidos), Object.keys(WIZ.electivaIdsElegidos));
   }
 
@@ -4017,9 +4168,13 @@
     conflictosWrap.classList.add('hidden');
     clear(conflictosWrap);
     resumen.textContent = 'Revisando conflictos de horario…';
-    if (WIZ.camino === 'rapido' && WIZ.grupoElegido) {
-      await wizResolverMateriasDeGrupo(WIZ.grupoElegido);
-    }
+    var resolversPendientes = [];
+    Object.keys(WIZ.gruposElegidosPorSemestre).forEach(function (s) {
+      Object.keys(WIZ.gruposElegidosPorSemestre[s]).forEach(function (gid) {
+        resolversPendientes.push(wizResolverMateriasDeGrupo(WIZ.gruposElegidosPorSemestre[s][gid]));
+      });
+    });
+    await Promise.all(resolversPendientes);
     var ids = wizDictadoIdsParaConflictos();
     try {
       WIZ.conflictos = ids.length ? ((await rpc('cat_conflictos', { p_dictado_ids: ids })) || []) : [];
@@ -4140,10 +4295,13 @@
     var btn = document.getElementById('btn-wiz-continuar');
     setBtnBusy(btn, true, 'Armando tu semestre…');
     try {
-      if (WIZ.camino === 'rapido' && WIZ.grupoElegido) {
-        await rpc('aplicar_grupo', { p_semestre_id: WIZ.semestreId, p_grupo_id: WIZ.grupoElegido.id });
-      }
-      var dictadoIds = Object.keys(WIZ.dictadoIdsElegidos).concat(Object.keys(WIZ.electivaIdsElegidos));
+      // aplicar_grupo() del lado del servidor no es más que resolver los
+      // dictado_id del grupo y llamar aplicar_dictados con todos — al poder
+      // destildar materias sueltas de un grupo (wizRenderSemestreGrupo) se
+      // llama directo a aplicar_dictados con la lista ya filtrada, en vez
+      // de la RPC de grupo completo.
+      var dictadoIdsDeGrupos = wizMateriasDeGruposElegidos().map(function (m) { return m.dictado_id; }).filter(Boolean);
+      var dictadoIds = dictadoIdsDeGrupos.concat(Object.keys(WIZ.dictadoIdsElegidos), Object.keys(WIZ.electivaIdsElegidos));
       if (dictadoIds.length) {
         await rpc('aplicar_dictados', { p_semestre_id: WIZ.semestreId, p_dictado_ids: dictadoIds });
       }
@@ -4221,13 +4379,6 @@
     document.getElementById('btn-wiz-manual').addEventListener('click', wizSalirAManual);
     document.getElementById('btn-wiz-atras').addEventListener('click', wizAtras);
     document.getElementById('btn-wiz-continuar').addEventListener('click', wizContinuar);
-    document.querySelectorAll('#wiz-camino-toggle [data-camino]').forEach(function (b) {
-      b.addEventListener('click', async function () {
-        WIZ.camino = b.getAttribute('data-camino');
-        wizActualizarCaminoToggle();
-        await wizCargarOfertaSegunCamino();
-      });
-    });
     document.querySelectorAll('#wiz-electivas-turno-toggle [data-turno]').forEach(function (b) {
       b.addEventListener('click', async function () {
         WIZ.electivaTurno = b.getAttribute('data-turno');
@@ -5468,26 +5619,39 @@
     renderAjustesTagNuevaForm();
   }
 
-  // Carga rápida de nota para materias "Aprobada" sin ninguna evaluación
-  // todavía (típicamente las que vienen del paso "progreso" del wizard) —
-  // guarda una única evaluación tipo Final por materia (mismo camino,
-  // saveAgendaRaw, que usa el modal real de evaluación) para que el ring,
-  // el promedio y Progreso la tomen sin ningún caso especial. Ver decisión
-  // en README: la nota vive en la evaluación, nunca en la materia.
+  // Fila de Ajustes: sólo asoma el botón "Cargar notas pendientes" cuando
+  // hay algo que cargar — la lista en sí vive en su propio modal (ver
+  // renderProgresoPendientesModal), no acá, para no ocupar espacio del
+  // modal de Ajustes con algo que la mayoría de las sesiones no necesita.
   function renderAjustesAprobadas() {
     var group = document.getElementById('ajustes-aprobadas-group');
-    var wrap = document.getElementById('ajustes-aprobadas-list');
+    group.classList.toggle('hidden', !materiasAprobadasSinNota().length);
+  }
+
+  // Carga rápida de nota para materias "Aprobada"/"Pendiente" sin ninguna
+  // evaluación todavía (típicamente las que vienen del paso "progreso" del
+  // wizard) — guarda una única evaluación tipo Final por materia (mismo
+  // camino, saveAgendaRaw, que usa el modal real de evaluación) para que el
+  // ring, el promedio y Progreso la tomen sin ningún caso especial. Ver
+  // decisión en README: la nota vive en la evaluación, nunca en la materia.
+  function renderProgresoPendientesModal() {
+    var wrap = document.getElementById('progreso-pendientes-list');
     clear(wrap);
     var materias = materiasAprobadasSinNota();
-    group.classList.toggle('hidden', !materias.length);
-    if (!materias.length) return;
+    if (!materias.length) {
+      var empty = el('span'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3)';
+      empty.textContent = 'No tenés notas pendientes de cargar.';
+      wrap.appendChild(empty);
+      return;
+    }
     materias.forEach(function (m) {
-      var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:10px';
-      var dot = el('span'); dot.style.cssText = 'width:10px;height:10px;border-radius:50%;flex:none;background:' + m.strong;
-      var nombre = el('span'); nombre.style.cssText = 'flex:1;font-size:13px'; nombre.textContent = m.nombre;
-      var input = el('input'); input.type = 'number'; input.step = m.esc.tipo === 'nota' ? '0.1' : '1'; input.min = '0'; input.max = String(m.esc.total);
-      input.placeholder = 'Nota /' + val(m.esc.total, m.esc); input.style.cssText = 'width:84px';
-      var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Guardar';
+      var node = tpl('progreso-pendiente-row');
+      qf(node, 'dot').style.background = m.strong;
+      qf(node, 'nombre').textContent = m.nombre;
+      var label = qf(node, 'notaLabel'); label.textContent = 'Nota /' + val(m.esc.total, m.esc); label.setAttribute('for', 'progreso-pendiente-nota-' + m.id);
+      var input = qf(node, 'notaInput'); input.id = 'progreso-pendiente-nota-' + m.id;
+      input.step = m.esc.tipo === 'nota' ? '0.1' : '1'; input.min = '0'; input.max = String(m.esc.total);
+      var btn = qf(node, 'guardarBtn');
       btn.addEventListener('click', async function () {
         var v = input.value.trim();
         var n = Number(v);
@@ -5498,14 +5662,14 @@
         setBtnBusy(btn, false);
         if (ok) {
           showToast('Nota cargada.');
+          renderProgresoPendientesModal();
           renderAjustesAprobadas();
           renderProgreso();
         } else {
           avisarError();
         }
       });
-      row.appendChild(dot); row.appendChild(nombre); row.appendChild(input); row.appendChild(btn);
-      wrap.appendChild(row);
+      wrap.appendChild(node);
     });
   }
   function renderAjustesTagNuevaForm() {
@@ -5723,6 +5887,10 @@
       STATE.editing.ajustesTagNuevoAbierto = true;
       renderAjustesTagNuevaForm();
       document.getElementById('ajustes-tag-nueva-nombre').focus();
+    });
+    document.getElementById('btn-ajustes-progreso-abrir').addEventListener('click', function () {
+      renderProgresoPendientesModal();
+      openModal('modal-progreso-pendientes');
     });
     document.getElementById('ajustes-tag-nueva-crear').addEventListener('click', async function () {
       var nombreInput = document.getElementById('ajustes-tag-nueva-nombre');

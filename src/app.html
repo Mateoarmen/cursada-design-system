@@ -625,10 +625,6 @@
       <div class="wiz-panel hidden" id="wiz-panel-oferta">
         <h2 class="wiz-title">Elegí tu oferta</h2>
         <span class="wiz-sub" id="wiz-oferta-sub"></span>
-        <div class="seg hidden" id="wiz-camino-toggle">
-          <button type="button" class="seg-item" data-camino="rapido">Camino rápido</button>
-          <button type="button" class="seg-item" data-camino="manual">Materias sueltas</button>
-        </div>
         <div id="wiz-oferta-content" class="wiz-cards-list"></div>
       </div>
       <div class="wiz-panel hidden" id="wiz-panel-electivas">
@@ -1006,11 +1002,11 @@
         </div>
         <div class="ajustes-row hidden" id="ajustes-aprobadas-group">
           <div class="ajustes-row-label">
-            <span class="lbl">Materias aprobadas</span>
-            <span class="hint">Materias marcadas como aprobadas que todavía no tienen una nota cargada — anotala acá, o desde el detalle de la materia si preferís cargar la evaluación completa.</span>
+            <span class="lbl">Progreso</span>
+            <span class="hint">Tenés materias marcadas como aprobadas sin ninguna nota cargada — hace que no cuenten en tu promedio.</span>
           </div>
           <div class="ajustes-row-content">
-            <div id="ajustes-aprobadas-list" style="display:flex;flex-direction:column;gap:8px"></div>
+            <button type="button" class="btn btn-sm" id="btn-ajustes-progreso-abrir" style="align-self:flex-start">Cargar notas pendientes</button>
           </div>
         </div>
         <div class="ajustes-row">
@@ -1034,6 +1030,26 @@
         <button type="submit" class="btn btn-primary" id="btn-ajustes-guardar">Guardar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ============ MODAL PROGRESO · NOTAS PENDIENTES ============ -->
+<!-- Se abre desde el botón "Cargar notas pendientes" de Ajustes en vez de
+     vivir siempre desplegado ahí (ver renderAjustesAprobadas/
+     abrirProgresoPendientesModal en runtime.js) — la lista puede crecer
+     bastante recién salido del wizard de catálogo (varias materias
+     "debo rendir examen" de golpe) y no tiene sentido que ocupe ese
+     espacio en el modal de Ajustes todo el tiempo. -->
+<div class="modal-backdrop is-sheet" id="modal-progreso-pendientes">
+  <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
+    <div class="modal-head">
+      <div class="titles"><h2 class="t">Notas pendientes</h2><span class="s">Materias aprobadas sin nota cargada — no cuentan en tu promedio hasta que la anotes.</span></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="progreso-pendientes-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
   </div>
 </div>
 
@@ -1249,6 +1265,18 @@
   <button type="button" class="tipo-item"><span data-f="label"></span></button>
 </template>
 
+<template data-template="progreso-pendiente-row">
+  <div class="progreso-row">
+    <span class="progreso-row-dot" data-f="dot"></span>
+    <span class="progreso-row-nombre" data-f="nombre"></span>
+    <div class="field progreso-row-field">
+      <label data-f="notaLabel"></label>
+      <input type="number" data-f="notaInput">
+    </div>
+    <button type="button" class="btn btn-sm" data-f="guardarBtn">Guardar</button>
+  </div>
+</template>
+
 <!-- Templates del wizard de onboarding (catálogo) -->
 <template data-template="wiz-carrera-card">
   <button type="button" class="wiz-carrera-card" data-f="row">
@@ -1271,6 +1299,21 @@
     </div>
     <span class="badge hidden" data-f="badge"></span>
   </button>
+</template>
+
+<!-- Fila del paso "progreso": a diferencia de wiz-item-row (un <button> que
+     es TODO el hit-target), acá hay dos botones independientes (Aprobada /
+     Debo rendir examen) — el root tiene que ser un <div>, un <button> no
+     puede contener otros <button>. -->
+<template data-template="wiz-progreso-row">
+  <div class="wiz-item-row wiz-status-row" data-f="row">
+    <div class="wiz-item-body">
+      <span class="wiz-item-titulo" data-f="titulo"></span>
+      <span class="wiz-item-meta mono" data-f="meta"></span>
+    </div>
+    <span class="badge hidden" data-f="badge"></span>
+    <div class="wiz-status-acciones" data-f="acciones"></div>
+  </div>
 </template>
 
 <template data-template="wiz-conflicto-row">
