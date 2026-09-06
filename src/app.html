@@ -539,6 +539,7 @@
           <div class="card panel" id="progreso-creditos-panel">
             <div class="panel-head"><h2 class="panel-title">Progreso hacia el título</h2></div>
             <div id="progreso-materias"></div>
+            <span class="hidden" id="progreso-aviso-notas" style="font-size:11px;color:var(--c-ink3);margin-top:8px;display:block"></span>
           </div>
         </div>
       </div>
@@ -611,6 +612,11 @@
         <span class="wiz-sub">Con tu carrera precargamos materias, horarios y fechas reales de este semestre.</span>
         <div id="wiz-carreras-list" class="wiz-cards-list"></div>
       </div>
+      <div class="wiz-panel hidden" id="wiz-panel-progreso">
+        <h2 class="wiz-title">¿Ya aprobaste materias de esta carrera?</h2>
+        <span class="wiz-sub">Opcional — tildá las que ya diste, así tu progreso hacia el título arranca correcto.</span>
+        <div id="wiz-progreso-list" class="wiz-cards-list"></div>
+      </div>
       <div class="wiz-panel hidden" id="wiz-panel-semestre">
         <h2 class="wiz-title">¿En qué semestre de la carrera estás?</h2>
         <span class="wiz-sub">Podés marcar más de uno si arrastrás alguna materia de un semestre anterior.</span>
@@ -652,63 +658,75 @@
 </div>
 
 <!-- ============ MODAL MATERIA ============ -->
+<!-- Alta nueva: wizard de 3 pasos (esencial / horario / calificación), un
+     paso = una decisión a la vez. Edición: los 3 pasos se muestran juntos,
+     sin steps-track ni Atrás — ver openMateriaModal()/materiaAplicarPaso()
+     en runtime.js. -->
 <div class="modal-backdrop" id="modal-materia">
   <div class="modal">
     <div class="modal-head">
-      <div class="titles"><h2 class="t" id="modal-materia-title">Nueva materia</h2><span class="s">Los datos de horario alimentan el calendario y la grilla semanal.</span></div>
+      <div class="titles"><h2 class="t" id="modal-materia-title">Nueva materia</h2><span class="s" id="modal-materia-sub">Contános qué materia es y elegí un color para identificarla.</span></div>
+      <div class="wiz-steps-track hidden" id="materia-steps-track"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <form id="form-materia">
       <div class="modal-body">
-        <div class="field-row">
-          <div class="field"><label for="materia-nombre">Nombre de la materia</label><input id="materia-nombre" name="nombre" required placeholder="Ej: Contabilidad II"></div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label for="materia-doc">Docente</label><input id="materia-doc" name="doc" placeholder="Prof. …"></div>
-        </div>
-        <div class="field">
-          <label id="materia-color-label">Color de la materia</label>
-          <div class="swatches" id="modal-materia-swatches" role="group" aria-labelledby="materia-color-label"></div>
-        </div>
-        <div class="field-row">
-          <div class="field" style="flex:1.4"><label for="materia-salon">Salón / aula</label><input id="materia-salon" name="salon" placeholder="Ej: Edificio Central · Aula 402"></div>
+        <div class="mat-step" data-mat-step="0">
+          <div class="field-row">
+            <div class="field"><label for="materia-nombre">Nombre de la materia</label><input id="materia-nombre" name="nombre" required placeholder="Ej: Contabilidad II"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="materia-doc">Docente</label><input id="materia-doc" name="doc" placeholder="Prof. …"></div>
+          </div>
           <div class="field">
-            <label for="materia-estado">Estado</label>
-            <select id="materia-estado" name="estado">
-              <option value="cursando">Cursando</option>
-              <option value="aprobada">Aprobada</option>
-              <option value="recursando">Recursando</option>
-              <option value="pendiente">Pendiente</option>
-            </select>
+            <label id="materia-color-label">Color de la materia</label>
+            <div class="swatches" id="modal-materia-swatches" role="group" aria-labelledby="materia-color-label"></div>
           </div>
         </div>
-        <div class="field">
-          <label id="materia-horario-label">Horario semanal</label>
-          <div class="horario-rows" id="modal-materia-horario-rows" role="group" aria-labelledby="materia-horario-label"></div>
-          <button type="button" class="add-link" id="btn-add-franja">+ Agregar otra franja</button>
+        <div class="mat-step hidden" data-mat-step="1">
+          <div class="field-row">
+            <div class="field" style="flex:1.4"><label for="materia-salon">Salón / aula</label><input id="materia-salon" name="salon" placeholder="Ej: Edificio Central · Aula 402"></div>
+            <div class="field">
+              <label for="materia-estado">Estado</label>
+              <select id="materia-estado" name="estado">
+                <option value="cursando">Cursando</option>
+                <option value="aprobada">Aprobada</option>
+                <option value="recursando">Recursando</option>
+                <option value="pendiente">Pendiente</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label id="materia-horario-label">Horario semanal</label>
+            <div class="horario-rows" id="modal-materia-horario-rows" role="group" aria-labelledby="materia-horario-label"></div>
+            <button type="button" class="add-link" id="btn-add-franja">+ Agregar otra franja</button>
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:11px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
-          <div style="display:flex;align-items:baseline;justify-content:space-between">
-            <span style="font-size:12px;font-weight:600;color:var(--c-ink2)">Sistema de calificación de esta materia</span>
-            <span class="mono" style="font-size:11px;color:var(--c-ink3)">se aplica sólo a esta materia</span>
+        <div class="mat-step hidden" data-mat-step="2">
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font-size:12px;font-weight:600;color:var(--c-ink2)">Sistema de calificación de esta materia</span>
+              <span class="mono" style="font-size:11px;color:var(--c-ink3)">se aplica sólo a esta materia</span>
+            </div>
+            <div class="seg-cards" id="modal-sistema-cards">
+              <button type="button" class="seg-card" data-sistema="nota"><b>Nota 0–12</b><span>escala clásica uruguaya</span></button>
+              <button type="button" class="seg-card" data-sistema="puntos"><b>Puntaje</b><span>total que definís vos</span></button>
+              <button type="button" class="seg-card" data-sistema="pct"><b>Porcentaje</b><span>0 a 100 %</span></button>
+            </div>
+            <div class="num-pill-row"><span class="lbl" id="modal-total-label">Puntaje total (pts)</span><div class="num-pills" id="modal-total-presets"></div></div>
+            <div class="num-pill-row"><span class="lbl" id="modal-aprob-label">Aprueba con (pts)</span><div class="num-pills" id="modal-aprob-presets"></div></div>
+            <div class="num-pill-row"><span class="lbl" id="modal-exoneracion-label">Exonera con (opcional)</span><div class="num-pills" id="modal-exoneracion-presets"></div></div>
+            <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y tareas".</span>
           </div>
-          <div class="seg-cards" id="modal-sistema-cards">
-            <button type="button" class="seg-card" data-sistema="nota"><b>Nota 0–12</b><span>escala clásica uruguaya</span></button>
-            <button type="button" class="seg-card" data-sistema="puntos"><b>Puntaje</b><span>total que definís vos</span></button>
-            <button type="button" class="seg-card" data-sistema="pct"><b>Porcentaje</b><span>0 a 100 %</span></button>
-          </div>
-          <div class="num-pill-row"><span class="lbl" id="modal-total-label">Puntaje total (pts)</span><div class="num-pills" id="modal-total-presets"></div></div>
-          <div class="num-pill-row"><span class="lbl" id="modal-aprob-label">Aprueba con (pts)</span><div class="num-pills" id="modal-aprob-presets"></div></div>
-          <div class="num-pill-row"><span class="lbl" id="modal-exoneracion-label">Exonera con (opcional)</span><div class="num-pills" id="modal-exoneracion-presets"></div></div>
-          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y tareas".</span>
         </div>
       </div>
       <div class="modal-foot">
         <span class="mono" style="font-size:11px;color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-materia-hint"></span>
         <div style="display:flex;gap:10px;align-items:center">
           <button type="button" class="remove-link hidden" id="btn-materia-eliminar">Eliminar</button>
-          <button type="button" class="btn" data-close-modal>Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar materia</button>
+          <button type="button" class="btn btn-ghost hidden" id="btn-materia-atras">Atrás</button>
+          <button type="button" class="btn" data-close-modal id="btn-materia-cancelar">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-materia-continuar">Guardar materia</button>
         </div>
       </div>
     </form>
@@ -946,47 +964,68 @@
     </div>
     <form id="form-ajustes">
       <div class="modal-body pad-lg">
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Tema</span>
-          <div class="seg" id="ajustes-theme-toggle">
-            <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
-            <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-            <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
-          </div>
-        </div>
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Meta de carrera</span>
-          <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
-          <span style="font-size:11px;color:var(--c-ink3)">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
-        </div>
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Etiquetas</span>
-          <span style="font-size:11px;color:var(--c-ink3)">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
-          <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
-          <div class="field hidden" id="ajustes-tag-nueva" style="margin-top:8px">
-            <div style="display:flex;gap:8px">
-              <input type="text" id="ajustes-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
-              <select id="ajustes-tag-nueva-kind" style="width:130px">
-                <option value="academico">Académica</option>
-                <option value="personal">Personal</option>
-              </select>
-              <button type="button" class="btn btn-sm" id="ajustes-tag-nueva-crear">Crear</button>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label"><span class="lbl">Tema</span></div>
+          <div class="ajustes-row-content">
+            <div class="seg" id="ajustes-theme-toggle">
+              <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
+              <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
+              <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
             </div>
-            <div class="swatches" id="ajustes-tag-nueva-swatches" style="margin-top:8px"></div>
           </div>
-          <button type="button" class="btn btn-sm" id="btn-ajustes-tag-nueva-abrir" style="margin-top:8px">+ Nueva etiqueta</button>
         </div>
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Datos y cuenta</span>
-          <div class="accesos-row">
-            <button type="button" class="btn" id="btn-exportar">Exportar</button>
-            <button type="button" class="btn" id="btn-importar">Importar</button>
-            <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
-            <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
-            <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label">
+            <span class="lbl">Meta de carrera</span>
+            <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
           </div>
-          <div class="accesos-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
-            <button type="button" class="btn btn-danger" id="btn-borrar-todo">Borrar todo</button>
+          <div class="ajustes-row-content">
+            <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
+          </div>
+        </div>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label">
+            <span class="lbl">Etiquetas</span>
+            <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
+          </div>
+          <div class="ajustes-row-content">
+            <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px"></div>
+            <div class="field hidden" id="ajustes-tag-nueva">
+              <div style="display:flex;gap:8px">
+                <input type="text" id="ajustes-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
+                <select id="ajustes-tag-nueva-kind" style="width:130px">
+                  <option value="academico">Académica</option>
+                  <option value="personal">Personal</option>
+                </select>
+                <button type="button" class="btn btn-sm" id="ajustes-tag-nueva-crear">Crear</button>
+              </div>
+              <div class="swatches" id="ajustes-tag-nueva-swatches" style="margin-top:8px"></div>
+            </div>
+            <button type="button" class="btn btn-sm" id="btn-ajustes-tag-nueva-abrir" style="align-self:flex-start">+ Nueva etiqueta</button>
+          </div>
+        </div>
+        <div class="ajustes-row hidden" id="ajustes-aprobadas-group">
+          <div class="ajustes-row-label">
+            <span class="lbl">Materias aprobadas</span>
+            <span class="hint">Materias marcadas como aprobadas que todavía no tienen una nota cargada — anotala acá, o desde el detalle de la materia si preferís cargar la evaluación completa.</span>
+          </div>
+          <div class="ajustes-row-content">
+            <div id="ajustes-aprobadas-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label"><span class="lbl">Datos y cuenta</span></div>
+          <div class="ajustes-row-content">
+            <div class="accesos-row">
+              <button type="button" class="btn" id="btn-exportar">Exportar</button>
+              <button type="button" class="btn" id="btn-importar">Importar</button>
+              <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
+              <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
+              <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
+            </div>
+            <div class="accesos-row" style="margin-top:4px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
+              <button type="button" class="btn btn-danger" id="btn-borrar-todo">Borrar todo</button>
+            </div>
           </div>
         </div>
       </div>

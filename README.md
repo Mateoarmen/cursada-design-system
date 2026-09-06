@@ -3355,3 +3355,164 @@ migración de datos: `grupo_id = null` en esos 5 dictados (ahora
 falsos, que quedaban sin sentido sin dictados asociados. Verificado
 llamando a `cat_electivas` directo: las 4 materias ahora aparecen en el
 resultado.
+
+## Pasada de UI/UX: menos fricción, una decisión por pantalla
+
+Pedido explícito de aplicar un set de reglas de UX a la app existente: cada
+pantalla necesita una sola acción principal, el botón primario tiene que
+verse más importante que el resto, no mostrar dos botones de igual peso
+uno al lado del otro sin que quede claro cuál es el principal, ocultar lo
+avanzado hasta que hace falta, y no mostrar una opción todavía no
+relevante. Se hizo en dos pasadas.
+
+**Primera pasada — jerarquía visual, sin tocar comportamiento:**
+
+- **Detalle de materia**: "Cargar nota" y "Cambiar escala y aprobación"
+  eran dos `.btn` idénticos uno al lado del otro, sin ninguno marcado como
+  principal — justo el caso que la regla de "no botones iguales al lado"
+  pide evitar. "Cargar nota" (la acción frecuente) pasó a `btn-primary`;
+  "Cambiar escala" (una configuración que se toca una vez y ya) pasó a
+  `btn-ghost`.
+- **Ajustes → "Datos y cuenta"**: tenía 5 botones con el mismo peso visual
+  en fila — Exportar, Importar, Rehacer configuración, Cerrar sesión y
+  **Borrar todo**, una acción destructiva mezclada entre las inofensivas.
+  Se agregó `.btn-danger` (texto en rojo, sin relleno — mismo lenguaje que
+  ya usaba `.remove-link` para "Eliminar" en los modales, no un botón
+  nuevo inventado) y se separó "Borrar todo" en su propia fila con un
+  divisor, para que no compita visualmente con exportar un archivo.
+
+**Segunda pasada — wizard de 3 pasos para "Nueva materia":**
+
+El modal de materia mostraba de una todos los campos, incluida una
+sección entera de "Sistema de calificación" (tipo de escala, puntaje
+total, aprobación, exoneración) que la mayoría de las veces se puede
+dejar con el default. Pedido del usuario: algo "como el onboarding" (el
+wizard de catálogo académico, ver más arriba) que vaya guiando por las
+decisiones en vez de tirarlas todas juntas.
+
+- **Sólo para alta nueva.** Editar una materia existente muestra los 3
+  grupos de campos juntos, sin steps-track ni "Atrás", exactamente como
+  antes — quien edita quiere tocar cualquier campo directo, no
+  reencadenar pasos para llegar a uno solo. `openMateriaModal(id)` decide
+  el modo; `materiaAplicarPaso()` es el único punto que sabe mostrar/
+  ocultar según si `STATE.editing.materiaId` existe.
+- **3 pasos, uno por decisión**: (1) Lo esencial — nombre, docente, color;
+  (2) Horario — salón, estado, franjas horarias; (3) Calificación —
+  sistema y presets, con los defaults ya cargados (`puntos`/100/60) para
+  que "no tocar nada y seguir" sea una opción válida. El subtítulo del
+  modal cambia por paso (mismo lugar donde antes había un subtítulo fijo
+  que sólo hablaba de horario) para dar contexto de qué se está pidiendo
+  en cada uno.
+- **Reutiliza el indicador visual del wizard de onboarding**
+  (`.wiz-steps-track`/`.dot`, ya existente para el catálogo académico) en
+  vez de inventar un componente de progreso nuevo — es CSS puramente
+  visual, sin ninguna de la lógica de catálogo/carreras del wizard
+  original.
+- **Footer sin dos botones de igual peso en ningún paso**: en el paso 1 se
+  ve Cancelar + Continuar; del paso 2 en adelante, Cancelar se oculta y
+  aparece "Atrás" en su lugar — mostrar Atrás y Cancelar juntos hubiera
+  sido exactamente el problema de "dos botones iguales al lado" que esta
+  misma pasada busca evitar en otros lados. Cerrar el modal (la X del
+  header) sigue disponible en todo momento como forma de salir.
+- **Validación por paso, no al final**: el paso 1 exige nombre con
+  `reportValidity()` nativo antes de dejar avanzar (el campo es
+  `required` pero al no ser un submit real hasta el último paso, el
+  navegador no lo valida solo). Los pasos 2 y 3 no tienen campos
+  obligatorios.
+- **Bug encontrado probando, no por lectura de código**: la primera
+  implementación cambiaba el atributo `type` del botón "Continuar" entre
+  `"button"` y `"submit"` según el paso, para que el último paso
+  aprovechara el submit nativo del form. Pero mutar `button.type` a
+  `"submit"` *dentro del propio click handler* hacía que el navegador
+  igual disparara el submit en ese mismo click (evalúa el `type` después
+  de correr los handlers, no el que tenía al momento de hacer click) — el
+  resultado era que al pasar del paso 2 al 3 la materia se guardaba de
+  una con los defaults de calificación, sin llegar a mostrar ese paso
+  nunca. Se resolvió sacando el submit nativo de la ecuación por
+  completo: el botón quedó siempre `type="button"`, y el propio click
+  handler llama a `form.requestSubmit()` a mano cuando corresponde
+  guardar (último paso en alta, o directamente en edición) — mismo
+  submit listener de siempre (`#form-materia` `submit`), sin duplicar
+  lógica de guardado.
+- **`STATE.editing.materiaStep` queda afuera de `MODAL_EXTRA_STATE`** (la
+  detección de cambios sin guardar del modal) a propósito: si contara
+  como "cambio", avanzar de paso sin tocar ningún campo real dispararía
+  el aviso de "¿descartar cambios?" al cerrar, que es exactamente el
+  falso positivo que ese mecanismo existe para evitar.
+
+## Cargar progreso anterior en el onboarding
+
+Pedido: aprovechar que el wizard de onboarding del catálogo (ver
+"Onboarding automático desde el catálogo (ORT)" más arriba) ya sabe la
+carrera del usuario para, agrupadas por semestre, mostrarle las materias
+del plan y dejarle tildar cuáles ya aprobó — simple y rápido, sin tener que
+crear cada una a mano desde "+ Nueva materia". Como segunda parte del
+pedido: después, desde Progreso/Ajustes, poder sumarle más info a esas
+materias (con qué nota las aprobó).
+
+- **Nuevo paso del wizard, no una pantalla aparte**: `WIZ_PASOS` pasó a
+  `['carrera', 'progreso', 'semestre', 'oferta', 'electivas', 'revision']`
+  — el paso "progreso" vive justo después de elegir carrera y antes de
+  armar el semestre que se está cursando ahora. Reusa `cat_materias_sugeridas`
+  (la misma RPC que ya usaba el camino manual de "oferta" como fallback
+  para materias sin horario cargado), pidiéndola una vez por semestre 1 a
+  8 en paralelo — no hizo falta ninguna RPC ni migración nueva, ese
+  catálogo (`catalogo.plan_materias` + `catalogo.materias`) ya traía todo
+  lo necesario (nombre, créditos, semestre sugerido) independiente de si
+  hay dictado/horario cargado para el período actual.
+- **No se toca el paso "oferta"**: tildar una materia como ya aprobada acá
+  no la saca de la oferta sugerida del semestre actual — cruzar catálogo
+  entre dos pasos distintos del wizard para lograr eso era una ampliación
+  real de alcance, se dejó fuera de esta pasada a propósito.
+- **`semestreId: null` para las materias históricas**: se crean como
+  materias reales (`estado:'aprobada'`, `catalogoMateriaId` seteado) pero
+  sin pertenecer a ninguno de los semestres propios del usuario — son
+  materias de "antes de usar la app", no de un semestre que se armó acá.
+  Esto encaja solo con las reglas de scoping que ya existían (ver sección
+  "Semestres" más arriba): `materiasAprobadasCount()` y la distribución de
+  estados de Progreso no filtran por semestre, así que las reflejan bien
+  desde el primer momento; el gráfico "Promedio por semestre" sí agrupa
+  por semestre propio, así que estas materias no generan un punto ahí (no
+  hay un semestre real al que atribuirles una fecha) — decisión, no bug.
+  Quedan fuera de Inicio/Materias/Horario del semestre activo, que es lo
+  correcto: no son parte de lo que se está cursando.
+- **Escala de aprobación resuelta igual que el resto del wizard**:
+  `cat_esquema(materia_id, PERIODO_ACTUAL)` para el total en puntos y el
+  mínimo de aprobación (mismo criterio que `wizReconciliarMateriasCreadas`
+  ya usaba para las materias del semestre actual); si no hay esquema
+  cargado para esa materia en el catálogo, cae al fallback de siempre
+  (escala 0-12, `ESC_DEFAULTS.nota`).
+- **Reingreso idempotente**: al reabrir el wizard desde Ajustes ("Rehacer
+  configuración inicial"), las materias que ya están cargadas como
+  aprobadas con ese `catalogoMateriaId` aparecen pre-tildadas y
+  deshabilitadas ("Ya cargada") — nunca se duplican. Destildar una ya
+  cargada no borra nada; borrar sigue siendo una acción manual desde
+  Materias, mismo criterio que el resto de la app.
+- **La nota no vive en una columna nueva de `materias`**: sigue viviendo en
+  la evaluación (agenda), como ya establecía la sección "Cuenta y
+  sincronización" más arriba — así el ring, el promedio y los gráficos de
+  Progreso la toman gratis, sin ningún caso especial para estas materias.
+  Lo nuevo es una superficie de carga más simple que el modal completo de
+  evaluación (que pide título/tipo/fecha/puntaje máximo) para el caso
+  puntual de "ya la aprobé, quiero anotar la nota":
+  - **Ajustes** tiene un grupo nuevo "Materias aprobadas" que lista las
+    materias `estado:'aprobada'` sin ninguna evaluación cargada todavía
+    (`materiasAprobadasSinNota()`), cada una con un input de nota y un
+    botón "Guardar" — guardar crea una única evaluación tipo Final
+    ("Nota final") vía `saveAgendaRaw`, el mismo camino que usa el modal
+    real de evaluación. Apenas se guarda, esa fila desaparece de la lista
+    sola (ya tiene una evaluación) — de ahí en más se edita como cualquier
+    otra, desde el Detalle de la materia.
+  - **Progreso** muestra un aviso chico en el panel "Progreso hacia el
+    título" cuando hay materias aprobadas sin nota ("Tenés N materias
+    aprobadas sin nota cargada — completalas en Ajustes"), mismo tono que
+    el aviso ya existente de completar la meta de materias de la carrera.
+- **Probado con el fixture de `test-harness/mock-supabase-client.js`**
+  (semestres 2 y 3 tienen materias sugeridas sin dictado cargado, ideales
+  para este paso): tildar dos materias de semestres distintos, terminar el
+  wizard armando además el semestre 4 real, confirmar que las dos
+  históricas aparecen en Progreso sin pertenecer al semestre activo,
+  cargarle la nota a una desde Ajustes y ver que la fila desaparece y el
+  aviso baja en 1, y reabrir el wizard para confirmar que ambas quedan
+  pre-tildadas/deshabilitadas sin duplicar nada. Sin bugs encontrados en
+  esta pasada.

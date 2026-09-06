@@ -774,6 +774,16 @@
     return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; }).length;
   }
 
+  // Materias aprobadas sin ninguna evaluación cargada todavía — típicamente
+  // las que se tildaron en el paso "progreso" del wizard, pero también
+  // cualquier materia marcada "Aprobada" a mano sin cargarle una nota. Se
+  // usan para el panel de carga rápida de nota en Ajustes y el aviso de
+  // Progreso — apenas tienen una evaluación (cargada acá o desde Detalle)
+  // dejan de aparecer.
+  function materiasAprobadasSinNota() {
+    return computeMaterias().filter(function (m) { return m.estado === 'aprobada' && !m.notasEvals.length; });
+  }
+
   // ================================================================
   // ESTADO EN MEMORIA (sólo UI, nunca persiste solo)
   // ================================================================
@@ -1276,6 +1286,10 @@
     else renderProgresoBarras(chartWrap, puntos);
     renderProgresoDistribucion();
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
+    var sinNota = materiasAprobadasSinNota().length;
+    var aviso = document.getElementById('progreso-aviso-notas');
+    aviso.classList.toggle('hidden', !sinNota);
+    if (sinNota) aviso.textContent = 'Tenés ' + sinNota + (sinNota === 1 ? ' materia aprobada sin nota cargada — completala en Ajustes.' : ' materias aprobadas sin nota cargada — completalas en Ajustes.');
   }
   // Sólo se muestra con ≥2 semestres con datos — nada de estado vacío acá,
   // si no hay historial suficiente el panel directamente no aparece (ver
@@ -2638,6 +2652,7 @@
     var m = editing ? materiaRawById(id) : null;
     STATE.editing = {
       materiaId: id || null,
+      materiaStep: 0,
       colorId: m ? m.colorId : 'azul',
       esc: m ? JSON.parse(JSON.stringify(m.esc)) : { tipo: 'puntos', total: 100, aprob: 60 },
       horarioRows: bloquesToRows(m ? m.bloques : [])
@@ -2654,9 +2669,74 @@
     renderModalMateriaSwatches();
     renderModalMateriaHorarioRows();
     renderModalMateriaSistema();
+    materiaAplicarPaso();
     openModal('modal-materia');
     snapshotModalForm('modal-materia');
   }
+
+  // Alta nueva = wizard de 3 pasos (esencial / horario / calificación), un
+  // paso = una decisión a la vez, para no tirar 8 campos encima de golpe.
+  // Edición = los 3 pasos se muestran juntos (sin steps-track ni Atrás):
+  // quien edita quiere ver y tocar cualquier campo directo, no que lo hagan
+  // reencadenar pasos para llegar a uno solo.
+  var MATERIA_PASOS = [
+    { sub: 'Contános qué materia es y elegí un color para identificarla.' },
+    { sub: 'Dónde y cuándo cursás — podés dejarlo para después si todavía no lo sabés.' },
+    { sub: 'Así se va a calcular tu nota. Si no sabés el sistema exacto todavía, dejá estos valores.' }
+  ];
+  function materiaAplicarPaso() {
+    var editing = !!STATE.editing.materiaId;
+    var track = document.getElementById('materia-steps-track');
+    var atras = document.getElementById('btn-materia-atras');
+    var cancelar = document.getElementById('btn-materia-cancelar');
+    var continuar = document.getElementById('btn-materia-continuar');
+    var sub = document.getElementById('modal-materia-sub');
+    var hint = document.getElementById('modal-materia-hint');
+    var steps = document.querySelectorAll('.mat-step');
+    if (editing) {
+      steps.forEach(function (s) { s.classList.remove('hidden'); });
+      track.classList.add('hidden');
+      atras.classList.add('hidden');
+      cancelar.classList.remove('hidden');
+      hint.classList.remove('hidden');
+      sub.textContent = 'Los datos de horario alimentan el calendario y la grilla semanal.';
+      continuar.textContent = 'Guardar materia';
+      return;
+    }
+    var idx = STATE.editing.materiaStep;
+    var last = MATERIA_PASOS.length - 1;
+    steps.forEach(function (s) { s.classList.toggle('hidden', Number(s.getAttribute('data-mat-step')) !== idx); });
+    track.classList.remove('hidden');
+    track.querySelectorAll('.dot').forEach(function (d, i) {
+      d.classList.toggle('is-done', i < idx);
+      d.classList.toggle('is-current', i === idx);
+    });
+    atras.classList.toggle('hidden', idx === 0);
+    cancelar.classList.toggle('hidden', idx !== 0);
+    hint.classList.toggle('hidden', idx !== last);
+    sub.textContent = MATERIA_PASOS[idx].sub;
+    continuar.textContent = idx === last ? 'Guardar materia' : 'Continuar';
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('btn-materia-atras').addEventListener('click', function () {
+      if (STATE.editing.materiaStep > 0) { STATE.editing.materiaStep--; materiaAplicarPaso(); }
+    });
+    // Botón siempre type="button" (nunca type="submit" nativo): cambiarle el
+    // `type` a mano dentro de su propio click handler hacía que el navegador
+    // igual disparara el submit en ESE mismo click apenas se llegaba al
+    // último paso (el submit evalúa el type post-handler, no el de al hacer
+    // click) — se perdía el paso de Calificación entero. `requestSubmit()`
+    // de forma explícita evita ese problema de raíz.
+    document.getElementById('btn-materia-continuar').addEventListener('click', function () {
+      var form = document.getElementById('form-materia');
+      if (STATE.editing.materiaId) { form.requestSubmit(); return; }
+      var last = MATERIA_PASOS.length - 1;
+      if (STATE.editing.materiaStep >= last) { form.requestSubmit(); return; }
+      if (STATE.editing.materiaStep === 0 && !document.getElementById('materia-nombre').reportValidity()) return;
+      STATE.editing.materiaStep++;
+      materiaAplicarPaso();
+    });
+  });
 
   function renderModalMateriaSwatches() {
     var wrap = document.getElementById('modal-materia-swatches');
@@ -3361,7 +3441,7 @@
   // (btn-rehacer-onboarding) — las RPCs de escritura son idempotentes
   // (aclarado en el enunciado), así que reintentar o re-ejecutar el wizard
   // entero no duplica nada.
-  var WIZ_PASOS = ['carrera', 'semestre', 'oferta', 'electivas', 'revision'];
+  var WIZ_PASOS = ['carrera', 'progreso', 'semestre', 'oferta', 'electivas', 'revision'];
   var WIZ = null; // se inicializa en abrirWizard()
 
   function wizEstadoInicial() {
@@ -3378,6 +3458,9 @@
       materiasSugeridasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — sólo semestres sin dictados cargados
       dictadoIdsElegidos: {}, // { dictado_id: fila } — camino manual, cruza semestres
       materiaIdsSinHorario: {}, // { materia_id: fila } — fallback de cat_materias_sugeridas
+      aprobadasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — plan completo 1..8, paso "progreso"
+      aprobadasIdsElegidas: {}, // { materia_id: fila } — tildadas como ya aprobadas
+      aprobadasIdsYaCargadas: {}, // { materia_id: true } — ya existen como materia estado:'aprobada' del usuario (reingreso al wizard); pre-tildadas y deshabilitadas, nunca se vuelven a crear
       electivas: [], // último resultado de cat_electivas (turno actual)
       electivaTurno: null,
       electivaIdsElegidos: {}, // { dictado_id: fila }
@@ -3468,7 +3551,112 @@
     }
   }
 
-  // ---- Paso 2: semestre ----
+  // ---- Paso 2: progreso anterior (materias ya aprobadas de esta carrera) ----
+  // Reusa cat_materias_sugeridas (misma RPC del fallback "sin horario" del
+  // paso de oferta) pidiendo el plan completo semestre por semestre — acá no
+  // interesa dictado_id/bloques, sólo nombre/créditos/semestre_sugerido.
+  async function wizCargarProgresoAnterior() {
+    var wrap = document.getElementById('wiz-progreso-list');
+    clear(wrap);
+    var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Cargando el plan de tu carrera…';
+    wrap.appendChild(loading);
+    try {
+      var resultados = await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(function (s) {
+        return rpc('cat_materias_sugeridas', { p_carrera_id: WIZ.carreraId, p_semestre: s, p_periodo: PERIODO_ACTUAL });
+      }));
+      WIZ.aprobadasPorSemestre = {};
+      [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s, i) { WIZ.aprobadasPorSemestre[s] = resultados[i] || []; });
+      // Pre-marcar (y bloquear) lo que ya está cargado como aprobada del
+      // lado del usuario — nunca se vuelve a crear al reingresar al wizard
+      // (ver btn-rehacer-onboarding), ni se borra si se destilda acá.
+      var yaAprobadasPorCatalogoId = {};
+      loadMateriasRaw().forEach(function (m) { if (m.estado === 'aprobada' && m.catalogoMateriaId) yaAprobadasPorCatalogoId[m.catalogoMateriaId] = true; });
+      WIZ.aprobadasIdsYaCargadas = yaAprobadasPorCatalogoId;
+      Object.keys(yaAprobadasPorCatalogoId).forEach(function (id) {
+        [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s) {
+          WIZ.aprobadasPorSemestre[s].forEach(function (m) { if (m.materia_id === id) WIZ.aprobadasIdsElegidas[id] = m; });
+        });
+      });
+      wizRenderProgresoAnterior();
+    } catch (e) {
+      clear(wrap);
+      wizMostrarError(e.message || 'No se pudo cargar el plan de tu carrera.');
+    }
+  }
+
+  function wizRenderProgresoAnterior() {
+    var wrap = document.getElementById('wiz-progreso-list');
+    clear(wrap);
+    var huboAlguna = false;
+    [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s) {
+      var materias = WIZ.aprobadasPorSemestre[s] || [];
+      if (!materias.length) return;
+      huboAlguna = true;
+      var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
+      titulo.textContent = 'Semestre ' + s;
+      wrap.appendChild(titulo);
+      materias.forEach(function (m) {
+        var yaCargada = !!WIZ.aprobadasIdsYaCargadas[m.materia_id];
+        var node = tpl('wiz-item-row');
+        node.classList.add('is-check');
+        node.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+        qf(node, 'titulo').textContent = m.nombre;
+        qf(node, 'meta').textContent = (m.creditos ? m.creditos + ' créditos' : '') + (m.obligatoria === false ? ' · electiva de plan' : '');
+        if (yaCargada) {
+          node.disabled = true;
+          var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = 'Ya cargada'; badge.setAttribute('style', badgeStyle('neutral'));
+        } else {
+          node.addEventListener('click', function () {
+            if (WIZ.aprobadasIdsElegidas[m.materia_id]) delete WIZ.aprobadasIdsElegidas[m.materia_id]; else WIZ.aprobadasIdsElegidas[m.materia_id] = m;
+            node.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+          });
+        }
+        wrap.appendChild(node);
+      });
+    });
+    if (!huboAlguna) {
+      var empty = el('span'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3)';
+      empty.textContent = 'Todavía no hay materias cargadas en el plan de esta carrera.';
+      wrap.appendChild(empty);
+    }
+  }
+
+  // Crea, al confirmar el wizard, una materia real por cada tildada acá —
+  // mismo criterio de esc/color que wizReconciliarMateriasCreadas() más
+  // abajo, pero sin dictado/horario (son materias ya aprobadas, no algo que
+  // se esté cursando). semestreId queda null a propósito: no pertenecen a
+  // ninguno de los semestres propios del usuario (son de "antes de usar la
+  // app") — ver README, sección Semestres, sobre qué vistas se acotan por
+  // semestre y cuáles no.
+  async function wizCrearMateriasAprobadas() {
+    var idsNuevos = Object.keys(WIZ.aprobadasIdsElegidas).filter(function (id) { return !WIZ.aprobadasIdsYaCargadas[id]; });
+    if (!idsNuevos.length) return;
+    var escPorMateria = {};
+    await Promise.all(idsNuevos.map(async function (id) {
+      try {
+        var filas = await rpc('cat_esquema', { p_materia_id: id, p_periodo: PERIODO_ACTUAL });
+        var f0 = (filas || [])[0];
+        if (!f0) return;
+        var totalPuntos = (filas || []).filter(function (f) { return f.computa; }).reduce(function (sum, f) { return sum + (Number(f.puntaje_max) || 0); }, 0);
+        var aprobPct = Number(f0.min_aprobar) || 0;
+        escPorMateria[id] = { tipo: 'puntos', total: totalPuntos, aprob: totalPuntos > 0 ? Math.round(aprobPct / 100 * totalPuntos) : 0 };
+      } catch (e) {
+        console.warn('Cursada: no se pudo resolver la escala de aprobación de una materia aprobada anteriormente', e);
+      }
+    }));
+    var colorKeys = Object.keys(ACCENTS).filter(function (k) { return k !== 'gris'; });
+    var colorIdx = 0;
+    var nuevas = idsNuevos.map(function (id) {
+      var m = WIZ.aprobadasIdsElegidas[id];
+      var esc = escPorMateria[id] && escPorMateria[id].total > 0 ? escPorMateria[id] : { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
+      var colorId = colorKeys[colorIdx % colorKeys.length];
+      colorIdx++;
+      return { id: uid(), semestreId: null, nombre: m.nombre, doc: '', colorId: colorId, salon: '', bloques: [], esc: esc, estado: 'aprobada', catalogoMateriaId: id, catalogoDictadoId: null, componentesFijos: [] };
+    });
+    await saveMateriasRaw(loadMateriasRaw().concat(nuevas));
+  }
+
+  // ---- Paso 3: semestre ----
   function wizRenderSemestrePills() {
     var wrap = document.getElementById('wiz-semestres-pills');
     clear(wrap);
@@ -3484,7 +3672,7 @@
     }
   }
 
-  // ---- Paso 3: oferta (camino rápido = grupo, camino manual = dictados
+  // ---- Paso 4: oferta (camino rápido = grupo, camino manual = dictados
   // sueltos, con fallback a materias sugeridas sin horario por semestre) ----
   function wizActualizarCaminoToggle() {
     var toggle = document.getElementById('wiz-camino-toggle');
@@ -3703,7 +3891,7 @@
     await wizCargarOfertaSegunCamino();
   }
 
-  // ---- Paso 4: electivas ----
+  // ---- Paso 5: electivas ----
   // Turno por defecto: el del grupo elegido (camino rápido) o el más común
   // entre los dictados manuales elegidos — el usuario puede cambiarlo (el
   // enunciado pide poder ver el otro turno si quiere).
@@ -3785,7 +3973,7 @@
     await wizCargarElectivasSegunTurno();
   }
 
-  // ---- Paso 5: revisión y confirmación ----
+  // ---- Paso 6: revisión y confirmación ----
   // Un color de la paleta de materia por ítem, sólo para que la previsualización
   // se vea coherente — no es una elección real, se resuelve de nuevo (a
   // gusto del usuario) cuando edite la materia después de creada.
@@ -3965,6 +4153,7 @@
       }
       await rpc('aplicar_agenda', { p_semestre_id: WIZ.semestreId });
       await loadAllFromSupabase();
+      await wizCrearMateriasAprobadas();
       await wizReconciliarMateriasCreadas();
       document.getElementById('wizard-onboarding').classList.add('hidden');
       hideOnboarding();
@@ -3999,7 +4188,10 @@
         return;
       }
       setBtnBusy(btn, false);
-      wizMostrarPaso(1);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
+      await wizCargarProgresoAnterior();
+    } else if (paso === 'progreso') {
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       wizRenderSemestrePills();
     } else if (paso === 'semestre') {
       if (!WIZ.semestresElegidos.length) { wizMostrarError('Elegí al menos un semestre.'); return; }
@@ -4012,13 +4204,13 @@
         return;
       }
       setBtnBusy(btn, false);
-      wizMostrarPaso(2);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizCargarOferta();
     } else if (paso === 'oferta') {
-      wizMostrarPaso(3);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizCargarElectivas();
     } else if (paso === 'electivas') {
-      wizMostrarPaso(4);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizRenderRevision();
     } else if (paso === 'revision') {
       await wizConfirmar();
@@ -5216,6 +5408,7 @@
     document.getElementById('btn-rehacer-onboarding').classList.toggle('hidden', p.university_id !== ORT_UNIVERSITY_ID);
     STATE.editing = { ajustesTagNuevoAbierto: false, ajustesTagNuevoColor: 'azul' };
     renderAjustesTags();
+    renderAjustesAprobadas();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
@@ -5273,6 +5466,47 @@
       });
     }
     renderAjustesTagNuevaForm();
+  }
+
+  // Carga rápida de nota para materias "Aprobada" sin ninguna evaluación
+  // todavía (típicamente las que vienen del paso "progreso" del wizard) —
+  // guarda una única evaluación tipo Final por materia (mismo camino,
+  // saveAgendaRaw, que usa el modal real de evaluación) para que el ring,
+  // el promedio y Progreso la tomen sin ningún caso especial. Ver decisión
+  // en README: la nota vive en la evaluación, nunca en la materia.
+  function renderAjustesAprobadas() {
+    var group = document.getElementById('ajustes-aprobadas-group');
+    var wrap = document.getElementById('ajustes-aprobadas-list');
+    clear(wrap);
+    var materias = materiasAprobadasSinNota();
+    group.classList.toggle('hidden', !materias.length);
+    if (!materias.length) return;
+    materias.forEach(function (m) {
+      var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:10px';
+      var dot = el('span'); dot.style.cssText = 'width:10px;height:10px;border-radius:50%;flex:none;background:' + m.strong;
+      var nombre = el('span'); nombre.style.cssText = 'flex:1;font-size:13px'; nombre.textContent = m.nombre;
+      var input = el('input'); input.type = 'number'; input.step = m.esc.tipo === 'nota' ? '0.1' : '1'; input.min = '0'; input.max = String(m.esc.total);
+      input.placeholder = 'Nota /' + val(m.esc.total, m.esc); input.style.cssText = 'width:84px';
+      var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Guardar';
+      btn.addEventListener('click', async function () {
+        var v = input.value.trim();
+        var n = Number(v);
+        if (v === '' || isNaN(n)) return;
+        setBtnBusy(btn, true, 'Guardando…');
+        var nueva = { id: uid(), materiaId: m.id, kind: 'evaluacion', tipo: 'Final', titulo: 'Nota final', fecha: todayISO(), hora: '', hecho: true, nota: n, notaMaxima: m.esc.total, notas: '' };
+        var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
+        setBtnBusy(btn, false);
+        if (ok) {
+          showToast('Nota cargada.');
+          renderAjustesAprobadas();
+          renderProgreso();
+        } else {
+          avisarError();
+        }
+      });
+      row.appendChild(dot); row.appendChild(nombre); row.appendChild(input); row.appendChild(btn);
+      wrap.appendChild(row);
+    });
   }
   function renderAjustesTagNuevaForm() {
     var abierto = !!STATE.editing.ajustesTagNuevoAbierto;

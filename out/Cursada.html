@@ -826,6 +826,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .modal-close{width:30px;height:30px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;color:var(--c-ink2);font-size:15px;background:var(--c-surfaceAlt);flex:none}
 .modal-body{padding:20px 26px;display:flex;flex-direction:column;gap:16px}
 .modal-body.pad-lg{padding:24px 26px;gap:20px}
+.mat-step{display:flex;flex-direction:column;gap:16px}
+.modal-head .wiz-steps-track{flex:1}
 .modal-foot{position:sticky;bottom:0;z-index:2;padding:18px 26px;background:var(--c-surface);border-top:1px solid var(--c-line-faint);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .field{display:flex;flex-direction:column;gap:7px;flex:1;min-width:0}
 .field-row{display:flex;gap:16px;flex-wrap:wrap}
@@ -835,6 +837,17 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 .field textarea{height:86px;padding:12px 13px;resize:vertical}
 .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:none;box-shadow:var(--c-focus)}
+
+/* Fila de Ajustes: etiqueta a la izquierda, control a la derecha, separadas
+   por un hairline entre filas (patrón tomado de una referencia de Figma,
+   adaptado a los tokens/colores propios en vez de copiar su estilo visual). */
+.ajustes-row{display:flex;gap:24px;padding:20px 0}
+.ajustes-row:first-child{padding-top:0}
+.ajustes-row+.ajustes-row{border-top:1px solid var(--c-line-faint2)}
+.ajustes-row-label{flex:0 0 168px;display:flex;flex-direction:column;gap:4px}
+.ajustes-row-label .lbl{font-size:13.5px;font-weight:600;color:var(--c-ink)}
+.ajustes-row-label .hint{font-size:11.5px;line-height:1.45;color:var(--c-ink3)}
+.ajustes-row-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
 
 .swatches{display:flex;gap:10px;flex-wrap:wrap}
 .swatch{width:34px;height:34px;border-radius:50%;border:2px solid transparent;flex:none;padding:0}
@@ -1684,6 +1697,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .perfil-group{display:flex;flex-direction:column;gap:14px}
   .perfil-group-lbl{font-size:11.5px;font-weight:700;letter-spacing:.06em;
     text-transform:uppercase;color:var(--c-ink3)}
+  /* En pantalla angosta la fila de Ajustes pasa a apilarse: la columna fija
+     de la etiqueta no tiene sentido a este ancho. */
+  .ajustes-row{flex-direction:column;gap:10px;padding:16px 0}
+  .ajustes-row-label{flex:none}
   /* Cerrar sesión vive acá además del ⏻ del cajón: es donde la gente lo busca. */
   .perfil-logout{width:100%;justify-content:center;height:48px;color:var(--c-danger);
     border-color:var(--c-line)}
@@ -2269,6 +2286,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
           <div class="card panel" id="progreso-creditos-panel">
             <div class="panel-head"><h2 class="panel-title">Progreso hacia el título</h2></div>
             <div id="progreso-materias"></div>
+            <span class="hidden" id="progreso-aviso-notas" style="font-size:11px;color:var(--c-ink3);margin-top:8px;display:block"></span>
           </div>
         </div>
       </div>
@@ -2341,6 +2359,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         <span class="wiz-sub">Con tu carrera precargamos materias, horarios y fechas reales de este semestre.</span>
         <div id="wiz-carreras-list" class="wiz-cards-list"></div>
       </div>
+      <div class="wiz-panel hidden" id="wiz-panel-progreso">
+        <h2 class="wiz-title">¿Ya aprobaste materias de esta carrera?</h2>
+        <span class="wiz-sub">Opcional — tildá las que ya diste, así tu progreso hacia el título arranca correcto.</span>
+        <div id="wiz-progreso-list" class="wiz-cards-list"></div>
+      </div>
       <div class="wiz-panel hidden" id="wiz-panel-semestre">
         <h2 class="wiz-title">¿En qué semestre de la carrera estás?</h2>
         <span class="wiz-sub">Podés marcar más de uno si arrastrás alguna materia de un semestre anterior.</span>
@@ -2382,63 +2405,75 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL MATERIA ============ -->
+<!-- Alta nueva: wizard de 3 pasos (esencial / horario / calificación), un
+     paso = una decisión a la vez. Edición: los 3 pasos se muestran juntos,
+     sin steps-track ni Atrás — ver openMateriaModal()/materiaAplicarPaso()
+     en runtime.js. -->
 <div class="modal-backdrop" id="modal-materia">
   <div class="modal">
     <div class="modal-head">
-      <div class="titles"><h2 class="t" id="modal-materia-title">Nueva materia</h2><span class="s">Los datos de horario alimentan el calendario y la grilla semanal.</span></div>
+      <div class="titles"><h2 class="t" id="modal-materia-title">Nueva materia</h2><span class="s" id="modal-materia-sub">Contános qué materia es y elegí un color para identificarla.</span></div>
+      <div class="wiz-steps-track hidden" id="materia-steps-track"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <form id="form-materia">
       <div class="modal-body">
-        <div class="field-row">
-          <div class="field"><label for="materia-nombre">Nombre de la materia</label><input id="materia-nombre" name="nombre" required placeholder="Ej: Contabilidad II"></div>
-        </div>
-        <div class="field-row">
-          <div class="field"><label for="materia-doc">Docente</label><input id="materia-doc" name="doc" placeholder="Prof. …"></div>
-        </div>
-        <div class="field">
-          <label id="materia-color-label">Color de la materia</label>
-          <div class="swatches" id="modal-materia-swatches" role="group" aria-labelledby="materia-color-label"></div>
-        </div>
-        <div class="field-row">
-          <div class="field" style="flex:1.4"><label for="materia-salon">Salón / aula</label><input id="materia-salon" name="salon" placeholder="Ej: Edificio Central · Aula 402"></div>
+        <div class="mat-step" data-mat-step="0">
+          <div class="field-row">
+            <div class="field"><label for="materia-nombre">Nombre de la materia</label><input id="materia-nombre" name="nombre" required placeholder="Ej: Contabilidad II"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label for="materia-doc">Docente</label><input id="materia-doc" name="doc" placeholder="Prof. …"></div>
+          </div>
           <div class="field">
-            <label for="materia-estado">Estado</label>
-            <select id="materia-estado" name="estado">
-              <option value="cursando">Cursando</option>
-              <option value="aprobada">Aprobada</option>
-              <option value="recursando">Recursando</option>
-              <option value="pendiente">Pendiente</option>
-            </select>
+            <label id="materia-color-label">Color de la materia</label>
+            <div class="swatches" id="modal-materia-swatches" role="group" aria-labelledby="materia-color-label"></div>
           </div>
         </div>
-        <div class="field">
-          <label id="materia-horario-label">Horario semanal</label>
-          <div class="horario-rows" id="modal-materia-horario-rows" role="group" aria-labelledby="materia-horario-label"></div>
-          <button type="button" class="add-link" id="btn-add-franja">+ Agregar otra franja</button>
+        <div class="mat-step hidden" data-mat-step="1">
+          <div class="field-row">
+            <div class="field" style="flex:1.4"><label for="materia-salon">Salón / aula</label><input id="materia-salon" name="salon" placeholder="Ej: Edificio Central · Aula 402"></div>
+            <div class="field">
+              <label for="materia-estado">Estado</label>
+              <select id="materia-estado" name="estado">
+                <option value="cursando">Cursando</option>
+                <option value="aprobada">Aprobada</option>
+                <option value="recursando">Recursando</option>
+                <option value="pendiente">Pendiente</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label id="materia-horario-label">Horario semanal</label>
+            <div class="horario-rows" id="modal-materia-horario-rows" role="group" aria-labelledby="materia-horario-label"></div>
+            <button type="button" class="add-link" id="btn-add-franja">+ Agregar otra franja</button>
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:11px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
-          <div style="display:flex;align-items:baseline;justify-content:space-between">
-            <span style="font-size:12px;font-weight:600;color:var(--c-ink2)">Sistema de calificación de esta materia</span>
-            <span class="mono" style="font-size:11px;color:var(--c-ink3)">se aplica sólo a esta materia</span>
+        <div class="mat-step hidden" data-mat-step="2">
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <span style="font-size:12px;font-weight:600;color:var(--c-ink2)">Sistema de calificación de esta materia</span>
+              <span class="mono" style="font-size:11px;color:var(--c-ink3)">se aplica sólo a esta materia</span>
+            </div>
+            <div class="seg-cards" id="modal-sistema-cards">
+              <button type="button" class="seg-card" data-sistema="nota"><b>Nota 0–12</b><span>escala clásica uruguaya</span></button>
+              <button type="button" class="seg-card" data-sistema="puntos"><b>Puntaje</b><span>total que definís vos</span></button>
+              <button type="button" class="seg-card" data-sistema="pct"><b>Porcentaje</b><span>0 a 100 %</span></button>
+            </div>
+            <div class="num-pill-row"><span class="lbl" id="modal-total-label">Puntaje total (pts)</span><div class="num-pills" id="modal-total-presets"></div></div>
+            <div class="num-pill-row"><span class="lbl" id="modal-aprob-label">Aprueba con (pts)</span><div class="num-pills" id="modal-aprob-presets"></div></div>
+            <div class="num-pill-row"><span class="lbl" id="modal-exoneracion-label">Exonera con (opcional)</span><div class="num-pills" id="modal-exoneracion-presets"></div></div>
+            <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y tareas".</span>
           </div>
-          <div class="seg-cards" id="modal-sistema-cards">
-            <button type="button" class="seg-card" data-sistema="nota"><b>Nota 0–12</b><span>escala clásica uruguaya</span></button>
-            <button type="button" class="seg-card" data-sistema="puntos"><b>Puntaje</b><span>total que definís vos</span></button>
-            <button type="button" class="seg-card" data-sistema="pct"><b>Porcentaje</b><span>0 a 100 %</span></button>
-          </div>
-          <div class="num-pill-row"><span class="lbl" id="modal-total-label">Puntaje total (pts)</span><div class="num-pills" id="modal-total-presets"></div></div>
-          <div class="num-pill-row"><span class="lbl" id="modal-aprob-label">Aprueba con (pts)</span><div class="num-pills" id="modal-aprob-presets"></div></div>
-          <div class="num-pill-row"><span class="lbl" id="modal-exoneracion-label">Exonera con (opcional)</span><div class="num-pills" id="modal-exoneracion-presets"></div></div>
-          <span style="font-size:12px;color:var(--c-ink3);line-height:1.5">Las notas se cargan desde cada evaluación — abrí la materia y tocá "+ Nueva evaluación" o una evaluación existente en "Evaluaciones y tareas".</span>
         </div>
       </div>
       <div class="modal-foot">
         <span class="mono" style="font-size:11px;color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-materia-hint"></span>
         <div style="display:flex;gap:10px;align-items:center">
           <button type="button" class="remove-link hidden" id="btn-materia-eliminar">Eliminar</button>
-          <button type="button" class="btn" data-close-modal>Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar materia</button>
+          <button type="button" class="btn btn-ghost hidden" id="btn-materia-atras">Atrás</button>
+          <button type="button" class="btn" data-close-modal id="btn-materia-cancelar">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-materia-continuar">Guardar materia</button>
         </div>
       </div>
     </form>
@@ -2676,47 +2711,68 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     </div>
     <form id="form-ajustes">
       <div class="modal-body pad-lg">
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Tema</span>
-          <div class="seg" id="ajustes-theme-toggle">
-            <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
-            <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-            <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
-          </div>
-        </div>
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Meta de carrera</span>
-          <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
-          <span style="font-size:11px;color:var(--c-ink3)">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
-        </div>
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Etiquetas</span>
-          <span style="font-size:11px;color:var(--c-ink3)">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
-          <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
-          <div class="field hidden" id="ajustes-tag-nueva" style="margin-top:8px">
-            <div style="display:flex;gap:8px">
-              <input type="text" id="ajustes-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
-              <select id="ajustes-tag-nueva-kind" style="width:130px">
-                <option value="academico">Académica</option>
-                <option value="personal">Personal</option>
-              </select>
-              <button type="button" class="btn btn-sm" id="ajustes-tag-nueva-crear">Crear</button>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label"><span class="lbl">Tema</span></div>
+          <div class="ajustes-row-content">
+            <div class="seg" id="ajustes-theme-toggle">
+              <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
+              <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
+              <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
             </div>
-            <div class="swatches" id="ajustes-tag-nueva-swatches" style="margin-top:8px"></div>
           </div>
-          <button type="button" class="btn btn-sm" id="btn-ajustes-tag-nueva-abrir" style="margin-top:8px">+ Nueva etiqueta</button>
         </div>
-        <div class="perfil-group">
-          <span class="perfil-group-lbl">Datos y cuenta</span>
-          <div class="accesos-row">
-            <button type="button" class="btn" id="btn-exportar">Exportar</button>
-            <button type="button" class="btn" id="btn-importar">Importar</button>
-            <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
-            <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
-            <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label">
+            <span class="lbl">Meta de carrera</span>
+            <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
           </div>
-          <div class="accesos-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
-            <button type="button" class="btn btn-danger" id="btn-borrar-todo">Borrar todo</button>
+          <div class="ajustes-row-content">
+            <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
+          </div>
+        </div>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label">
+            <span class="lbl">Etiquetas</span>
+            <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
+          </div>
+          <div class="ajustes-row-content">
+            <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px"></div>
+            <div class="field hidden" id="ajustes-tag-nueva">
+              <div style="display:flex;gap:8px">
+                <input type="text" id="ajustes-tag-nueva-nombre" placeholder="Nombre de la etiqueta" autocomplete="off" style="flex:1">
+                <select id="ajustes-tag-nueva-kind" style="width:130px">
+                  <option value="academico">Académica</option>
+                  <option value="personal">Personal</option>
+                </select>
+                <button type="button" class="btn btn-sm" id="ajustes-tag-nueva-crear">Crear</button>
+              </div>
+              <div class="swatches" id="ajustes-tag-nueva-swatches" style="margin-top:8px"></div>
+            </div>
+            <button type="button" class="btn btn-sm" id="btn-ajustes-tag-nueva-abrir" style="align-self:flex-start">+ Nueva etiqueta</button>
+          </div>
+        </div>
+        <div class="ajustes-row hidden" id="ajustes-aprobadas-group">
+          <div class="ajustes-row-label">
+            <span class="lbl">Materias aprobadas</span>
+            <span class="hint">Materias marcadas como aprobadas que todavía no tienen una nota cargada — anotala acá, o desde el detalle de la materia si preferís cargar la evaluación completa.</span>
+          </div>
+          <div class="ajustes-row-content">
+            <div id="ajustes-aprobadas-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label"><span class="lbl">Datos y cuenta</span></div>
+          <div class="ajustes-row-content">
+            <div class="accesos-row">
+              <button type="button" class="btn" id="btn-exportar">Exportar</button>
+              <button type="button" class="btn" id="btn-importar">Importar</button>
+              <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
+              <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
+              <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
+            </div>
+            <div class="accesos-row" style="margin-top:4px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
+              <button type="button" class="btn btn-danger" id="btn-borrar-todo">Borrar todo</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3947,6 +4003,16 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     return loadMateriasRaw().filter(function (m) { return m.estado === 'aprobada'; }).length;
   }
 
+  // Materias aprobadas sin ninguna evaluación cargada todavía — típicamente
+  // las que se tildaron en el paso "progreso" del wizard, pero también
+  // cualquier materia marcada "Aprobada" a mano sin cargarle una nota. Se
+  // usan para el panel de carga rápida de nota en Ajustes y el aviso de
+  // Progreso — apenas tienen una evaluación (cargada acá o desde Detalle)
+  // dejan de aparecer.
+  function materiasAprobadasSinNota() {
+    return computeMaterias().filter(function (m) { return m.estado === 'aprobada' && !m.notasEvals.length; });
+  }
+
   // ================================================================
   // ESTADO EN MEMORIA (sólo UI, nunca persiste solo)
   // ================================================================
@@ -4449,6 +4515,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     else renderProgresoBarras(chartWrap, puntos);
     renderProgresoDistribucion();
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
+    var sinNota = materiasAprobadasSinNota().length;
+    var aviso = document.getElementById('progreso-aviso-notas');
+    aviso.classList.toggle('hidden', !sinNota);
+    if (sinNota) aviso.textContent = 'Tenés ' + sinNota + (sinNota === 1 ? ' materia aprobada sin nota cargada — completala en Ajustes.' : ' materias aprobadas sin nota cargada — completalas en Ajustes.');
   }
   // Sólo se muestra con ≥2 semestres con datos — nada de estado vacío acá,
   // si no hay historial suficiente el panel directamente no aparece (ver
@@ -5811,6 +5881,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     var m = editing ? materiaRawById(id) : null;
     STATE.editing = {
       materiaId: id || null,
+      materiaStep: 0,
       colorId: m ? m.colorId : 'azul',
       esc: m ? JSON.parse(JSON.stringify(m.esc)) : { tipo: 'puntos', total: 100, aprob: 60 },
       horarioRows: bloquesToRows(m ? m.bloques : [])
@@ -5827,9 +5898,74 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     renderModalMateriaSwatches();
     renderModalMateriaHorarioRows();
     renderModalMateriaSistema();
+    materiaAplicarPaso();
     openModal('modal-materia');
     snapshotModalForm('modal-materia');
   }
+
+  // Alta nueva = wizard de 3 pasos (esencial / horario / calificación), un
+  // paso = una decisión a la vez, para no tirar 8 campos encima de golpe.
+  // Edición = los 3 pasos se muestran juntos (sin steps-track ni Atrás):
+  // quien edita quiere ver y tocar cualquier campo directo, no que lo hagan
+  // reencadenar pasos para llegar a uno solo.
+  var MATERIA_PASOS = [
+    { sub: 'Contános qué materia es y elegí un color para identificarla.' },
+    { sub: 'Dónde y cuándo cursás — podés dejarlo para después si todavía no lo sabés.' },
+    { sub: 'Así se va a calcular tu nota. Si no sabés el sistema exacto todavía, dejá estos valores.' }
+  ];
+  function materiaAplicarPaso() {
+    var editing = !!STATE.editing.materiaId;
+    var track = document.getElementById('materia-steps-track');
+    var atras = document.getElementById('btn-materia-atras');
+    var cancelar = document.getElementById('btn-materia-cancelar');
+    var continuar = document.getElementById('btn-materia-continuar');
+    var sub = document.getElementById('modal-materia-sub');
+    var hint = document.getElementById('modal-materia-hint');
+    var steps = document.querySelectorAll('.mat-step');
+    if (editing) {
+      steps.forEach(function (s) { s.classList.remove('hidden'); });
+      track.classList.add('hidden');
+      atras.classList.add('hidden');
+      cancelar.classList.remove('hidden');
+      hint.classList.remove('hidden');
+      sub.textContent = 'Los datos de horario alimentan el calendario y la grilla semanal.';
+      continuar.textContent = 'Guardar materia';
+      return;
+    }
+    var idx = STATE.editing.materiaStep;
+    var last = MATERIA_PASOS.length - 1;
+    steps.forEach(function (s) { s.classList.toggle('hidden', Number(s.getAttribute('data-mat-step')) !== idx); });
+    track.classList.remove('hidden');
+    track.querySelectorAll('.dot').forEach(function (d, i) {
+      d.classList.toggle('is-done', i < idx);
+      d.classList.toggle('is-current', i === idx);
+    });
+    atras.classList.toggle('hidden', idx === 0);
+    cancelar.classList.toggle('hidden', idx !== 0);
+    hint.classList.toggle('hidden', idx !== last);
+    sub.textContent = MATERIA_PASOS[idx].sub;
+    continuar.textContent = idx === last ? 'Guardar materia' : 'Continuar';
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('btn-materia-atras').addEventListener('click', function () {
+      if (STATE.editing.materiaStep > 0) { STATE.editing.materiaStep--; materiaAplicarPaso(); }
+    });
+    // Botón siempre type="button" (nunca type="submit" nativo): cambiarle el
+    // `type` a mano dentro de su propio click handler hacía que el navegador
+    // igual disparara el submit en ESE mismo click apenas se llegaba al
+    // último paso (el submit evalúa el type post-handler, no el de al hacer
+    // click) — se perdía el paso de Calificación entero. `requestSubmit()`
+    // de forma explícita evita ese problema de raíz.
+    document.getElementById('btn-materia-continuar').addEventListener('click', function () {
+      var form = document.getElementById('form-materia');
+      if (STATE.editing.materiaId) { form.requestSubmit(); return; }
+      var last = MATERIA_PASOS.length - 1;
+      if (STATE.editing.materiaStep >= last) { form.requestSubmit(); return; }
+      if (STATE.editing.materiaStep === 0 && !document.getElementById('materia-nombre').reportValidity()) return;
+      STATE.editing.materiaStep++;
+      materiaAplicarPaso();
+    });
+  });
 
   function renderModalMateriaSwatches() {
     var wrap = document.getElementById('modal-materia-swatches');
@@ -6534,7 +6670,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // (btn-rehacer-onboarding) — las RPCs de escritura son idempotentes
   // (aclarado en el enunciado), así que reintentar o re-ejecutar el wizard
   // entero no duplica nada.
-  var WIZ_PASOS = ['carrera', 'semestre', 'oferta', 'electivas', 'revision'];
+  var WIZ_PASOS = ['carrera', 'progreso', 'semestre', 'oferta', 'electivas', 'revision'];
   var WIZ = null; // se inicializa en abrirWizard()
 
   function wizEstadoInicial() {
@@ -6551,6 +6687,9 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       materiasSugeridasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — sólo semestres sin dictados cargados
       dictadoIdsElegidos: {}, // { dictado_id: fila } — camino manual, cruza semestres
       materiaIdsSinHorario: {}, // { materia_id: fila } — fallback de cat_materias_sugeridas
+      aprobadasPorSemestre: {}, // { semestre: [fila cat_materias_sugeridas] } — plan completo 1..8, paso "progreso"
+      aprobadasIdsElegidas: {}, // { materia_id: fila } — tildadas como ya aprobadas
+      aprobadasIdsYaCargadas: {}, // { materia_id: true } — ya existen como materia estado:'aprobada' del usuario (reingreso al wizard); pre-tildadas y deshabilitadas, nunca se vuelven a crear
       electivas: [], // último resultado de cat_electivas (turno actual)
       electivaTurno: null,
       electivaIdsElegidos: {}, // { dictado_id: fila }
@@ -6641,7 +6780,112 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     }
   }
 
-  // ---- Paso 2: semestre ----
+  // ---- Paso 2: progreso anterior (materias ya aprobadas de esta carrera) ----
+  // Reusa cat_materias_sugeridas (misma RPC del fallback "sin horario" del
+  // paso de oferta) pidiendo el plan completo semestre por semestre — acá no
+  // interesa dictado_id/bloques, sólo nombre/créditos/semestre_sugerido.
+  async function wizCargarProgresoAnterior() {
+    var wrap = document.getElementById('wiz-progreso-list');
+    clear(wrap);
+    var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Cargando el plan de tu carrera…';
+    wrap.appendChild(loading);
+    try {
+      var resultados = await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(function (s) {
+        return rpc('cat_materias_sugeridas', { p_carrera_id: WIZ.carreraId, p_semestre: s, p_periodo: PERIODO_ACTUAL });
+      }));
+      WIZ.aprobadasPorSemestre = {};
+      [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s, i) { WIZ.aprobadasPorSemestre[s] = resultados[i] || []; });
+      // Pre-marcar (y bloquear) lo que ya está cargado como aprobada del
+      // lado del usuario — nunca se vuelve a crear al reingresar al wizard
+      // (ver btn-rehacer-onboarding), ni se borra si se destilda acá.
+      var yaAprobadasPorCatalogoId = {};
+      loadMateriasRaw().forEach(function (m) { if (m.estado === 'aprobada' && m.catalogoMateriaId) yaAprobadasPorCatalogoId[m.catalogoMateriaId] = true; });
+      WIZ.aprobadasIdsYaCargadas = yaAprobadasPorCatalogoId;
+      Object.keys(yaAprobadasPorCatalogoId).forEach(function (id) {
+        [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s) {
+          WIZ.aprobadasPorSemestre[s].forEach(function (m) { if (m.materia_id === id) WIZ.aprobadasIdsElegidas[id] = m; });
+        });
+      });
+      wizRenderProgresoAnterior();
+    } catch (e) {
+      clear(wrap);
+      wizMostrarError(e.message || 'No se pudo cargar el plan de tu carrera.');
+    }
+  }
+
+  function wizRenderProgresoAnterior() {
+    var wrap = document.getElementById('wiz-progreso-list');
+    clear(wrap);
+    var huboAlguna = false;
+    [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s) {
+      var materias = WIZ.aprobadasPorSemestre[s] || [];
+      if (!materias.length) return;
+      huboAlguna = true;
+      var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
+      titulo.textContent = 'Semestre ' + s;
+      wrap.appendChild(titulo);
+      materias.forEach(function (m) {
+        var yaCargada = !!WIZ.aprobadasIdsYaCargadas[m.materia_id];
+        var node = tpl('wiz-item-row');
+        node.classList.add('is-check');
+        node.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+        qf(node, 'titulo').textContent = m.nombre;
+        qf(node, 'meta').textContent = (m.creditos ? m.creditos + ' créditos' : '') + (m.obligatoria === false ? ' · electiva de plan' : '');
+        if (yaCargada) {
+          node.disabled = true;
+          var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = 'Ya cargada'; badge.setAttribute('style', badgeStyle('neutral'));
+        } else {
+          node.addEventListener('click', function () {
+            if (WIZ.aprobadasIdsElegidas[m.materia_id]) delete WIZ.aprobadasIdsElegidas[m.materia_id]; else WIZ.aprobadasIdsElegidas[m.materia_id] = m;
+            node.classList.toggle('is-on', !!WIZ.aprobadasIdsElegidas[m.materia_id]);
+          });
+        }
+        wrap.appendChild(node);
+      });
+    });
+    if (!huboAlguna) {
+      var empty = el('span'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3)';
+      empty.textContent = 'Todavía no hay materias cargadas en el plan de esta carrera.';
+      wrap.appendChild(empty);
+    }
+  }
+
+  // Crea, al confirmar el wizard, una materia real por cada tildada acá —
+  // mismo criterio de esc/color que wizReconciliarMateriasCreadas() más
+  // abajo, pero sin dictado/horario (son materias ya aprobadas, no algo que
+  // se esté cursando). semestreId queda null a propósito: no pertenecen a
+  // ninguno de los semestres propios del usuario (son de "antes de usar la
+  // app") — ver README, sección Semestres, sobre qué vistas se acotan por
+  // semestre y cuáles no.
+  async function wizCrearMateriasAprobadas() {
+    var idsNuevos = Object.keys(WIZ.aprobadasIdsElegidas).filter(function (id) { return !WIZ.aprobadasIdsYaCargadas[id]; });
+    if (!idsNuevos.length) return;
+    var escPorMateria = {};
+    await Promise.all(idsNuevos.map(async function (id) {
+      try {
+        var filas = await rpc('cat_esquema', { p_materia_id: id, p_periodo: PERIODO_ACTUAL });
+        var f0 = (filas || [])[0];
+        if (!f0) return;
+        var totalPuntos = (filas || []).filter(function (f) { return f.computa; }).reduce(function (sum, f) { return sum + (Number(f.puntaje_max) || 0); }, 0);
+        var aprobPct = Number(f0.min_aprobar) || 0;
+        escPorMateria[id] = { tipo: 'puntos', total: totalPuntos, aprob: totalPuntos > 0 ? Math.round(aprobPct / 100 * totalPuntos) : 0 };
+      } catch (e) {
+        console.warn('Cursada: no se pudo resolver la escala de aprobación de una materia aprobada anteriormente', e);
+      }
+    }));
+    var colorKeys = Object.keys(ACCENTS).filter(function (k) { return k !== 'gris'; });
+    var colorIdx = 0;
+    var nuevas = idsNuevos.map(function (id) {
+      var m = WIZ.aprobadasIdsElegidas[id];
+      var esc = escPorMateria[id] && escPorMateria[id].total > 0 ? escPorMateria[id] : { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
+      var colorId = colorKeys[colorIdx % colorKeys.length];
+      colorIdx++;
+      return { id: uid(), semestreId: null, nombre: m.nombre, doc: '', colorId: colorId, salon: '', bloques: [], esc: esc, estado: 'aprobada', catalogoMateriaId: id, catalogoDictadoId: null, componentesFijos: [] };
+    });
+    await saveMateriasRaw(loadMateriasRaw().concat(nuevas));
+  }
+
+  // ---- Paso 3: semestre ----
   function wizRenderSemestrePills() {
     var wrap = document.getElementById('wiz-semestres-pills');
     clear(wrap);
@@ -6657,7 +6901,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     }
   }
 
-  // ---- Paso 3: oferta (camino rápido = grupo, camino manual = dictados
+  // ---- Paso 4: oferta (camino rápido = grupo, camino manual = dictados
   // sueltos, con fallback a materias sugeridas sin horario por semestre) ----
   function wizActualizarCaminoToggle() {
     var toggle = document.getElementById('wiz-camino-toggle');
@@ -6876,7 +7120,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     await wizCargarOfertaSegunCamino();
   }
 
-  // ---- Paso 4: electivas ----
+  // ---- Paso 5: electivas ----
   // Turno por defecto: el del grupo elegido (camino rápido) o el más común
   // entre los dictados manuales elegidos — el usuario puede cambiarlo (el
   // enunciado pide poder ver el otro turno si quiere).
@@ -6958,7 +7202,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     await wizCargarElectivasSegunTurno();
   }
 
-  // ---- Paso 5: revisión y confirmación ----
+  // ---- Paso 6: revisión y confirmación ----
   // Un color de la paleta de materia por ítem, sólo para que la previsualización
   // se vea coherente — no es una elección real, se resuelve de nuevo (a
   // gusto del usuario) cuando edite la materia después de creada.
@@ -7138,6 +7382,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       }
       await rpc('aplicar_agenda', { p_semestre_id: WIZ.semestreId });
       await loadAllFromSupabase();
+      await wizCrearMateriasAprobadas();
       await wizReconciliarMateriasCreadas();
       document.getElementById('wizard-onboarding').classList.add('hidden');
       hideOnboarding();
@@ -7172,7 +7417,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         return;
       }
       setBtnBusy(btn, false);
-      wizMostrarPaso(1);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
+      await wizCargarProgresoAnterior();
+    } else if (paso === 'progreso') {
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       wizRenderSemestrePills();
     } else if (paso === 'semestre') {
       if (!WIZ.semestresElegidos.length) { wizMostrarError('Elegí al menos un semestre.'); return; }
@@ -7185,13 +7433,13 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         return;
       }
       setBtnBusy(btn, false);
-      wizMostrarPaso(2);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizCargarOferta();
     } else if (paso === 'oferta') {
-      wizMostrarPaso(3);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizCargarElectivas();
     } else if (paso === 'electivas') {
-      wizMostrarPaso(4);
+      wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizRenderRevision();
     } else if (paso === 'revision') {
       await wizConfirmar();
@@ -8389,6 +8637,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     document.getElementById('btn-rehacer-onboarding').classList.toggle('hidden', p.university_id !== ORT_UNIVERSITY_ID);
     STATE.editing = { ajustesTagNuevoAbierto: false, ajustesTagNuevoColor: 'azul' };
     renderAjustesTags();
+    renderAjustesAprobadas();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
@@ -8446,6 +8695,47 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       });
     }
     renderAjustesTagNuevaForm();
+  }
+
+  // Carga rápida de nota para materias "Aprobada" sin ninguna evaluación
+  // todavía (típicamente las que vienen del paso "progreso" del wizard) —
+  // guarda una única evaluación tipo Final por materia (mismo camino,
+  // saveAgendaRaw, que usa el modal real de evaluación) para que el ring,
+  // el promedio y Progreso la tomen sin ningún caso especial. Ver decisión
+  // en README: la nota vive en la evaluación, nunca en la materia.
+  function renderAjustesAprobadas() {
+    var group = document.getElementById('ajustes-aprobadas-group');
+    var wrap = document.getElementById('ajustes-aprobadas-list');
+    clear(wrap);
+    var materias = materiasAprobadasSinNota();
+    group.classList.toggle('hidden', !materias.length);
+    if (!materias.length) return;
+    materias.forEach(function (m) {
+      var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:10px';
+      var dot = el('span'); dot.style.cssText = 'width:10px;height:10px;border-radius:50%;flex:none;background:' + m.strong;
+      var nombre = el('span'); nombre.style.cssText = 'flex:1;font-size:13px'; nombre.textContent = m.nombre;
+      var input = el('input'); input.type = 'number'; input.step = m.esc.tipo === 'nota' ? '0.1' : '1'; input.min = '0'; input.max = String(m.esc.total);
+      input.placeholder = 'Nota /' + val(m.esc.total, m.esc); input.style.cssText = 'width:84px';
+      var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Guardar';
+      btn.addEventListener('click', async function () {
+        var v = input.value.trim();
+        var n = Number(v);
+        if (v === '' || isNaN(n)) return;
+        setBtnBusy(btn, true, 'Guardando…');
+        var nueva = { id: uid(), materiaId: m.id, kind: 'evaluacion', tipo: 'Final', titulo: 'Nota final', fecha: todayISO(), hora: '', hecho: true, nota: n, notaMaxima: m.esc.total, notas: '' };
+        var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
+        setBtnBusy(btn, false);
+        if (ok) {
+          showToast('Nota cargada.');
+          renderAjustesAprobadas();
+          renderProgreso();
+        } else {
+          avisarError();
+        }
+      });
+      row.appendChild(dot); row.appendChild(nombre); row.appendChild(input); row.appendChild(btn);
+      wrap.appendChild(row);
+    });
   }
   function renderAjustesTagNuevaForm() {
     var abierto = !!STATE.editing.ajustesTagNuevoAbierto;
