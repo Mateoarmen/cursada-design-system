@@ -973,11 +973,20 @@
     var promedio = promedioNormalizado(materias);
     var estaSemana = pendientes.filter(function (a) { var d = diffDias(parseISODate(a.fecha), t); return d >= 0 && d <= 6; });
     var vencidas = pendientes.filter(function (a) { return parseISODate(a.fecha) < t; });
-    return [
-      { label: 'Próxima evaluación', valor: proxExamen ? (DIAS_CORTOS[proxExamen.d.getDay()] + ' ' + proxExamen.d.getDate()) : '—', sub: proxExamen ? (proxExamen.a.tipo + ' · ' + materiaNombre(proxExamen.a.materiaId)) : 'sin evaluaciones cargadas', tone: 'warning' },
-      { label: 'Promedio general', valor: promedio != null ? promedio + '%' : '—', sub: 'normalizado · 3 escalas distintas', tone: 'success' },
-      { label: 'Pendientes esta semana', valor: String(estaSemana.length), sub: vencidas.length ? (vencidas.length + (vencidas.length === 1 ? ' vencida de antes' : ' vencidas de antes')) : 'sin vencidas', tone: vencidas.length ? 'danger' : 'neutral' }
-    ];
+    // Bloque 5: ninguna tarjeta se renderiza vacía. "Próxima evaluación"
+    // sin nada pendiente no tiene nada accionable que mostrar — se oculta
+    // directamente (no entra al array). "Promedio general" sin notas
+    // cargadas sí tiene una acción concreta — se resuelve como estado
+    // vacío con CTA (empty:true, ver renderInicio) en vez de ocultarla.
+    // "Pendientes esta semana" nunca se oculta: un 0 ahí es una respuesta
+    // real y útil ("no tenés nada pendiente"), no un placeholder.
+    var kpis = [];
+    if (proxExamen) kpis.push({ label: 'Próxima evaluación', valor: DIAS_CORTOS[proxExamen.d.getDay()] + ' ' + proxExamen.d.getDate(), sub: proxExamen.a.tipo + ' · ' + materiaNombre(proxExamen.a.materiaId), tone: 'warning' });
+    kpis.push(promedio != null
+      ? { label: 'Promedio general', valor: promedio + '%', sub: 'normalizado · 3 escalas distintas', tone: 'success' }
+      : { label: 'Promedio general', empty: true, ctaTexto: 'Cargá tu primera nota' });
+    kpis.push({ label: 'Pendientes esta semana', valor: String(estaSemana.length), sub: vencidas.length ? (vencidas.length + (vencidas.length === 1 ? ' vencida de antes' : ' vencidas de antes')) : 'sin vencidas', tone: vencidas.length ? 'danger' : 'neutral' });
+    return kpis;
   }
 
   // Tarjeta "Progreso del semestre" (C1) — promedio del semestre activo +
@@ -1076,6 +1085,19 @@
     computeKpis().forEach(function (k) {
       var node = tpl('kpi-card');
       qf(node, 'label').textContent = k.label;
+      // Bloque 5: estado vacío con acción para "Promedio general" sin
+      // notas cargadas — mismo botón que abre "Nueva evaluación", nada de
+      // valor/sub de relleno.
+      if (k.empty) {
+        node.classList.add('kpi-card-empty');
+        var btn = el('button', 'btn btn-sm');
+        btn.type = 'button';
+        btn.textContent = k.ctaTexto;
+        btn.addEventListener('click', function () { openEvaluacionModal({}); });
+        node.appendChild(btn);
+        kpiRow.appendChild(node);
+        return;
+      }
       qf(node, 'valor').textContent = k.valor;
       var sub = qf(node, 'sub');
       sub.textContent = k.sub;

@@ -435,6 +435,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    chica, radio más chico" que ya aplica --r-tile en otros lados. Vale para
    los dos anchos, no sólo mobile (por eso vive acá y no en el @media). */
 .kpi-card{border-radius:16px}
+/* Bloque 5: "Promedio general" sin notas — sólo label + CTA, sin el
+   valor/sub grande de las demás; align-items:flex-start para que el botón
+   no se estire a todo el ancho de la card (default del flex column de
+   .kpi-card es stretch), justify-content:center para repartir el espacio
+   vertical que dejan las dos líneas de menos. */
+.kpi-card-empty{align-items:flex-start;justify-content:center}
 .kpi-label{font-size:13px;color:var(--c-ink2)}
 .kpi-value{font-family:var(--font-display);font-size:36px;font-weight:600;letter-spacing:-.03em;line-height:1}
 .kpi-sub{font-size:13px;line-height:1.4}
