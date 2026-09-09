@@ -3740,3 +3740,109 @@ causa raíz compartida).
   switch en el side nav ahora se sincroniza desde `STATE` en cada render
   (antes su estado visual sólo cambiaba al click, arrancaba "encendido" a
   fuego en el HTML).
+
+## Notificaciones — Web Push + centro in-app
+
+Centro de notificaciones en dos capas (in-app y Web Push nativo, sin
+Firebase/OneSignal/terceros — sólo VAPID + la Push API del navegador, costo
+cero) con lugar para agregar email/WhatsApp después sin refactor.
+
+### Esquema
+
+Tres tablas nuevas (`push_subscriptions`, `notification_preferences`,
+`notification_queue`) más `profiles.last_seen_at` (supresión por actividad)
+y `profiles.push_prompt_snoozed_until` (snooze del banner de permiso — vive
+en `profiles`, no en `notification_preferences`, porque es un dato por
+usuario, no por combinación evento×canal; la primera versión de la
+migración lo puso mal y se corrigió antes de tocar el cliente). Defaults
+(in-app todo encendido; push sólo evaluación/tarea 24h + resumen diario) se
+cargan con un trigger separado del `handle_new_user()` existente
+(`on_auth_user_created_notif_prefs`) para no arriesgar el que ya funciona,
+con el mismo `revoke execute ... from public, anon, authenticated` que ya
+usaba ese — no debe ser invocable como RPC pública. Backfill para los 4
+usuarios que ya existían.
+
+El dedupe real de `notification_queue` es un índice único con expresión
+(`ts_utc_date(scheduled_for)`, envuelta como `IMMUTABLE` a propósito — el
+cast directo a `date` depende del `TimeZone` de sesión y Postgres no deja
+indexarlo; UTC es offset fijo, así que la envoltura es segura). Los
+resúmenes (`entity_type='digest'`) no tienen una entidad real que darle a
+`entity_id` — queda `NULL`, y Postgres nunca considera dos `NULL` en
+conflicto entre sí, así que ese índice no los dedupea solo; `notifications-
+generate` chequea a mano si ya existe uno de hoy antes de insertar.
+
+**Bug encontrado probando**: la RPC `insertar_notificacion()` (necesaria
+porque PostgREST no soporta `on_conflict` sobre una columna con expresión,
+sólo nombres de columna — se resuelve con SQL directo, mismo criterio que
+las RPCs `aplicar_*` del catálogo) tenía el `ON CONFLICT` apuntando al
+*parámetro* de la función (`p_scheduled_for`) en vez de la *columna* de la
+tabla (`scheduled_for`) — Postgres tira "no unique or exclusion constraint
+matching the ON CONFLICT specification" porque el target de un ON CONFLICT
+tiene que referenciar la fila que se está insertando, no una variable
+cualquiera. Se encontró invocando la función manualmente por curl después
+del deploy, no por lectura de código.
+
+### Service Worker y manifest — implicancia de la arquitectura de build
+
+El entregable se compila a un único `out/Cursada.html` (`build-app.mjs`),
+pero `out/` se sirve completo como raíz estática (la landing ya lo asumía,
+ver más arriba) — eso permite que `sw.js` y `manifest.json` sean archivos
+sueltos de verdad, con scope real sobre `/`, copiados por un build script
+nuevo (`build/build-static.mjs`, sumado a `npm run build`) en vez de vivir
+embebidos en el HTML. El registro usa `updateViaCache:'none'` para no
+depender de configurar `Cache-Control` del lado del hosting (Cloudflare
+Pages/Workers en este caso). `start_url` del manifest apunta a `/Cursada`
+(la app), no a `/` (la landing) — no tiene sentido ofrecer "agregar a
+inicio" desde la marketing page.
+
+### Permission priming e iOS
+
+El permiso del navegador no se pide al cargar la app — se pide recién si
+el usuario toca "Sí" en un card propio de Inicio, mostrado sólo cuando ya
+tiene al menos una evaluación o tarea cargada (nunca en el onboarding).
+"Ahora no" snoozea 30 días server-side. iOS Safari fuera de modo
+standalone recibe un banner distinto (instrucciones de "Agregar a
+pantalla de inicio") en vez del de permiso — Safari no soporta Web Push
+fuera de ese modo.
+
+### Centro in-app y deep link
+
+La campanita (stub que ya existía en el topbar de Inicio, sin usar) abre
+un panel con el mismo patrón de popover que `#nuevo-menu`. Sin Realtime a
+propósito (consume conexiones concurrentes limitadas por plan) — refresco
+al montar la app y en `visibilitychange`. El click en una notificación
+reusa el mecanismo de resaltado de "Ver en agenda" (`STATE.agendaHighlightId`
++ `data-agenda-item-id`, Bloque 6) tanto desde el panel (ya en memoria)
+como desde un deep link entrante por push con la app cerrada (`?nid=<fila>
+&hl=<entidad>` en el hash, resuelto en `handleRoute()` sin depender de que
+`CACHE.notificaciones` ya esté cargado — evita una condición de carrera en
+arranque en frío).
+
+### Edge Functions (Parte 5)
+
+`notifications-generate` (hourly) y `notifications-send` (cada 15 min),
+separadas para poder reintentar el envío sin regenerar. La lógica de
+supresión y el armado de contenido viven en `_shared/notif-core.ts`
+(Parte 6), no en `notifications-send` — agregar email/WhatsApp es un
+transporte nuevo que llama a las mismas funciones. Orden de supresión en
+`notifications-send`, tal como se pidió: quiet hours (reprograma, nunca
+descarta) → actividad reciente (proxy: `last_seen_at` de los últimos
+`SUPRESION_ACTIVIDAD_HORAS`, no hay tracking de qué entidad puntual vio
+cada usuario — sería una tabla nueva fuera de alcance) → cap diario
+(`CAP_DIARIO_PUSH`, constante) → agregación (3+ en la misma tanda, un solo
+push agrupado). 404/410 de un endpoint borra la suscripción; otros errores
+incrementan `failure_count` y borran a los 5 fallos consecutivos.
+
+Los dos jobs de `pg_cron` están escritos y agendados, pero inertes hasta
+que se complete la configuración manual (fuera del alcance de este
+agente): la `service_role` key en Vault (`vault.create_secret`, corrida a
+mano por el usuario en el SQL Editor — nunca pasada por este chat) y los
+tres secrets de la Edge Function `notifications-send`
+(`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, sin herramienta
+de MCP para setear secrets de Edge Functions). Verificado por invocación
+manual (`curl` con la key `anon`, que alcanza para pasar `verify_jwt` — la
+función igual usa `service_role` internamente): `notifications-generate`
+insertó correctamente una notificación in-app real después del fix de la
+RPC; `notifications-send` confirma en los logs que el único punto que le
+falta son esos tres secrets (`No key set vapidDetails.publicKey`), el
+resto del código corre.

@@ -4089,6 +4089,15 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     if (CURRENT_PROFILE) maybeMostrarBannerPush();
   }
 
+  // Parte 5: notifications-send lee esto para suprimir push a usuarios que
+  // ya estaban activos en la app hace poco (no le manda un push por algo
+  // que probablemente ya vio en pantalla) — fire-and-forget, no bloquea ni
+  // se refleja en CACHE/UI.
+  function actualizarUltimaActividad() {
+    if (!CURRENT_USER) return;
+    sb().from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', CURRENT_USER.id).then(function () {}, function () {});
+  }
+
   // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
   // otro (red caída, RLS, etc.) — best-effort: la forma exacta del objeto de
   // error varía según si lo devuelve auth-js (falla al refrescar el token,
@@ -9489,7 +9498,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   }
   async function desconectarDispositivo(id) {
     var device = CACHE.pushDevices.filter(function (d) { return d.id === id; })[0];
-    var res = await sb().from('push_subscriptions').delete().eq('id', id);
+    var res = await sb().from('push_subscriptions').delete().in('id', [id]);
     if (res.error) { avisarError(); return; }
     // Si es la suscripción de ESTE navegador, desuscribir también acá —
     // si no, sigue mandando push a un endpoint sin fila hasta que
@@ -9510,8 +9519,11 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // tarea cargada — nunca en el onboarding). "Ahora no" no vuelve a
   // mostrarse por 30 días — se guarda en profiles.push_prompt_snoozed_until
   // (server-side, sobrevive cambio de dispositivo), no en localStorage.
+  // CACHE.agenda sólo contiene ítems de materia (evaluación/tarea) — los
+  // eventos personales viven en CACHE.personal aparte — así que cualquier
+  // fila ya cumple "ya cargó su primera evaluación o tarea".
   function tieneEvaluacionOTarea() {
-    return CACHE.agenda.some(function (a) { return a.kind === 'materia' && (a.tipo === 'evaluacion' || a.tipo === 'tarea'); });
+    return CACHE.agenda.length > 0;
   }
   function pushPrompSnoozed() {
     return !!(CURRENT_PROFILE && CURRENT_PROFILE.push_prompt_snoozed_until && new Date(CURRENT_PROFILE.push_prompt_snoozed_until) > new Date());
@@ -9687,10 +9699,17 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   async function guardarNotifPref(eventType, channel, patch) {
     var pref = notifPrefDe(eventType, channel);
     var row = Object.assign({ user_id: CURRENT_USER.id, event_type: eventType, channel: channel }, patch);
-    var res = await sb().from('notification_preferences').upsert(row, { onConflict: 'user_id,event_type,channel' }).select().maybeSingle();
+    var res = await sb().from('notification_preferences').upsert(row, { onConflict: 'user_id,event_type,channel' });
     if (res.error) { avisarError(); return; }
-    if (pref) Object.assign(pref, rowToNotifPref(res.data));
-    else CACHE.notifPrefs.push(rowToNotifPref(res.data));
+    // Optimista, sin volver a pedir la fila (mismo criterio que
+    // supaUpsert() para el resto de la app): se actualiza CACHE a mano con
+    // lo que ya se sabe que se mandó.
+    if (pref) {
+      if ('enabled' in patch) pref.enabled = patch.enabled;
+      if ('lead_time_hours' in patch) pref.leadTimeHours = patch.lead_time_hours;
+    } else {
+      CACHE.notifPrefs.push({ id: (res.data && res.data[0] && res.data[0].id) || uid(), eventType: eventType, channel: channel, enabled: patch.enabled !== undefined ? patch.enabled : true, leadTimeHours: patch.lead_time_hours !== undefined ? patch.lead_time_hours : null, quietHoursStart: '23:00', quietHoursEnd: '07:00', timezone: 'America/Montevideo' });
+    }
   }
   function renderAjustesNotificaciones() {
     var permisoEl = document.getElementById('ajustes-notif-permiso');
@@ -10261,6 +10280,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     // No bloqueante a propósito (ver cargarNotificaciones) — no tiene que
     // demorar la revelación de #app.
     cargarNotificaciones();
+    actualizarUltimaActividad();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // Con el perfil de Google ya resuelto (si correspondía), quedan estos
     // avisos posibles al entrar a la app — nunca más de uno a la vez (si
@@ -10321,7 +10341,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     registrarServiceWorker();
     // Parte 3: nada de Supabase Realtime acá — refresco en foco, no en vivo.
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible' && CURRENT_USER) cargarNotificaciones();
+      if (document.visibilityState === 'visible' && CURRENT_USER) { cargarNotificaciones(); actualizarUltimaActividad(); }
     });
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();

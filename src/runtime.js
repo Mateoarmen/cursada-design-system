@@ -605,6 +605,15 @@
     if (CURRENT_PROFILE) maybeMostrarBannerPush();
   }
 
+  // Parte 5: notifications-send lee esto para suprimir push a usuarios que
+  // ya estaban activos en la app hace poco (no le manda un push por algo
+  // que probablemente ya vio en pantalla) — fire-and-forget, no bloquea ni
+  // se refleja en CACHE/UI.
+  function actualizarUltimaActividad() {
+    if (!CURRENT_USER) return;
+    sb().from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', CURRENT_USER.id).then(function () {}, function () {});
+  }
+
   // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
   // otro (red caída, RLS, etc.) — best-effort: la forma exacta del objeto de
   // error varía según si lo devuelve auth-js (falla al refrescar el token,
@@ -6026,8 +6035,11 @@
   // tarea cargada — nunca en el onboarding). "Ahora no" no vuelve a
   // mostrarse por 30 días — se guarda en profiles.push_prompt_snoozed_until
   // (server-side, sobrevive cambio de dispositivo), no en localStorage.
+  // CACHE.agenda sólo contiene ítems de materia (evaluación/tarea) — los
+  // eventos personales viven en CACHE.personal aparte — así que cualquier
+  // fila ya cumple "ya cargó su primera evaluación o tarea".
   function tieneEvaluacionOTarea() {
-    return CACHE.agenda.some(function (a) { return a.kind === 'materia' && (a.tipo === 'evaluacion' || a.tipo === 'tarea'); });
+    return CACHE.agenda.length > 0;
   }
   function pushPrompSnoozed() {
     return !!(CURRENT_PROFILE && CURRENT_PROFILE.push_prompt_snoozed_until && new Date(CURRENT_PROFILE.push_prompt_snoozed_until) > new Date());
@@ -6784,6 +6796,7 @@
     // No bloqueante a propósito (ver cargarNotificaciones) — no tiene que
     // demorar la revelación de #app.
     cargarNotificaciones();
+    actualizarUltimaActividad();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // Con el perfil de Google ya resuelto (si correspondía), quedan estos
     // avisos posibles al entrar a la app — nunca más de uno a la vez (si
@@ -6844,7 +6857,7 @@
     registrarServiceWorker();
     // Parte 3: nada de Supabase Realtime acá — refresco en foco, no en vivo.
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible' && CURRENT_USER) cargarNotificaciones();
+      if (document.visibilityState === 'visible' && CURRENT_USER) { cargarNotificaciones(); actualizarUltimaActividad(); }
     });
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();
