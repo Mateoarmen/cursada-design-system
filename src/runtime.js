@@ -216,7 +216,7 @@
     puntos.forEach(function (p, i) {
       var x = xAt(i), y = yAt(p.promedio);
       svg += '<circle cx="' + x + '" cy="' + y + '" r="4.5" fill="' + color + '"/>';
-      svg += '<text x="' + x + '" y="' + (y - 22) + '" text-anchor="middle" font-size="10" fill="var(--c-ink3)">' + p.aprobadas + '/' + p.total + ' aprob.</text>';
+      svg += '<text x="' + x + '" y="' + (y - 22) + '" text-anchor="middle" font-size="10" fill="var(--c-ink3)">' + p.aprobadas + '/' + p.total + ' aprob.' + (p.exoneradas ? ' · ' + p.exoneradas + ' exon.' : '') + '</text>';
       svg += '<text x="' + x + '" y="' + (y - 10) + '" text-anchor="middle" font-size="12" font-weight="600" fill="var(--c-ink)">' + p.promedio + '%</text>';
       svg += '<text x="' + x + '" y="' + (h - 12) + '" text-anchor="middle" font-size="11" fill="var(--c-ink3)">' + escapeHtml(truncate(p.semestre.nombre, 14)) + '</text>';
     });
@@ -306,14 +306,16 @@
   function semestreToRow(s) {
     // periodo: sólo lo setea el wizard de onboarding ('2026-2', etc.) — un
     // semestre creado a mano (crearSemestre()) queda con periodo null a
-    // propósito, no cruza con ningún catálogo.
-    return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo, orden: s.orden, periodo: s.periodo || null };
+    // propósito, no cruza con ningún catálogo. historico (Bloque 4): true
+    // sólo en los semestres sintéticos que agrupan materias aprobadas antes
+    // de usar la app — ver obtenerOCrearSemestreHistorico.
+    return { id: s.id, user_id: CURRENT_USER.id, nombre: s.nombre, activo: !!s.activo, orden: s.orden, periodo: s.periodo || null, historico: !!s.historico };
   }
   function rowToSemestre(r) {
     // createdAt es sólo lectura — lo genera la DB, nunca se manda de vuelta
     // en semestreToRow. orden sí es de ida y vuelta (bloque D3): lo escribe
     // moverSemestre()/crearSemestre(), semestresOrdenados() ordena por acá.
-    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at, orden: r.orden, periodo: r.periodo || null };
+    return { id: r.id, nombre: r.nombre, activo: !!r.activo, createdAt: r.created_at, orden: r.orden, periodo: r.periodo || null, historico: !!r.historico };
   }
   function tagToRow(t) {
     return { id: t.id, user_id: CURRENT_USER.id, name: t.nombre, kind: t.kind, color: t.colorId, is_default: !!t.esPredeterminada };
@@ -453,6 +455,14 @@
       return (a.createdAt || '').localeCompare(b.createdAt || '');
     });
   }
+  // Bloque 4: los semestres históricos (ver obtenerOCrearSemestreHistorico)
+  // entran en semestresOrdenados() porque Progreso los necesita, pero no son
+  // "propios" del usuario — nunca se pueden activar, reordenar, renombrar ni
+  // borrar desde el selector/gestor de semestres. Esto es lo que usan esas
+  // pantallas en vez de semestresOrdenados() a secas.
+  function semestresPropiosOrdenados() {
+    return semestresOrdenados().filter(function (s) { return !s.historico; });
+  }
   // Próximo valor de `orden` para un semestre nuevo — siempre al final.
   function proximoOrdenSemestre() {
     var max = -1;
@@ -462,7 +472,7 @@
   // Sube (-1) o baja (+1) un semestre en la lista — swap de `orden` con el
   // vecino inmediato en semestresOrdenados(), no un renumerado global.
   async function moverSemestre(id, delta) {
-    var ordenados = semestresOrdenados();
+    var ordenados = semestresPropiosOrdenados();
     var idx = -1;
     ordenados.forEach(function (s, i) { if (s.id === id) idx = i; });
     var vecinoIdx = idx + delta;
@@ -765,11 +775,23 @@
   // que tenga al menos una materia con nota cargada — la fuente de datos
   // tanto de la sección Progreso como del widget resumen de Inicio, un solo
   // cálculo para las dos vistas.
+  // Bloque 4: incluye cualquier semestre con al menos una materia, no sólo
+  // los que ya tienen promedio — un semestre histórico recién armado por el
+  // onboarding (materias aprobadas sin nota cargada) tiene que poder
+  // aparecer en "Semestres anteriores" con su conteo de aprobadas/
+  // exoneradas aunque no tenga promedio todavía. Quien arma el gráfico de
+  // promedios filtra `promedio != null` por su cuenta (ver renderProgreso).
   function computeProgresoPorSemestre() {
     return semestresOrdenados().map(function (s) {
       var materias = computeMaterias({ semestreId: s.id });
-      return { semestre: s, promedio: promedioNormalizado(materias), aprobadas: materias.filter(function (m) { return m.estado === 'aprobada'; }).length, total: materias.length };
-    }).filter(function (p) { return p.promedio != null; });
+      return {
+        semestre: s,
+        promedio: promedioNormalizado(materias),
+        aprobadas: materias.filter(function (m) { return m.estado === 'aprobada'; }).length,
+        exoneradas: materias.filter(function (m) { return m.actual != null && m.esc.exoneracion != null && m.actual >= m.esc.exoneracion; }).length,
+        total: materias.length
+      };
+    }).filter(function (p) { return p.total > 0; });
   }
   // Materias aprobadas de TODOS los semestres, no sólo el activo — a
   // propósito, distinto del resto de la app (ver README, sección
@@ -1249,11 +1271,86 @@
       var v = el('span', 'v'); v.textContent = p.promedio + '%';
       row.appendChild(label); row.appendChild(barWrap); row.appendChild(v);
       var sub = el('div', 'progreso-barra-sub');
-      sub.textContent = p.aprobadas + '/' + p.total + ' aprobadas';
+      sub.textContent = p.aprobadas + '/' + p.total + ' aprobadas' + (p.exoneradas ? ' · ' + p.exoneradas + ' exoneradas' : '');
       col.appendChild(row); col.appendChild(sub);
       wrap.appendChild(col);
     });
     container.appendChild(wrap);
+  }
+
+  // Bloque 4: "Este semestre" completo de la vista Progreso — misma fuente
+  // de datos que la card compacta de Inicio (computeProgresoSemestreActivo,
+  // ver renderProgresoSemestre), pero con las materias agrupadas en 3
+  // baldes (encaminada a exonerar / aprobando / en riesgo) en vez de una
+  // lista plana. Sólo entran al desglose las materias con al menos una
+  // nota cargada — sin datos no hay "encaminada" que afirmar.
+  function renderProgresoEsteSemestre() {
+    var p = computeProgresoSemestreActivo();
+    var card = document.getElementById('progreso-este-semestre-card');
+    if (!p.materias.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+
+    var deltaEl = document.getElementById('progreso-este-semestre-delta');
+    if (p.deltaVsAnterior != null) {
+      var tone = p.deltaVsAnterior > 0 ? 'success' : (p.deltaVsAnterior < 0 ? 'danger' : 'neutral');
+      deltaEl.style.color = TONE[tone];
+      deltaEl.textContent = (p.deltaVsAnterior > 0 ? '▲ ' : p.deltaVsAnterior < 0 ? '▼ ' : '— ') + Math.abs(p.deltaVsAnterior) + ' pts vs. ' + p.nombreAnterior;
+    } else {
+      deltaEl.textContent = '';
+    }
+
+    var sinNotas = p.evaluacionesCalificadas === 0;
+    document.getElementById('progreso-este-semestre-empty').classList.toggle('hidden', !sinNotas);
+    document.getElementById('progreso-este-semestre-content').classList.toggle('hidden', sinNotas);
+    if (sinNotas) return;
+
+    document.getElementById('progreso-este-semestre-promedio').textContent = p.promedio != null ? p.promedio + '%' : '—';
+    var ring = document.getElementById('progreso-este-semestre-ring');
+    ring.setAttribute('style', ringStyle(p.evaluacionesCalificadas, TONE.success, 72, p.evaluacionesEsperadas || 1));
+    clear(ring);
+    var inner = el('div'); inner.setAttribute('style', ringInnerStyle(72, 7));
+    var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:16px;font-weight:700'; v1.textContent = p.evaluacionesCalificadas + '/' + p.evaluacionesEsperadas;
+    var v2 = el('span'); v2.style.cssText = 'font-size:9px;color:var(--c-ink3)'; v2.textContent = 'notas';
+    inner.appendChild(v1); inner.appendChild(v2);
+    ring.appendChild(inner);
+
+    var exonerando = 0, aprobando = 0, enRiesgo = 0;
+    p.materias.forEach(function (m) {
+      if (m.actual == null) return;
+      if (m.esc.exoneracion != null && m.actual >= m.esc.exoneracion) exonerando++;
+      else if (m.actual >= m.esc.aprob) aprobando++;
+      else enRiesgo++;
+    });
+    var buckets = document.getElementById('progreso-este-semestre-buckets');
+    clear(buckets);
+    [['Encaminadas a exonerar', exonerando], ['Aprobando', aprobando], ['En riesgo', enRiesgo]].forEach(function (b) {
+      var stat = el('div', 'detalle-sim-stat');
+      var lbl = el('span', 'lbl'); lbl.textContent = b[0];
+      var v = el('span', 'v mono'); v.textContent = String(b[1]);
+      stat.appendChild(lbl); stat.appendChild(v);
+      buckets.appendChild(stat);
+    });
+  }
+
+  // Bloque 4: complemento del gráfico/las barras de arriba — sólo los
+  // semestres SIN promedio todavía (típico de un semestre histórico recién
+  // armado por el onboarding, con materias aprobadas pero sin ninguna nota
+  // cargada), que el gráfico no puede plotear. Los que sí tienen promedio
+  // ya muestran su "aprobadas · exoneradas" en la barra/el punto — no se
+  // repiten acá para no duplicar la misma info dos veces.
+  function renderProgresoSemestresLista(puntos) {
+    var wrap = document.getElementById('progreso-semestres-lista');
+    clear(wrap);
+    var activoId = activeSemestreId();
+    puntos.filter(function (p) { return p.promedio == null; }).forEach(function (p) {
+      var row = el('div', 'nota-row');
+      var label = el('span', 'label');
+      label.textContent = p.semestre.nombre + (p.semestre.id === activoId ? ' · actual' : '');
+      var v = el('span', 'v mono');
+      v.textContent = p.aprobadas + ' aprob. · ' + p.exoneradas + ' exon. · sin promedio todavía';
+      row.appendChild(label); row.appendChild(v);
+      wrap.appendChild(row);
+    });
   }
 
   // "Estado de todas tus materias" — TODAS las materias de la cuenta, no
@@ -1284,14 +1381,37 @@
     });
   }
 
+  // Bloque 4: la causa raíz de que esta vista no mostrara nada era que las
+  // materias aprobadas del onboarding quedaban con semestreId:null (ver
+  // wizCrearMateriasAprobadas, ahora apunta a un semestre histórico) — acá
+  // el segundo problema apilado era que un solo `return` temprano escondía
+  // también la barra de progreso de carrera y el aviso de notas sueltas,
+  // que no dependen de agrupar por semestre. El único estado realmente
+  // vacío ahora es "no hay ninguna materia en la cuenta todavía".
   function renderProgreso() {
+    var hayMaterias = computeMaterias().length > 0;
+    document.getElementById('progreso-empty').classList.toggle('hidden', hayMaterias);
+    document.getElementById('progreso-content').classList.toggle('hidden', !hayMaterias);
+    if (!hayMaterias) return;
+
+    renderProgresoEsteSemestre();
+
     var puntos = computeProgresoPorSemestre();
-    document.getElementById('progreso-empty').classList.toggle('hidden', puntos.length > 0);
-    document.getElementById('progreso-content').classList.toggle('hidden', puntos.length === 0);
-    if (!puntos.length) return;
+    var puntosConPromedio = puntos.filter(function (p) { return p.promedio != null; });
     var chartWrap = document.getElementById('progreso-chart');
-    if (puntos.length >= 4) chartWrap.innerHTML = buildProgresoChartSvg(puntos);
-    else renderProgresoBarras(chartWrap, puntos);
+    var chartEmpty = document.getElementById('progreso-chart-empty');
+    if (!puntosConPromedio.length) {
+      clear(chartWrap);
+      chartWrap.classList.add('hidden');
+      chartEmpty.classList.remove('hidden');
+    } else {
+      chartWrap.classList.remove('hidden');
+      chartEmpty.classList.add('hidden');
+      if (puntosConPromedio.length >= 4) chartWrap.innerHTML = buildProgresoChartSvg(puntosConPromedio);
+      else renderProgresoBarras(chartWrap, puntosConPromedio);
+    }
+    renderProgresoSemestresLista(puntos);
+
     renderProgresoDistribucion();
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
     var sinNota = materiasAprobadasSinNota().length;
@@ -1320,7 +1440,11 @@
 
     var deltaWrap = document.getElementById('progreso-widget-delta');
     clear(deltaWrap);
-    if (puntoActivo && puntoAnterior) {
+    // Bloque 4: computeProgresoPorSemestre() ahora también devuelve
+    // semestres sin promedio todavía (históricos recién armados por el
+    // onboarding) — sin promedio en alguno de los dos no hay delta que
+    // mostrar, sólo la barra de meta de abajo.
+    if (puntoActivo && puntoAnterior && puntoActivo.promedio != null && puntoAnterior.promedio != null) {
       var delta = puntoActivo.promedio - puntoAnterior.promedio;
       var tone = delta > 0 ? 'success' : (delta < 0 ? 'danger' : 'neutral');
       var row = el('div', 'progreso-delta');
@@ -3629,7 +3753,12 @@
         return rpc('cat_materias_sugeridas', { p_carrera_id: WIZ.carreraId, p_semestre: s, p_periodo: PERIODO_ACTUAL });
       }));
       WIZ.aprobadasPorSemestre = {};
-      [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s, i) { WIZ.aprobadasPorSemestre[s] = resultados[i] || []; });
+      // Bloque 4: se etiqueta cada fila con su número de semestre del plan
+      // (semestre_sugerido) — wizCrearMateriasAprobadas lo necesita para
+      // agruparlas en el semestre histórico correspondiente.
+      [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (s, i) {
+        WIZ.aprobadasPorSemestre[s] = (resultados[i] || []).map(function (m) { return Object.assign({}, m, { semestre_sugerido: s }); });
+      });
       // Pre-marcar (y bloquear) lo que ya está cargado del lado del usuario
       // — nunca se vuelve a crear al reingresar al wizard (ver
       // btn-rehacer-onboarding), ni se borra si se destilda acá. Mismo
@@ -3715,10 +3844,11 @@
   // Crea, al confirmar el wizard, una materia real por cada tildada acá —
   // mismo criterio de esc/color que wizReconciliarMateriasCreadas() más
   // abajo, pero sin dictado/horario (son materias ya aprobadas, no algo que
-  // se esté cursando). semestreId queda null a propósito: no pertenecen a
-  // ninguno de los semestres propios del usuario (son de "antes de usar la
-  // app") — ver README, sección Semestres, sobre qué vistas se acotan por
-  // semestre y cuáles no.
+  // se esté cursando). semestreId apunta a un semestre HISTÓRICO (uno por
+  // cada semestre_sugerido presente, ver obtenerOCrearSemestreHistorico) —
+  // no a ninguno de los semestres propios del usuario, pero sí a algo que
+  // Progreso puede agrupar (Bloque 4 — antes quedaba null y esas materias
+  // no aparecían en ningún lado de Progreso).
   async function wizCrearMateriasAprobadas() {
     var idsAprobadas = Object.keys(WIZ.aprobadasIdsElegidas).filter(function (id) { return !WIZ.aprobadasIdsYaCargadas[id]; });
     var idsPendientes = Object.keys(WIZ.pendientesIdsElegidas).filter(function (id) { return !WIZ.pendientesIdsYaCargadas[id]; });
@@ -3735,11 +3865,30 @@
         if (!f0) return;
         var totalPuntos = (filas || []).filter(function (f) { return f.computa; }).reduce(function (sum, f) { return sum + (Number(f.puntaje_max) || 0); }, 0);
         var aprobPct = Number(f0.min_aprobar) || 0;
-        escPorMateria[id] = { tipo: 'puntos', total: totalPuntos, aprob: totalPuntos > 0 ? Math.round(aprobPct / 100 * totalPuntos) : 0 };
+        var exonPct = f0.min_exonerar != null ? Number(f0.min_exonerar) : null;
+        escPorMateria[id] = {
+          tipo: 'puntos',
+          total: totalPuntos,
+          aprob: totalPuntos > 0 ? Math.round(aprobPct / 100 * totalPuntos) : 0,
+          exoneracion: exonPct != null && totalPuntos > 0 ? Math.round(exonPct / 100 * totalPuntos) : null
+        };
       } catch (e) {
         console.warn('Cursada: no se pudo resolver la escala de aprobación de una materia aprobada anteriormente', e);
       }
     }));
+    // Un semestre histórico por cada semestre_sugerido presente — secuencial
+    // (no Promise.all) para no correr saveSemestresRaw() en paralelo contra
+    // el mismo CACHE.semestres (ver obtenerOCrearSemestreHistorico/
+    // saveSemestresRaw, la segunda llamada pisaría lo que agregó la primera).
+    var semestresNecesarios = [];
+    idsNuevos.forEach(function (id) {
+      var n = fuentePorId[id].semestre_sugerido;
+      if (n && semestresNecesarios.indexOf(n) < 0) semestresNecesarios.push(n);
+    });
+    var semHistoricoPorNumero = {};
+    for (var i = 0; i < semestresNecesarios.length; i++) {
+      semHistoricoPorNumero[semestresNecesarios[i]] = await obtenerOCrearSemestreHistorico(semestresNecesarios[i]);
+    }
     var colorKeys = Object.keys(ACCENTS).filter(function (k) { return k !== 'gris'; });
     var colorIdx = 0;
     var idsPendientesSet = {};
@@ -3749,7 +3898,8 @@
       var esc = escPorMateria[id] && escPorMateria[id].total > 0 ? escPorMateria[id] : { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
       var colorId = colorKeys[colorIdx % colorKeys.length];
       colorIdx++;
-      return { id: uid(), semestreId: null, nombre: m.nombre, doc: '', colorId: colorId, salon: '', bloques: [], esc: esc, estado: idsPendientesSet[id] ? 'pendiente' : 'aprobada', catalogoMateriaId: id, catalogoDictadoId: null, componentesFijos: [] };
+      var semestreId = m.semestre_sugerido ? (semHistoricoPorNumero[m.semestre_sugerido] || null) : null;
+      return { id: uid(), semestreId: semestreId, nombre: m.nombre, doc: '', colorId: colorId, salon: '', bloques: [], esc: esc, estado: idsPendientesSet[id] ? 'pendiente' : 'aprobada', catalogoMateriaId: id, catalogoDictadoId: null, componentesFijos: [] };
     });
     await saveMateriasRaw(loadMateriasRaw().concat(nuevas));
   }
@@ -4606,7 +4756,7 @@
     var list = document.getElementById('semestres-list');
     clear(list);
     var activoId = activeSemestreId();
-    var ordenados = semestresOrdenados();
+    var ordenados = semestresPropiosOrdenados();
     ordenados.forEach(function (s, idx) {
       var count = loadMateriasRaw().filter(function (m) { return m.semestreId === s.id; }).length;
       var node = tpl('semestre-row');
@@ -4708,8 +4858,9 @@
     // vacíos existentes, y crear una materia sin semestre activo ya
     // auto-crea uno — no hace falta un caso especial nuevo para esto.
     if (s.activo && restantes.length) {
-      var masNuevo = semestresOrdenados().filter(function (x) { return x.id !== s.id; }).slice(-1)[0];
-      restantes = restantes.map(function (x) { return Object.assign({}, x, { activo: x.id === masNuevo.id }); });
+      var candidatos = semestresPropiosOrdenados().filter(function (x) { return x.id !== s.id; });
+      var masNuevo = candidatos.slice(-1)[0];
+      if (masNuevo) restantes = restantes.map(function (x) { return Object.assign({}, x, { activo: x.id === masNuevo.id }); });
     }
     var okSem = await saveSemestresRaw(restantes);
     var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return !materiaIds[m.id]; }));
@@ -4768,6 +4919,24 @@
     var id = uid();
     arr.push({ id: id, nombre: nombreDesdePeriodo(periodo), activo: true, orden: proximoOrdenSemestre(), periodo: periodo });
     if (!(await saveSemestresRaw(arr))) throw new Error('No se pudo crear el semestre.');
+    return id;
+  }
+
+  // Bloque 4: semestre sintético que agrupa las materias aprobadas/pendientes
+  // de "antes de usar la app" (onboarding, paso progreso anterior) según el
+  // número de semestre del plan (1..8) — no un semestre propio del usuario:
+  // nunca activo, nunca aparece en el selector/gestor (ver
+  // semestresPropiosOrdenados), sólo alimenta la sección Progreso. `orden`
+  // bien negativo para que siempre ordene antes que cualquier semestre
+  // propio, y entre sí por n. Idempotente por nombre: reingresar al wizard
+  // (btn-rehacer-onboarding) reusa el mismo en vez de duplicarlo.
+  async function obtenerOCrearSemestreHistorico(n) {
+    var nombre = 'Semestre ' + n + ' (antes de Cursada)';
+    var existente = loadSemestresRaw().filter(function (s) { return s.historico && s.nombre === nombre; })[0];
+    if (existente) return existente.id;
+    var id = uid();
+    var arr = loadSemestresRaw().concat([{ id: id, nombre: nombre, activo: false, orden: -1000 + n, historico: true }]);
+    if (!(await saveSemestresRaw(arr))) throw new Error('No se pudo crear el semestre histórico.');
     return id;
   }
 

@@ -3467,16 +3467,20 @@ materias (con qué nota las aprobó).
   no la saca de la oferta sugerida del semestre actual — cruzar catálogo
   entre dos pasos distintos del wizard para lograr eso era una ampliación
   real de alcance, se dejó fuera de esta pasada a propósito.
-- **`semestreId: null` para las materias históricas**: se crean como
-  materias reales (`estado:'aprobada'`, `catalogoMateriaId` seteado) pero
-  sin pertenecer a ninguno de los semestres propios del usuario — son
-  materias de "antes de usar la app", no de un semestre que se armó acá.
-  Esto encaja solo con las reglas de scoping que ya existían (ver sección
-  "Semestres" más arriba): `materiasAprobadasCount()` y la distribución de
-  estados de Progreso no filtran por semestre, así que las reflejan bien
-  desde el primer momento; el gráfico "Promedio por semestre" sí agrupa
-  por semestre propio, así que estas materias no generan un punto ahí (no
-  hay un semestre real al que atribuirles una fecha) — decisión, no bug.
+- **Semestre histórico (`historico:true`) para las materias de "antes de usar
+  la app"** (Bloque 4, actualiza la decisión de arriba): se crean como
+  materias reales (`estado:'aprobada'`/`'pendiente'`, `catalogoMateriaId`
+  seteado) con `semestreId` apuntando a un semestre sintético por cada
+  `semestre_sugerido` del plan (1..8) presente en lo que el usuario tildó —
+  ver `obtenerOCrearSemestreHistorico`. Antes quedaban con `semestreId:
+  null`, lo que las dejaba afuera de cualquier vista que agrupara por
+  semestre — la sección Progreso mostraba el estado vacío incluso con
+  materias aprobadas ya cargadas (causa raíz, ver plan). Un semestre
+  histórico **no** es un semestre propio del usuario: `historico:true` lo
+  excluye del selector, del gestor de semestres (`semestresPropiosOrdenados`)
+  y de poder activarse — sólo lo consume `semestresOrdenados()` sin filtrar,
+  que es lo que usa Progreso para armar "Semestres anteriores". Requirió
+  agregar la columna `semestres.historico` (migración `semestres_add_historico`).
   Quedan fuera de Inicio/Materias/Horario del semestre activo, que es lo
   correcto: no son parte de lo que se está cursando.
 - **Escala de aprobación resuelta igual que el resto del wizard**:

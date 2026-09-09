@@ -526,14 +526,34 @@
       <div class="view">
         <div class="empty-state hidden" id="progreso-empty">
           <div class="empty-copy">
-            <span class="t">Todavía no hay historial para mostrar</span>
-            <span class="s">En cuanto tengas notas cargadas en al menos un semestre, acá vas a ver tu promedio a lo largo del tiempo y tu progreso hacia el título.</span>
+            <span class="t">Todavía no hay materias para mostrar</span>
+            <span class="s">En cuanto tengas materias cargadas vas a ver acá tu progreso del semestre, tu promedio a lo largo del tiempo y tu avance hacia el título.</span>
           </div>
         </div>
         <div class="progreso-content hidden" id="progreso-content">
+          <!-- Bloque 4: "Este semestre" — versión completa de progreso-semestre-card
+               (Inicio), con desglose por balde en vez de una lista plana. -->
+          <div class="card panel" id="progreso-este-semestre-card">
+            <div class="panel-head"><h2 class="panel-title">Este semestre</h2><span class="panel-hint" id="progreso-este-semestre-delta"></span></div>
+            <div id="progreso-este-semestre-empty" class="hidden">
+              <span style="font-size:13px;color:var(--c-ink3)">Todavía no cargaste notas este semestre.</span>
+            </div>
+            <div id="progreso-este-semestre-content">
+              <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+                <div><span class="progreso-semestre-promedio-val" id="progreso-este-semestre-promedio"></span><span style="font-size:12px;color:var(--c-ink3);margin-left:6px">promedio del semestre</span></div>
+                <div class="progreso-semestre-ring" id="progreso-este-semestre-ring"></div>
+              </div>
+              <div class="detalle-sim-stats" id="progreso-este-semestre-buckets" style="margin-top:14px"></div>
+            </div>
+          </div>
           <div class="card panel">
-            <div class="panel-head"><h2 class="panel-title">Promedio por semestre</h2></div>
+            <div class="panel-head"><h2 class="panel-title">Semestres anteriores</h2></div>
             <div class="progreso-chart-wrap" id="progreso-chart"></div>
+            <span class="hidden" id="progreso-chart-empty" style="font-size:13px;color:var(--c-ink3)">Todavía no hay semestres anteriores con promedio para graficar.</span>
+            <!-- Bloque 4: aprobadas/exoneradas por semestre — incluye semestres
+                 sin promedio todavía (p. ej. materias aprobadas en el onboarding
+                 sin nota cargada), que el gráfico de arriba no puede plotear. -->
+            <div id="progreso-semestres-lista" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
           </div>
           <div class="card panel">
             <div class="panel-head"><h2 class="panel-title">Estado de todas tus materias</h2></div>

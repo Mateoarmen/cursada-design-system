@@ -22,7 +22,14 @@
     ],
     semestres: [
       { id: 'sem-1', user_id: 'test-user-id-000', nombre: '2do cuatrimestre 2026', activo: true, created_at: '2026-08-01T00:00:00Z' },
-      { id: 'sem-0', user_id: 'test-user-id-000', nombre: '1er cuatrimestre 2026', activo: false, created_at: '2026-02-01T00:00:00Z' }
+      { id: 'sem-0', user_id: 'test-user-id-000', nombre: '1er cuatrimestre 2026', activo: false, created_at: '2026-02-01T00:00:00Z' },
+      // Bloque 4: semestre histórico simulando lo que arma el onboarding
+      // para materias aprobadas "antes de usar la app" — nunca activo, no
+      // aparece en el selector/gestor (ver semestresPropiosOrdenados).
+      { id: 'sem-historico-3', user_id: 'test-user-id-000', nombre: 'Semestre 3 (antes de Cursada)', activo: false, orden: -997, historico: true, created_at: '2026-01-01T00:00:00Z' },
+      // Semestre histórico sin ninguna materia con nota todavía — prueba el
+      // caso "sin promedio" de renderProgresoSemestresLista.
+      { id: 'sem-historico-5', user_id: 'test-user-id-000', nombre: 'Semestre 5 (antes de Cursada)', activo: false, orden: -995, historico: true, created_at: '2026-01-01T00:00:00Z' }
     ],
     materias: [
       { id: 'mat-1', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Análisis Matemático II', doc: 'Dra. Pérez', color_id: 'azul', salon: 'Aula 204', bloques: [{ dia: 1, ini: 8, fin: 10 }, { dia: 3, ini: 8, fin: 10 }], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
@@ -39,7 +46,13 @@
       // sin inconsistencia de escala a propósito.
       { id: 'mat-6', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Bases de Datos', doc: 'Ing. Fontán', color_id: 'turquesa', salon: 'Lab 2', bloques: [{ dia: 4, ini: 16, fin: 18 }], esc: { tipo: 'puntos', total: 100, aprob: 60, exoneracion: 85 }, estado: 'cursando', componentes_fijos: [{ id: 'fijo-part-1', titulo: 'Participación en clase', puntajeMax: 20, valor: null }] },
       { id: 'mat-old-1', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Filosofía', doc: 'Dr. Rossi', color_id: 'azul', salon: 'Aula 1', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
-      { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
+      { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
+      // Bloque 4: materias del semestre histórico — sin nota cargada (el
+      // caso típico recién salido del onboarding) y con nota (para probar
+      // el conteo de "exoneradas" y que sí aporte promedio al gráfico).
+      { id: 'mat-hist-1', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Cálculo I', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6, exoneracion: 10 }, estado: 'aprobada' },
+      { id: 'mat-hist-2', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Química General', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6, exoneracion: 10 }, estado: 'aprobada' },
+      { id: 'mat-hist-3', user_id: 'test-user-id-000', semestre_id: 'sem-historico-5', nombre: 'Física II', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
     ],
     // Fase 1: kind ('tarea'|'evaluacion') + nota_maxima (sólo evaluación).
     agenda: [
@@ -54,7 +67,10 @@
       { id: 'ag-5c', user_id: 'test-user-id-000', materia_id: 'mat-5', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial 2', fecha: todayPlus(20), hora: '10:00', hecho: false, nota: null, nota_maxima: 30, notas: '' },
       { id: 'ag-6a', user_id: 'test-user-id-000', materia_id: 'mat-6', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial único', fecha: todayPlus(2), hora: '08:00', hecho: true, nota: 50, nota_maxima: 80, notas: '' },
       { id: 'ag-old-1', user_id: 'test-user-id-000', materia_id: 'mat-old-1', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Filosofía', fecha: '2026-06-15', hora: '10:00', hecho: true, nota: 8, nota_maxima: 12, notas: '' },
-      { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, nota_maxima: 12, notas: '' }
+      { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, nota_maxima: 12, notas: '' },
+      // mat-hist-1 (Cálculo I) a propósito sin ítem de agenda — simula una
+      // materia aprobada en el onboarding sin nota cargada todavía.
+      { id: 'ag-hist-2', user_id: 'test-user-id-000', materia_id: 'mat-hist-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Química', fecha: '2025-12-10', hora: '10:00', hecho: true, nota: 11, nota_maxima: 12, notas: '' }
     ],
     personal: [
       { id: 'p-1', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(0), hora: '19:00', todo_el_dia: false, tag_id: 'tag-2' },
