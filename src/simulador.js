@@ -55,20 +55,20 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     puntosProyectados += Math.max(0, Math.min(valorProyectado, notaMaxima));
   });
 
-  // Mismo tratamiento que una evaluación calificada/sin calificar, pero sin
-  // slider: un valor cargado es real y proyectado a la vez (no hay nada que
-  // simular), uno sin cargar todavía es "disponible" (el techo lo cuenta,
-  // el piso no).
+  // Mismo tratamiento que una evaluación calificada/sin calificar: un valor
+  // ya cargado es real y proyectado a la vez, salvo que se lo toque con su
+  // propio slider (mismo valoresSimulados[c.id], igual que evaluaciones —
+  // Bloque 3: antes un fijo sin valor no tenía slider y quedaba afuera de
+  // puntosProyectados aunque sí contara como "disponible").
   componentesFijos.forEach(function (c) {
     var puntajeMax = Number(c.puntajeMax) || 0;
     sumaNotaMaxima += puntajeMax;
-    if (c.valor != null) {
-      var valorFijo = Math.max(0, Math.min(Number(c.valor), puntajeMax));
-      puntosReales += valorFijo;
-      puntosProyectados += valorFijo;
-    } else {
-      disponibles += puntajeMax;
-    }
+    var tieneValor = c.valor != null;
+    var valorFijo = tieneValor ? Math.max(0, Math.min(Number(c.valor), puntajeMax)) : null;
+    if (tieneValor) puntosReales += valorFijo; else disponibles += puntajeMax;
+    var simulado = valoresSimulados[c.id];
+    var valorProyectado = simulado != null ? Number(simulado) : (tieneValor ? valorFijo : 0);
+    puntosProyectados += Math.max(0, Math.min(valorProyectado, puntajeMax));
   });
 
   // "Imposible"/"asegurado" son propiedades de lo YA REAL (ignoran dónde
@@ -79,6 +79,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   var imposible = total > 0 && techoMaximoPosible < aprob;
   var asegurado = total > 0 && puntosReales >= aprob;
   var exonerado = exoneracion != null && total > 0 && puntosReales >= exoneracion;
+  // Mismo criterio que `imposible`, pero contra el umbral de exoneración —
+  // Bloque 3: sin esto se podía mostrar "te faltan X para exonerar" con un
+  // X que ya no entraba en lo que queda por rendir.
+  var imposibleExonerar = exoneracion != null && total > 0 && techoMaximoPosible < exoneracion;
 
   var evaluacionesSinNota = evaluaciones.filter(function (e) { return e.nota == null; });
   var promedioNecesario = null;
@@ -98,6 +102,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     imposible: imposible,
     asegurado: asegurado,
     exonerado: exonerado,
+    imposibleExonerar: imposibleExonerar,
     promedioNecesario: promedioNecesario,
     escalaInconsistente: total > 0 && sumaNotaMaxima !== total
   };

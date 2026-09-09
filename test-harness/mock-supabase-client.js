@@ -34,6 +34,10 @@
       // Σ nota_maxima de sus evaluaciones (50+30=80) ≠ esc.total (100) —
       // Fase 2, caso borde a avisar sin romper.
       { id: 'mat-5', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Contabilidad II', doc: 'Cra. Nieves', color_id: 'amarillo', salon: 'Aula 305', bloques: [], esc: { tipo: 'puntos', total: 100, aprob: 60 }, estado: 'cursando' },
+      // Con exoneración definida + un componente fijo sin valor (ver
+      // Bloques 2 y 3): 80 (parcial) + 20 (participación) = 100 = esc.total,
+      // sin inconsistencia de escala a propósito.
+      { id: 'mat-6', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Bases de Datos', doc: 'Ing. Fontán', color_id: 'turquesa', salon: 'Lab 2', bloques: [{ dia: 4, ini: 16, fin: 18 }], esc: { tipo: 'puntos', total: 100, aprob: 60, exoneracion: 85 }, estado: 'cursando', componentes_fijos: [{ id: 'fijo-part-1', titulo: 'Participación en clase', puntajeMax: 20, valor: null }] },
       { id: 'mat-old-1', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Filosofía', doc: 'Dr. Rossi', color_id: 'azul', salon: 'Aula 1', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
       { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
     ],
@@ -48,6 +52,7 @@
       { id: 'ag-6', user_id: 'test-user-id-000', materia_id: 'mat-1', kind: 'tarea', tipo: 'Tarea', titulo: 'Estudiar capítulo 4', fecha: todayPlus(1), hora: '', hecho: true, nota: null, nota_maxima: null, notas: '' },
       { id: 'ag-5b', user_id: 'test-user-id-000', materia_id: 'mat-5', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial 1', fecha: todayPlus(6), hora: '10:00', hecho: false, nota: null, nota_maxima: 50, notas: '' },
       { id: 'ag-5c', user_id: 'test-user-id-000', materia_id: 'mat-5', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial 2', fecha: todayPlus(20), hora: '10:00', hecho: false, nota: null, nota_maxima: 30, notas: '' },
+      { id: 'ag-6a', user_id: 'test-user-id-000', materia_id: 'mat-6', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial único', fecha: todayPlus(2), hora: '08:00', hecho: true, nota: 50, nota_maxima: 80, notas: '' },
       { id: 'ag-old-1', user_id: 'test-user-id-000', materia_id: 'mat-old-1', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Filosofía', fecha: '2026-06-15', hora: '10:00', hecho: true, nota: 8, nota_maxima: 12, notas: '' },
       { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, nota_maxima: 12, notas: '' }
     ],

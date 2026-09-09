@@ -1709,13 +1709,15 @@
           ? 'Con este escenario, llegás a ' + valU(r.puntosProyectados, m.esc) + ' — aprobarías.'
           : 'Con este escenario, te faltan ' + valU(r.faltanAprobacion, m.esc) + ' para aprobar (' + valU(r.aprob, m.esc) + ').';
 
+    // Bloque 3: el aviso de acá abajo es sólo de APROBACIÓN — el de
+    // exoneración vive aparte (detalle-sim-aviso-exoneracion, más abajo),
+    // siempre visible si la materia la define, no escondido adentro de
+    // este cuando ya está asegurada la aprobación.
     var aviso = document.getElementById('detalle-sim-aviso');
     if (r.asegurado) {
       aviso.classList.remove('hidden');
       aviso.setAttribute('style', css({ background: rgba(TONE.success, .09), border: '1px solid ' + rgba(TONE.success, .3) }));
-      aviso.textContent = r.exoneracion != null
-        ? (r.exonerado ? 'Aprobación y exoneración aseguradas con lo que ya tenés.' : 'Aprobación asegurada. Para exonerar todavía te faltan ' + valU(r.faltanExoneracion, m.esc) + '.')
-        : 'Aprobación asegurada con lo que ya tenés.';
+      aviso.textContent = 'Aprobación asegurada con lo que ya tenés.';
     } else if (r.imposible) {
       aviso.classList.remove('hidden');
       aviso.setAttribute('style', css({ background: rgba(TONE.danger, .09), border: '1px solid ' + rgba(TONE.danger, .3) }));
@@ -1726,6 +1728,27 @@
       aviso.textContent = 'Necesitás promediar ' + valU(r.promedioNecesario, m.esc) + ' en las evaluaciones que faltan para llegar al mínimo.';
     } else {
       aviso.classList.add('hidden');
+    }
+
+    // Bloque 3: resultado de exoneración, siempre visible (mientras la
+    // materia la defina) y diferenciado del de aprobación de arriba —
+    // antes sólo aparecía metido en el aviso de "aprobación asegurada", y
+    // "cuánto falta" podía mostrar un número que ya no entraba en el techo.
+    var avisoExon = document.getElementById('detalle-sim-aviso-exoneracion');
+    if (r.exoneracion == null) {
+      avisoExon.classList.add('hidden');
+    } else {
+      avisoExon.classList.remove('hidden');
+      if (r.exonerado) {
+        avisoExon.setAttribute('style', css({ background: rgba(TONE.success, .09), border: '1px solid ' + rgba(TONE.success, .3) }));
+        avisoExon.textContent = 'Exoneración asegurada con lo que ya tenés (' + valU(r.exoneracion, m.esc) + ').';
+      } else if (r.imposibleExonerar) {
+        avisoExon.setAttribute('style', css({ background: rgba(TONE.danger, .09), border: '1px solid ' + rgba(TONE.danger, .3) }));
+        avisoExon.textContent = 'Exonerar ya no es matemáticamente posible: incluso sacando el máximo en todo lo que falta, no se llega a ' + valU(r.exoneracion, m.esc) + '.';
+      } else {
+        avisoExon.setAttribute('style', css({ background: rgba(TONE.warning, .09), border: '1px solid ' + rgba(TONE.warning, .3) }));
+        avisoExon.textContent = 'Con este escenario, te faltan ' + valU(r.faltanExoneracion, m.esc) + ' para exonerar (' + valU(r.exoneracion, m.esc) + ').';
+      }
     }
 
     var escAviso = document.getElementById('detalle-sim-escala-aviso');
@@ -1749,32 +1772,39 @@
     toggleBtn.classList.remove('hidden');
     panel.classList.add('hidden'); // colapsada por default en cada render
 
-    var valores = {}; // evaluacionId -> valor simulado actual del slider
+    var valores = {}; // itemId (evaluación o componente fijo) -> valor simulado actual del slider
     var slidersWrap = document.getElementById('detalle-sim-sliders');
     clear(slidersWrap);
     var step = m.esc.tipo === 'nota' ? 0.5 : 1;
     var filas = [];
-    evaluaciones.forEach(function (a) {
+    // Bloque 3: un slider por cada ítem simulable del esquema de
+    // evaluación — evaluaciones (con fecha en agenda) Y componentes fijos
+    // sin fecha (participación en clase, etc.) que todavía no tienen un
+    // valor real cargado. Un fijo con valor ya cargado no tiene slider acá
+    // (no hay nada que simular — ver renderDetalleFijos, se edita directo).
+    function armarSliderRow(item, notaMaxima, notaReal) {
       var node = tpl('sim-slider-row');
-      qf(node, 'label').textContent = truncate(a.titulo, 24);
+      qf(node, 'label').textContent = truncate(item.titulo, 24);
       var tag = qf(node, 'tag');
       var range = qf(node, 'range');
-      range.min = '0'; range.max = String(a.notaMaxima || 0); range.step = String(step);
-      range.setAttribute('aria-label', 'Nota simulada para ' + a.titulo);
+      range.min = '0'; range.max = String(notaMaxima || 0); range.step = String(step);
+      range.setAttribute('aria-label', 'Nota simulada para ' + item.titulo);
       var valSpan = qf(node, 'val');
-      filas.push({ id: a.id, range: range, valSpan: valSpan, tag: tag, nota: a.nota });
+      filas.push({ id: item.id, range: range, valSpan: valSpan, tag: tag, nota: notaReal });
       range.addEventListener('input', function () {
-        valores[a.id] = Number(range.value);
-        // Tocar el slider de una evaluación ya calificada la pasa a
-        // "Simulado" — a partir de ahí está explorando un escenario
-        // distinto al real, no mostrando el dato real.
+        valores[item.id] = Number(range.value);
+        // Tocar el slider de un ítem ya calificado lo pasa a "Simulado" —
+        // a partir de ahí está explorando un escenario distinto al real.
         tag.textContent = 'Simulado';
-        valSpan.textContent = valU(valores[a.id], m.esc);
+        valSpan.textContent = valU(valores[item.id], m.esc);
         pintarRangeFill(range);
         recalcularSimulacion(m, evaluaciones, valores);
       });
       slidersWrap.appendChild(node);
-    });
+    }
+    evaluaciones.forEach(function (a) { armarSliderRow(a, a.notaMaxima, a.nota); });
+    var fijosSimulables = (m.componentesFijos || []).filter(function (c) { return c.valor == null; });
+    fijosSimulables.forEach(function (c) { armarSliderRow(c, c.puntajeMax, null); });
 
     // Punto de partida de cada slider: la nota real si ya tiene una, si no
     // el mínimo de aprobación de la materia acotado a la nota_maxima de esa

@@ -103,3 +103,38 @@ test('decimales: la suma no arrastra error de punto flotante perceptible', () =>
   const r = calcularSimulacion({ total: 24, aprob: 12 }, evaluaciones, { b: 6.2 });
   assert.ok(Math.abs(r.puntosProyectados - 16.7) < 1e-9);
 });
+
+test('Bloque 3: un componente fijo sin valor se puede simular con su propio slider', () => {
+  const evaluaciones = [ev('a', 70, 50)];
+  const fijos = [{ id: 'part', puntajeMax: 30, valor: null }];
+  // sin tocar el slider del fijo, proyecta 0 (mismo default que una evaluación sin nota)
+  const sinTocar = calcularSimulacion({ total: 100, aprob: 60 }, evaluaciones, {}, fijos);
+  assert.equal(sinTocar.disponibles, 30);
+  assert.equal(sinTocar.puntosProyectados, 50);
+  // al tocarlo, suma al proyectado igual que el slider de una evaluación
+  const tocado = calcularSimulacion({ total: 100, aprob: 60 }, evaluaciones, { part: 20 }, fijos);
+  assert.equal(tocado.puntosProyectados, 70);
+  assert.equal(tocado.puntosReales, 50); // lo real no se mueve por simular el fijo
+});
+
+test('Bloque 3: un componente fijo con valor ya cargado sigue sin slider (es real y proyectado a la vez)', () => {
+  const fijos = [{ id: 'part', puntajeMax: 30, valor: 25 }];
+  const r = calcularSimulacion({ total: 100, aprob: 60 }, [], {}, fijos);
+  assert.equal(r.puntosReales, 25);
+  assert.equal(r.puntosProyectados, 25);
+  assert.equal(r.disponibles, 0);
+});
+
+test('Bloque 3: exonerar ya es matemáticamente imposible, se marca explícito', () => {
+  const evaluaciones = [ev('a', 30, 10), ev('b', 20, null)]; // techo real = 10 + 20 = 30
+  const r = calcularSimulacion({ total: 100, aprob: 20, exoneracion: 90 }, evaluaciones, {});
+  assert.equal(r.imposible, false); // aprobar sigue siendo posible
+  assert.equal(r.imposibleExonerar, true); // pero exonerar (90) ya no entra en el techo (30)
+});
+
+test('Bloque 3: exonerar sigue siendo posible mientras el techo lo permita', () => {
+  const evaluaciones = [ev('a', 50, 10), ev('b', 50, null)];
+  const r = calcularSimulacion({ total: 100, aprob: 20, exoneracion: 50 }, evaluaciones, {});
+  assert.equal(r.exonerado, false); // todavía no, con lo real solo (10 < 50)
+  assert.equal(r.imposibleExonerar, false); // pero el techo (10 + 50 = 60) sí llega a 50
+});
