@@ -4015,6 +4015,9 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     out.soft = acc.soft;
     out.notaTxt = val(actual, e);
     out.aprobTxt = valU(e.aprob, e);
+    // Bloque 2: sólo si la materia define exoneración — null significa que
+    // no aplica, no se muestra ningún texto en su lugar (ver plan).
+    out.exonTxt = e.exoneracion != null ? valU(e.exoneracion, e) : null;
     out.escalaTxt = escLabel(e);
     out.totalTxt = val(e.total, e) + uni(e);
     out.horario = formatHorario(m.bloques);
@@ -4028,11 +4031,13 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     out.parciales = parciales;
     return out;
   }
-  // Sin `opts.semestreId`: todas las materias, de cualquier semestre (así lo
-  // usan Agenda/Calendario/el selector de materia de una evaluación — ver
-  // README, sección Semestres, sobre por qué esas vistas no se acotan).
-  // Con `opts.semestreId`: sólo las materias de ese semestre (Inicio,
-  // Materias, Horario).
+  // Sin `opts.semestreId`: todas las materias, de cualquier semestre — la
+  // usan vistas que muestran historial completo a propósito (Progreso) o
+  // que necesitan resolver una materia puntual sin importar su semestre
+  // (computeMateriaById). Con `opts.semestreId`: sólo las materias de ese
+  // semestre — ver computeMateriasDelActivo(), que es lo que usan Inicio,
+  // Materias, Horario, la leyenda de Calendario, el filtro de Agenda y el
+  // selector de materia del modal de evaluación (Bloque 1, ver README).
   function computeMaterias(opts) {
     opts = opts || {};
     var agenda = loadAgendaRaw();
@@ -4783,7 +4788,8 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     inner.appendChild(v);
     qf(node, 'salon').textContent = m.salon || 'Sin salón asignado';
     qf(node, 'horario').textContent = m.horario;
-    qf(node, 'escalaTxt').textContent = m.escalaTxt + ' · aprueba ' + m.aprobTxt;
+    // Bloque 2: "exonera con Y" sólo si la materia define exoneración.
+    qf(node, 'escalaTxt').textContent = m.escalaTxt + ' · aprueba ' + m.aprobTxt + (m.exonTxt ? ' · exonera con ' + m.exonTxt : '');
     qf(node, 'toneDot').setAttribute('style', dotStyle(TONE[m.tone], '50%'));
     makeRowClickable(node, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
     return node;
@@ -4850,6 +4856,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     var v1 = el('span'); v1.className = 'mono'; v1.style.cssText = 'font-size:34px;font-weight:600;line-height:1'; v1.textContent = m.notaTxt;
     var v2 = el('span'); v2.className = 'mono'; v2.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v2.textContent = 'aprueba ' + m.aprobTxt;
     ringInner.appendChild(v1); ringInner.appendChild(v2);
+    // Bloque 2: umbral de exoneración, en su propia línea para no
+    // amontonar todo en el subtítulo del anillo.
+    if (m.exonTxt) {
+      var v3 = el('span'); v3.className = 'mono'; v3.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v3.textContent = 'exonera ' + m.exonTxt;
+      ringInner.appendChild(v3);
+    }
 
     var notasList = document.getElementById('detalle-notas-list');
     clear(notasList);
@@ -4875,7 +4887,9 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       document.getElementById('detalle-callout-s').textContent = 'Se calificó por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprobaba con ' + m.aprobTxt + '.';
     } else if (!count) {
       document.getElementById('detalle-callout-t').textContent = 'Todavía no cargaste notas';
-      document.getElementById('detalle-callout-s').textContent = 'Esta materia se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Agregá tu primer parcial para ver la proyección.';
+      // Bloque 2: el estado vacío es el único lugar que hoy no informaba
+      // ningún umbral — acá van los dos, aprobación y (si aplica) exoneración.
+      document.getElementById('detalle-callout-s').textContent = 'Esta materia se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '.' + (m.exonTxt ? ' Exonera con ' + m.exonTxt + '.' : '') + ' Agregá tu primer parcial para ver la proyección.';
     } else if (m.actual >= m.esc.aprob) {
       document.getElementById('detalle-callout-t').textContent = m.tone === 'warning' ? 'Vas aprobando, pero raspando' : 'Vas aprobando esta materia';
       document.getElementById('detalle-callout-s').textContent = 'Esta materia se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Con ' + count + (count === 1 ? ' nota cargada' : ' notas cargadas') + ' tu promedio es ' + valU(m.actual, m.esc) + ', por encima del mínimo.';
