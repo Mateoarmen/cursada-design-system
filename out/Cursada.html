@@ -324,7 +324,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .nuevo-menu button{display:flex;align-items:center;width:100%;height:44px;padding:0 14px;border:none;background:transparent;border-radius:9px;font-size:14px;color:var(--c-ink);text-align:left;cursor:pointer}
 .nuevo-menu button:hover,.nuevo-menu button:focus-visible{background:var(--c-surfaceAlt);outline:none}
 .search-fake{height:34px;display:flex;align-items:center;padding:0 13px;border-radius:10px;font-size:13px;color:var(--c-ink3);background:var(--c-surfaceAlt)}
-.search-input{height:34px;padding:0 13px;border:none;border-radius:10px;font-size:13px;color:var(--c-ink);background:var(--c-surfaceAlt);width:220px;max-width:100%}
+/* Bloque 7: colapsada por default en cualquier ancho (antes sólo colapsaba
+   en mobile, ver @media(max-width:760px) más abajo) — sólo se ve la lupa
+   (.topbar-search, ya visible siempre por .icon-btn) hasta que
+   data-toggle-search le agrega .is-searching al .topbar padre. El toggle de
+   display en sí (.topbar-search-done acá abajo) vive más adelante en el
+   archivo, después de .btn — empatan en especificidad (una sola clase cada
+   una) y .topbar-search-done necesita ganarle a .btn{display:inline-flex}. */
+.search-input{display:none;height:34px;padding:0 13px;border:none;border-radius:10px;font-size:13px;color:var(--c-ink);background:var(--c-surfaceAlt);width:220px;max-width:100%}
 .search-input:focus-visible{outline:none;box-shadow:var(--c-focus)}
 .search-input::-webkit-search-cancel-button{cursor:pointer}
 
@@ -348,6 +355,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .icon-btn .ico{width:17px;height:17px}
 .icon-btn-bell{position:relative}
 .icon-btn-bell .bell-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
+/* Bloque 7: toggle lupa<->input de búsqueda (ver .search-input más arriba).
+   Después de .btn a propósito: .topbar-search-done es .btn.btn-ghost, misma
+   especificidad que .btn (una clase) — acá gana por orden en la cascada. */
+.topbar-search-done{display:none}
+.topbar.is-searching .topbar-search{display:none}
+.topbar.is-searching .search-input{display:block}
+.topbar.is-searching .topbar-search-done{display:flex}
 
 .seg{display:flex;background:var(--c-surfaceAlt);border-radius:10px;padding:2px;gap:2px}
 .seg-item{height:30px;padding:0 14px;border-radius:8px;font-size:13px;color:var(--c-ink2);display:flex;align-items:center;gap:7px;border:none;background:transparent}
@@ -776,6 +790,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .hg-block .s{font-size:10px;margin-top:auto;opacity:.85;display:flex;align-items:center;gap:3px}
 .hg-block .s:not(:empty)::before{content:'';flex:none;width:9px;height:9px;background:currentColor;
   -webkit-mask:var(--ico-pin) center/contain no-repeat;mask:var(--ico-pin) center/contain no-repeat}
+/* Bloque 7: red de seguridad para tablet/iPad (761-1024px, arriba del
+   breakpoint de mobile que ya cambia a timeline). A estos anchos las
+   columnas (1fr) se angostan pero no llegan a cortarse en los anchos ya
+   probados — esto es para el caso borde de un iPad en split view o
+   similar, angosto de verdad: en vez de columnas ilegiblemente finas, la
+   grilla scrollea horizontalmente con un piso legible. */
+@media(min-width:761px) and (max-width:1024px){
+  .horario-grid-wrap{overflow-x:auto}
+  .horario-grid{min-width:620px}
+}
 
 /* ---------- Modales (sheet estilo Apple) ---------- */
 /* Antes esto era display:none <-> flex — un salto instantáneo que se siente
@@ -1033,6 +1057,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    propia explícita o la grilla queda en 0px (probado: sin esto no se ve
    nada, ni siquiera las líneas). */
 #wiz-panel-revision .horario-grid-wrap{flex:none;height:460px}
+/* Bloque 7: pista de scroll horizontal — sólo se muestra en mobile (ver
+   @media(max-width:760px) más abajo), que es el único ancho donde la
+   grilla necesita scroll para verse (columnas angostas la harían
+   ilegible). Oculta acá con display:none normal (no .hidden — ese usa
+   !important, no lo puede pisar un @media). */
+.horario-scroll-hint{display:none}
 
 /* ---------- Toolbar (runtime, no está en el bundle) ---------- */
 .app-toolbar{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--c-line);background:var(--c-surface)}
@@ -1123,11 +1153,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   .cal-event{font-size:9px;padding:3px 4px}
   .cal-hoy-badge{font-size:8px;top:3px;right:3px;padding:1px 4px}
 }
-@media print{
-  .sidenav,.topbar-actions,.app-toolbar,.materia-add,.mc-foot .btn,.detalle-actions,.acceso-btn{display:none !important}
-  body{background:#fff}
-}
-
 /* ---------- Auth / gate screens (Supabase) ---------- */
 .gate-screen{position:fixed;inset:0;background:var(--c-bg);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
 .gate-screen.hidden{display:none}
@@ -1300,24 +1325,15 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar-actions .icon-btn,.topbar-actions .btn{height:38px}
   .topbar-actions .icon-btn{width:38px}
   .topbar-actions .search-fake{display:none}
-  /* Imprimir propio del header de Horario (sólo desktop por diseño): en
-     mobile el .topbar es una fila fija y compacta (52px) — sin ocultarlo
-     acá se apretaba contra el título "Horario semanal" (bug real, visto
-     probando en 375px). El botón real de Imprimir (#btn-imprimir) tampoco
-     se expone en mobile — consistente con el resto de las vistas, ninguna
-     pierde funcionalidad real. El tema (Sistema/Claro/Oscuro) vive sólo en
-     Ajustes → ahí ya es accesible en cualquier ancho, no necesita control
-     propio acá. */
-  #btn-horario-imprimir{display:none}
 
-  .topbar-search{display:flex}
-  .search-input{display:none}
-  .topbar-search-done{display:none;flex:none}
+  /* Bloque 7: el colapso lupa->input ya es la regla base (ver arriba, fuera
+     de este @media) — acá sólo quedan los ajustes propios de mobile: el
+     input toma TODO el ancho de la topbar (título/menú/marca se esconden)
+     en vez de sólo expandirse en su lugar como en desktop. */
+  .topbar-search-done{flex:none}
   .topbar.is-searching .topbar-title{display:none}
-  .topbar.is-searching .topbar-search{display:none}
   .topbar.is-searching .topbar-actions{flex:1}
-  .topbar.is-searching .search-input{display:block;width:100%;flex:1;height:38px}
-  .topbar.is-searching .topbar-search-done{display:flex}
+  .topbar.is-searching .search-input{width:100%;flex:1;height:38px}
 
   .view{padding:14px 14px calc(104px + env(safe-area-inset-bottom));gap:16px}
 
@@ -1696,6 +1712,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
      nueva sólo para esto (con scroll horizontal propio, más angosta). */
   #wiz-panel-revision .horario-grid-wrap{display:flex!important;height:400px;overflow-x:auto}
   #wiz-panel-revision .horario-grid{min-width:480px}
+  /* Bloque 7: el scrollbar nativo del overflow-x de arriba no se ve en
+     iOS/Android hasta que se toca — sin pista, la semana se leía "cortada"
+     a partir de jueves/viernes en vez de "hay que deslizar". */
+  .horario-scroll-hint{display:block;text-align:center;font-size:11.5px;color:var(--c-ink3);margin-top:6px}
 
   .empty-state{padding:0 20px;gap:20px}
   .empty-copy .t{font-size:22px}
@@ -1847,8 +1867,17 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <select id="auth-universidad" name="universidad" aria-label="Universidad"></select>
           </div>
           <div class="field hidden" id="auth-universidad-otra-wrap"><label for="auth-universidad-otra">¿Cuál?</label><input id="auth-universidad-otra" name="universidad_otra" placeholder="Nombre de tu universidad"></div>
-          <div class="field hidden" id="auth-carrera-select-wrap"><label for="auth-carrera-select">Carrera</label><select id="auth-carrera-select" aria-label="Carrera"></select></div>
-          <div class="field" id="auth-carrera-wrap"><label for="auth-carrera" id="auth-carrera-label">Carrera</label><input id="auth-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+          <!-- Bloque 7: un solo control de "Carrera" — antes el select del
+               catálogo y el input de texto libre vivían en .field separados,
+               cada uno con su propio label, y se leían como dos campos
+               distintos. "No está en la lista" es la última opción del
+               mismo select (initSelectCarrera la agrega); elegirla revela
+               el input de texto libre debajo, dentro del mismo .field. -->
+          <div class="field" id="auth-carrera-field">
+            <label for="auth-carrera-select">Carrera</label>
+            <select class="hidden" id="auth-carrera-select" aria-label="Carrera"></select>
+            <input id="auth-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas" aria-label="Carrera">
+          </div>
         </div>
         <span class="auth-error hidden" id="auth-error" role="alert" aria-live="polite"></span>
         <button type="submit" class="btn btn-primary" id="auth-submit" style="width:100%;height:44px;margin-top:4px">Iniciar sesión</button>
@@ -1922,7 +1951,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <div class="sidenav-toggles">
       <label class="switch-row hidden" id="toggle-clases-row" style="cursor:pointer">
         <span style="font-size:12px;color:var(--c-ink2)">Ver clases</span>
-        <button type="button" class="switch is-on" id="toggle-clases" aria-label="Ver clases"><span class="knob"></span></button>
+        <button type="button" class="switch" id="toggle-clases" aria-label="Ver clases"><span class="knob"></span></button>
       </label>
       <label class="switch-row hidden" id="toggle-evaluaciones-row" style="cursor:pointer">
         <span style="font-size:12px;color:var(--c-ink2)">Ver evaluaciones</span>
@@ -1953,7 +1982,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <button class="nav-item" data-nav="inicio" style="width:auto;height:34px;font-size:12px;font-weight:700;font-family:var(--font-display)">cursada</button>
       <span class="mono" id="toolbar-view-label" style="font-size:12px;color:var(--c-ink3)"></span>
       <div class="grow"></div>
-      <button class="toolbar-btn" id="btn-imprimir">Imprimir</button>
     </div>
 
     <!-- ============ INICIO ============ -->
@@ -2297,7 +2325,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         <span class="topbar-title"><h1 class="t">Horario semanal</h1><span class="meta mono" id="horario-meta"></span></span>
         <div class="topbar-actions">
           <span class="search-fake">Semestre 2 · 2026</span>
-          <button class="btn" id="btn-horario-imprimir"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimir</button>
           <button class="btn btn-primary" id="btn-horario-editar">+ Nueva materia</button>
         </div>
       </header>
@@ -2461,6 +2488,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         <h2 class="wiz-title">Revisá tu semestre</h2>
         <div class="wiz-conflictos hidden" id="wiz-conflictos"></div>
         <div class="horario-grid-wrap"><div class="horario-grid" id="wiz-horario-grid"></div></div>
+        <!-- Bloque 7: la grilla en mobile tiene scroll horizontal (columnas
+             angostas la volverían ilegible, ver styles.css) pero sin pista
+             visual se veía "cortada" — el scrollbar nativo no es visible en
+             iOS/Android hasta que se toca. Sólo se muestra en ese ancho. -->
+        <span class="horario-scroll-hint" id="wiz-horario-scroll-hint">← Deslizá para ver el resto de la semana →</span>
         <div id="wiz-revision-resumen" class="wiz-resumen"></div>
       </div>
     </div>
@@ -2759,8 +2791,12 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <select id="perfil-universidad" name="universidad" aria-label="Universidad"></select>
           </div>
           <div class="field hidden" id="perfil-universidad-otra-wrap"><label for="perfil-universidad-otra">¿Cuál?</label><input id="perfil-universidad-otra" name="universidad_otra" placeholder="Nombre de tu universidad"></div>
-          <div class="field hidden" id="perfil-carrera-select-wrap"><label for="perfil-carrera-select">Carrera</label><select id="perfil-carrera-select" aria-label="Carrera"></select></div>
-          <div class="field" id="perfil-carrera-wrap"><label for="perfil-carrera" id="perfil-carrera-label">Carrera</label><input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas"></div>
+          <!-- Bloque 7: mismo control único que auth-carrera-field, ver ahí. -->
+          <div class="field" id="perfil-carrera-field">
+            <label for="perfil-carrera-select">Carrera</label>
+            <select class="hidden" id="perfil-carrera-select" aria-label="Carrera"></select>
+            <input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas" aria-label="Carrera">
+          </div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
       </div>
@@ -4184,7 +4220,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     calWeekStart: mondayOf(today()),
     calSelected: todayISO(),
     mostrarPersonales: true,
-    mostrarClases: true,
+    // Bloque 7: el valor real se carga por usuario en onSignedIn() (ver
+    // cargarMostrarClasesPref) — este default sólo importa antes de que
+    // haya sesión (pantalla de login, nunca se llega a usar).
+    mostrarClases: false,
     mostrarEvaluaciones: true,
     materiasOcultasCal: {},
     mostrarSabado: true,
@@ -4310,6 +4349,11 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     document.getElementById('toggle-sabado-row').classList.toggle('hidden', STATE.route.view !== 'horario');
     document.getElementById('toggle-clases-row').classList.toggle('hidden', STATE.route.view !== 'calendario');
     document.getElementById('toggle-evaluaciones-row').classList.toggle('hidden', STATE.route.view !== 'calendario');
+    // Bloque 7: sincroniza el switch visual con STATE.mostrarClases — a
+    // diferencia de personales/evaluaciones (siempre arrancan en true), este
+    // ahora puede arrancar en false (preferencia cargada por usuario, ver
+    // cargarMostrarClasesPref), así que el markup estático ya no alcanza.
+    document.getElementById('toggle-clases').classList.toggle('is-on', STATE.mostrarClases);
   }
 
   // ================================================================
@@ -5625,6 +5669,21 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   }
   function setCompletadasCollapsed(scope, collapsed) {
     try { localStorage.setItem(completadasCollapsedKey(scope), collapsed ? '1' : '0'); } catch (e) {}
+  }
+
+  // Bloque 7: "Ver clases" del Calendario — apagado por default (antes
+  // quedaba prendido siempre, aunque el usuario lo hubiera apagado en la
+  // sesión anterior) y guardado por usuario, mismo patrón de localStorage
+  // que completadasCollapsedKey de acá arriba pero con el id de cuenta en
+  // la clave (acá sí importa que no se mezcle entre cuentas en el mismo
+  // navegador). cargarMostrarClasesPref() se llama recién con CURRENT_USER
+  // ya seteado (ver onSignedIn), así que nunca corre sin id.
+  function mostrarClasesKey() { return 'cursada:mostrar-clases:' + CURRENT_USER.id; }
+  function cargarMostrarClasesPref() {
+    try { return localStorage.getItem(mostrarClasesKey()) === '1'; } catch (e) { return false; }
+  }
+  function guardarMostrarClasesPref(mostrar) {
+    try { localStorage.setItem(mostrarClasesKey(), mostrar ? '1' : '0'); } catch (e) {}
   }
   // `rowsListEl` ya viene armado por el caller (buildAgendaRowsList en
   // Agenda, buildEvalRowsList en Detalle) — esta función sólo pone el
@@ -8559,6 +8618,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     document.getElementById('toggle-clases').addEventListener('click', function () {
       STATE.mostrarClases = !STATE.mostrarClases;
       this.classList.toggle('is-on', STATE.mostrarClases);
+      guardarMostrarClasesPref(STATE.mostrarClases);
       renderRoute();
     });
     document.getElementById('toggle-evaluaciones').addEventListener('click', function () {
@@ -8608,12 +8668,6 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       location.hash = '#materias';
       renderRoute();
     });
-    document.getElementById('btn-imprimir').addEventListener('click', function () { window.print(); });
-    // El botón "Imprimir" propio del header de Horario (Cambio 3 del
-    // rediseño visual) reusa la acción real de arriba en vez de duplicar
-    // lógica — mismo patrón que #btn-perfil-logout/#btn-ajustes-logout con
-    // #btn-logout (ver skill cursada-conventions).
-    document.getElementById('btn-horario-imprimir').addEventListener('click', function () { document.getElementById('btn-imprimir').click(); });
   }
 
   // ================================================================
@@ -8676,7 +8730,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       poblarSelectNacimiento('auth-nac');
       initSelectPais('auth-tel-pais', 'auth-telefono', null, null);
       initSelectUniversidad('auth-universidad', 'auth-universidad-otra-wrap', 'auth-universidad-otra', null, null, function (universityId, esPrecarga) {
-        initSelectCarrera('auth-carrera-select-wrap', 'auth-carrera-select', 'auth-carrera-wrap', 'auth-carrera', universityId, esPrecarga ? document.getElementById('auth-carrera').value : '');
+        initSelectCarrera('auth-carrera-select', 'auth-carrera', universityId, esPrecarga ? document.getElementById('auth-carrera').value : '');
       });
     }
     // No tiene sentido "¿olvidaste tu contraseña?" en el formulario de
@@ -8909,20 +8963,23 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // texto conviven visibles (se puede elegir de la lista o escribir directo);
   // sólo se oculta el texto cuando el select tiene una carrera real elegida
   // (ahí el input ya quedó sincronizado con ese valor, nunca vacío).
-  function initSelectCarrera(selectWrapId, selectId, inputWrapId, inputId, universityId, carreraActual) {
-    var wrapSel = document.getElementById(selectWrapId);
+  // Bloque 7: un solo control de "Carrera" — antes el <select> del catálogo
+  // y el <input> de texto libre vivían en .field separados, cada uno con su
+  // propio label (el del input cambiaba a "¿No está en la lista?"), y se
+  // leían como dos campos distintos. Ahora los dos viven en el mismo .field
+  // bajo un único label fijo ("Carrera"); "No está en la lista" es la
+  // última opción del propio <select> — elegirla revela el input debajo,
+  // dentro del mismo campo.
+  function initSelectCarrera(selectId, inputId, universityId, carreraActual) {
     var sel = document.getElementById(selectId);
-    var wrapInput = document.getElementById(inputWrapId);
     var input = document.getElementById(inputId);
-    var label = document.getElementById(inputId + '-label');
     clear(sel);
-    wrapSel.classList.add('hidden');
-    wrapInput.classList.remove('hidden');
+    sel.classList.add('hidden');
+    input.classList.remove('hidden');
     input.value = carreraActual || '';
-    if (label) label.textContent = 'Carrera';
     function sincronizarVisibilidad() {
       var esCatalogo = sel.value && sel.value !== 'otra';
-      wrapInput.classList.toggle('hidden', esCatalogo);
+      input.classList.toggle('hidden', esCatalogo);
       if (esCatalogo) input.value = sel.value;
     }
     cargarCarrerasDeUniversidad(universityId).then(function (carreras) {
@@ -8938,13 +8995,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         o.textContent = dup && c.facultad ? c.nombre + ' — ' + c.facultad : c.nombre;
         sel.appendChild(o);
       });
-      var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'Otra…'; sel.appendChild(optOtra);
+      var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'No está en la lista'; sel.appendChild(optOtra);
       var coincide = carreraActual && carreras.some(function (c) { return c.nombre === carreraActual; });
       sel.value = coincide ? carreraActual : (carreraActual ? 'otra' : '');
-      wrapSel.classList.remove('hidden');
-      // Con las dos visibles a la vez (nada elegido todavía) "Carrera" dos
-      // veces seguidas confunde — se aclara cuál es la de respaldo.
-      if (label) label.textContent = '¿No está en la lista? Escribila';
+      sel.classList.remove('hidden');
       sincronizarVisibilidad();
     });
     sel.onchange = function () {
@@ -9168,7 +9222,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     initNacimiento('perfil-nac', p.birth_date || null);
     initSelectPais('perfil-tel-pais', 'perfil-telefono', p.telefono_e164 || null, p.telefono_pais || null);
     initSelectUniversidad('perfil-universidad', 'perfil-universidad-otra-wrap', 'perfil-universidad-otra', p.university_id || null, p.university_other || null, function (universityId, esPrecarga) {
-      initSelectCarrera('perfil-carrera-select-wrap', 'perfil-carrera-select', 'perfil-carrera-wrap', 'perfil-carrera', universityId, esPrecarga ? (p.carrera || '') : '');
+      initSelectCarrera('perfil-carrera-select', 'perfil-carrera', universityId, esPrecarga ? (p.carrera || '') : '');
     });
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
     // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
@@ -9642,6 +9696,9 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // ================================================================
   async function onSignedIn(user) {
     CURRENT_USER = user;
+    // Bloque 7: preferencia de "Ver clases" del Calendario, por usuario —
+    // recién acá hay CURRENT_USER.id para armar la clave de localStorage.
+    STATE.mostrarClases = cargarMostrarClasesPref();
     setGateLoadingText('Cargando tus datos…');
     setGate('gate-loading');
     try {

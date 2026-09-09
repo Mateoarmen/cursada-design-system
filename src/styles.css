@@ -316,7 +316,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .nuevo-menu button{display:flex;align-items:center;width:100%;height:44px;padding:0 14px;border:none;background:transparent;border-radius:9px;font-size:14px;color:var(--c-ink);text-align:left;cursor:pointer}
 .nuevo-menu button:hover,.nuevo-menu button:focus-visible{background:var(--c-surfaceAlt);outline:none}
 .search-fake{height:34px;display:flex;align-items:center;padding:0 13px;border-radius:10px;font-size:13px;color:var(--c-ink3);background:var(--c-surfaceAlt)}
-.search-input{height:34px;padding:0 13px;border:none;border-radius:10px;font-size:13px;color:var(--c-ink);background:var(--c-surfaceAlt);width:220px;max-width:100%}
+/* Bloque 7: colapsada por default en cualquier ancho (antes sólo colapsaba
+   en mobile, ver @media(max-width:760px) más abajo) — sólo se ve la lupa
+   (.topbar-search, ya visible siempre por .icon-btn) hasta que
+   data-toggle-search le agrega .is-searching al .topbar padre. El toggle de
+   display en sí (.topbar-search-done acá abajo) vive más adelante en el
+   archivo, después de .btn — empatan en especificidad (una sola clase cada
+   una) y .topbar-search-done necesita ganarle a .btn{display:inline-flex}. */
+.search-input{display:none;height:34px;padding:0 13px;border:none;border-radius:10px;font-size:13px;color:var(--c-ink);background:var(--c-surfaceAlt);width:220px;max-width:100%}
 .search-input:focus-visible{outline:none;box-shadow:var(--c-focus)}
 .search-input::-webkit-search-cancel-button{cursor:pointer}
 
@@ -340,6 +347,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .icon-btn .ico{width:17px;height:17px}
 .icon-btn-bell{position:relative}
 .icon-btn-bell .bell-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
+/* Bloque 7: toggle lupa<->input de búsqueda (ver .search-input más arriba).
+   Después de .btn a propósito: .topbar-search-done es .btn.btn-ghost, misma
+   especificidad que .btn (una clase) — acá gana por orden en la cascada. */
+.topbar-search-done{display:none}
+.topbar.is-searching .topbar-search{display:none}
+.topbar.is-searching .search-input{display:block}
+.topbar.is-searching .topbar-search-done{display:flex}
 
 .seg{display:flex;background:var(--c-surfaceAlt);border-radius:10px;padding:2px;gap:2px}
 .seg-item{height:30px;padding:0 14px;border-radius:8px;font-size:13px;color:var(--c-ink2);display:flex;align-items:center;gap:7px;border:none;background:transparent}
@@ -768,6 +782,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .hg-block .s{font-size:10px;margin-top:auto;opacity:.85;display:flex;align-items:center;gap:3px}
 .hg-block .s:not(:empty)::before{content:'';flex:none;width:9px;height:9px;background:currentColor;
   -webkit-mask:var(--ico-pin) center/contain no-repeat;mask:var(--ico-pin) center/contain no-repeat}
+/* Bloque 7: red de seguridad para tablet/iPad (761-1024px, arriba del
+   breakpoint de mobile que ya cambia a timeline). A estos anchos las
+   columnas (1fr) se angostan pero no llegan a cortarse en los anchos ya
+   probados — esto es para el caso borde de un iPad en split view o
+   similar, angosto de verdad: en vez de columnas ilegiblemente finas, la
+   grilla scrollea horizontalmente con un piso legible. */
+@media(min-width:761px) and (max-width:1024px){
+  .horario-grid-wrap{overflow-x:auto}
+  .horario-grid{min-width:620px}
+}
 
 /* ---------- Modales (sheet estilo Apple) ---------- */
 /* Antes esto era display:none <-> flex — un salto instantáneo que se siente
@@ -1025,6 +1049,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    propia explícita o la grilla queda en 0px (probado: sin esto no se ve
    nada, ni siquiera las líneas). */
 #wiz-panel-revision .horario-grid-wrap{flex:none;height:460px}
+/* Bloque 7: pista de scroll horizontal — sólo se muestra en mobile (ver
+   @media(max-width:760px) más abajo), que es el único ancho donde la
+   grilla necesita scroll para verse (columnas angostas la harían
+   ilegible). Oculta acá con display:none normal (no .hidden — ese usa
+   !important, no lo puede pisar un @media). */
+.horario-scroll-hint{display:none}
 
 /* ---------- Toolbar (runtime, no está en el bundle) ---------- */
 .app-toolbar{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--c-line);background:var(--c-surface)}
@@ -1115,11 +1145,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   .cal-event{font-size:9px;padding:3px 4px}
   .cal-hoy-badge{font-size:8px;top:3px;right:3px;padding:1px 4px}
 }
-@media print{
-  .sidenav,.topbar-actions,.app-toolbar,.materia-add,.mc-foot .btn,.detalle-actions,.acceso-btn{display:none !important}
-  body{background:#fff}
-}
-
 /* ---------- Auth / gate screens (Supabase) ---------- */
 .gate-screen{position:fixed;inset:0;background:var(--c-bg);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
 .gate-screen.hidden{display:none}
@@ -1292,24 +1317,15 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar-actions .icon-btn,.topbar-actions .btn{height:38px}
   .topbar-actions .icon-btn{width:38px}
   .topbar-actions .search-fake{display:none}
-  /* Imprimir propio del header de Horario (sólo desktop por diseño): en
-     mobile el .topbar es una fila fija y compacta (52px) — sin ocultarlo
-     acá se apretaba contra el título "Horario semanal" (bug real, visto
-     probando en 375px). El botón real de Imprimir (#btn-imprimir) tampoco
-     se expone en mobile — consistente con el resto de las vistas, ninguna
-     pierde funcionalidad real. El tema (Sistema/Claro/Oscuro) vive sólo en
-     Ajustes → ahí ya es accesible en cualquier ancho, no necesita control
-     propio acá. */
-  #btn-horario-imprimir{display:none}
 
-  .topbar-search{display:flex}
-  .search-input{display:none}
-  .topbar-search-done{display:none;flex:none}
+  /* Bloque 7: el colapso lupa->input ya es la regla base (ver arriba, fuera
+     de este @media) — acá sólo quedan los ajustes propios de mobile: el
+     input toma TODO el ancho de la topbar (título/menú/marca se esconden)
+     en vez de sólo expandirse en su lugar como en desktop. */
+  .topbar-search-done{flex:none}
   .topbar.is-searching .topbar-title{display:none}
-  .topbar.is-searching .topbar-search{display:none}
   .topbar.is-searching .topbar-actions{flex:1}
-  .topbar.is-searching .search-input{display:block;width:100%;flex:1;height:38px}
-  .topbar.is-searching .topbar-search-done{display:flex}
+  .topbar.is-searching .search-input{width:100%;flex:1;height:38px}
 
   .view{padding:14px 14px calc(104px + env(safe-area-inset-bottom));gap:16px}
 
@@ -1688,6 +1704,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
      nueva sólo para esto (con scroll horizontal propio, más angosta). */
   #wiz-panel-revision .horario-grid-wrap{display:flex!important;height:400px;overflow-x:auto}
   #wiz-panel-revision .horario-grid{min-width:480px}
+  /* Bloque 7: el scrollbar nativo del overflow-x de arriba no se ve en
+     iOS/Android hasta que se toca — sin pista, la semana se leía "cortada"
+     a partir de jueves/viernes en vez de "hay que deslizar". */
+  .horario-scroll-hint{display:block;text-align:center;font-size:11.5px;color:var(--c-ink3);margin-top:6px}
 
   .empty-state{padding:0 20px;gap:20px}
   .empty-copy .t{font-size:22px}

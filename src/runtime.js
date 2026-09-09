@@ -833,7 +833,10 @@
     calWeekStart: mondayOf(today()),
     calSelected: todayISO(),
     mostrarPersonales: true,
-    mostrarClases: true,
+    // Bloque 7: el valor real se carga por usuario en onSignedIn() (ver
+    // cargarMostrarClasesPref) — este default sólo importa antes de que
+    // haya sesión (pantalla de login, nunca se llega a usar).
+    mostrarClases: false,
     mostrarEvaluaciones: true,
     materiasOcultasCal: {},
     mostrarSabado: true,
@@ -959,6 +962,11 @@
     document.getElementById('toggle-sabado-row').classList.toggle('hidden', STATE.route.view !== 'horario');
     document.getElementById('toggle-clases-row').classList.toggle('hidden', STATE.route.view !== 'calendario');
     document.getElementById('toggle-evaluaciones-row').classList.toggle('hidden', STATE.route.view !== 'calendario');
+    // Bloque 7: sincroniza el switch visual con STATE.mostrarClases — a
+    // diferencia de personales/evaluaciones (siempre arrancan en true), este
+    // ahora puede arrancar en false (preferencia cargada por usuario, ver
+    // cargarMostrarClasesPref), así que el markup estático ya no alcanza.
+    document.getElementById('toggle-clases').classList.toggle('is-on', STATE.mostrarClases);
   }
 
   // ================================================================
@@ -2274,6 +2282,21 @@
   }
   function setCompletadasCollapsed(scope, collapsed) {
     try { localStorage.setItem(completadasCollapsedKey(scope), collapsed ? '1' : '0'); } catch (e) {}
+  }
+
+  // Bloque 7: "Ver clases" del Calendario — apagado por default (antes
+  // quedaba prendido siempre, aunque el usuario lo hubiera apagado en la
+  // sesión anterior) y guardado por usuario, mismo patrón de localStorage
+  // que completadasCollapsedKey de acá arriba pero con el id de cuenta en
+  // la clave (acá sí importa que no se mezcle entre cuentas en el mismo
+  // navegador). cargarMostrarClasesPref() se llama recién con CURRENT_USER
+  // ya seteado (ver onSignedIn), así que nunca corre sin id.
+  function mostrarClasesKey() { return 'cursada:mostrar-clases:' + CURRENT_USER.id; }
+  function cargarMostrarClasesPref() {
+    try { return localStorage.getItem(mostrarClasesKey()) === '1'; } catch (e) { return false; }
+  }
+  function guardarMostrarClasesPref(mostrar) {
+    try { localStorage.setItem(mostrarClasesKey(), mostrar ? '1' : '0'); } catch (e) {}
   }
   // `rowsListEl` ya viene armado por el caller (buildAgendaRowsList en
   // Agenda, buildEvalRowsList en Detalle) — esta función sólo pone el
@@ -5208,6 +5231,7 @@
     document.getElementById('toggle-clases').addEventListener('click', function () {
       STATE.mostrarClases = !STATE.mostrarClases;
       this.classList.toggle('is-on', STATE.mostrarClases);
+      guardarMostrarClasesPref(STATE.mostrarClases);
       renderRoute();
     });
     document.getElementById('toggle-evaluaciones').addEventListener('click', function () {
@@ -5257,12 +5281,6 @@
       location.hash = '#materias';
       renderRoute();
     });
-    document.getElementById('btn-imprimir').addEventListener('click', function () { window.print(); });
-    // El botón "Imprimir" propio del header de Horario (Cambio 3 del
-    // rediseño visual) reusa la acción real de arriba en vez de duplicar
-    // lógica — mismo patrón que #btn-perfil-logout/#btn-ajustes-logout con
-    // #btn-logout (ver skill cursada-conventions).
-    document.getElementById('btn-horario-imprimir').addEventListener('click', function () { document.getElementById('btn-imprimir').click(); });
   }
 
   // ================================================================
@@ -5325,7 +5343,7 @@
       poblarSelectNacimiento('auth-nac');
       initSelectPais('auth-tel-pais', 'auth-telefono', null, null);
       initSelectUniversidad('auth-universidad', 'auth-universidad-otra-wrap', 'auth-universidad-otra', null, null, function (universityId, esPrecarga) {
-        initSelectCarrera('auth-carrera-select-wrap', 'auth-carrera-select', 'auth-carrera-wrap', 'auth-carrera', universityId, esPrecarga ? document.getElementById('auth-carrera').value : '');
+        initSelectCarrera('auth-carrera-select', 'auth-carrera', universityId, esPrecarga ? document.getElementById('auth-carrera').value : '');
       });
     }
     // No tiene sentido "¿olvidaste tu contraseña?" en el formulario de
@@ -5558,20 +5576,23 @@
   // texto conviven visibles (se puede elegir de la lista o escribir directo);
   // sólo se oculta el texto cuando el select tiene una carrera real elegida
   // (ahí el input ya quedó sincronizado con ese valor, nunca vacío).
-  function initSelectCarrera(selectWrapId, selectId, inputWrapId, inputId, universityId, carreraActual) {
-    var wrapSel = document.getElementById(selectWrapId);
+  // Bloque 7: un solo control de "Carrera" — antes el <select> del catálogo
+  // y el <input> de texto libre vivían en .field separados, cada uno con su
+  // propio label (el del input cambiaba a "¿No está en la lista?"), y se
+  // leían como dos campos distintos. Ahora los dos viven en el mismo .field
+  // bajo un único label fijo ("Carrera"); "No está en la lista" es la
+  // última opción del propio <select> — elegirla revela el input debajo,
+  // dentro del mismo campo.
+  function initSelectCarrera(selectId, inputId, universityId, carreraActual) {
     var sel = document.getElementById(selectId);
-    var wrapInput = document.getElementById(inputWrapId);
     var input = document.getElementById(inputId);
-    var label = document.getElementById(inputId + '-label');
     clear(sel);
-    wrapSel.classList.add('hidden');
-    wrapInput.classList.remove('hidden');
+    sel.classList.add('hidden');
+    input.classList.remove('hidden');
     input.value = carreraActual || '';
-    if (label) label.textContent = 'Carrera';
     function sincronizarVisibilidad() {
       var esCatalogo = sel.value && sel.value !== 'otra';
-      wrapInput.classList.toggle('hidden', esCatalogo);
+      input.classList.toggle('hidden', esCatalogo);
       if (esCatalogo) input.value = sel.value;
     }
     cargarCarrerasDeUniversidad(universityId).then(function (carreras) {
@@ -5587,13 +5608,10 @@
         o.textContent = dup && c.facultad ? c.nombre + ' — ' + c.facultad : c.nombre;
         sel.appendChild(o);
       });
-      var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'Otra…'; sel.appendChild(optOtra);
+      var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'No está en la lista'; sel.appendChild(optOtra);
       var coincide = carreraActual && carreras.some(function (c) { return c.nombre === carreraActual; });
       sel.value = coincide ? carreraActual : (carreraActual ? 'otra' : '');
-      wrapSel.classList.remove('hidden');
-      // Con las dos visibles a la vez (nada elegido todavía) "Carrera" dos
-      // veces seguidas confunde — se aclara cuál es la de respaldo.
-      if (label) label.textContent = '¿No está en la lista? Escribila';
+      sel.classList.remove('hidden');
       sincronizarVisibilidad();
     });
     sel.onchange = function () {
@@ -5817,7 +5835,7 @@
     initNacimiento('perfil-nac', p.birth_date || null);
     initSelectPais('perfil-tel-pais', 'perfil-telefono', p.telefono_e164 || null, p.telefono_pais || null);
     initSelectUniversidad('perfil-universidad', 'perfil-universidad-otra-wrap', 'perfil-universidad-otra', p.university_id || null, p.university_other || null, function (universityId, esPrecarga) {
-      initSelectCarrera('perfil-carrera-select-wrap', 'perfil-carrera-select', 'perfil-carrera-wrap', 'perfil-carrera', universityId, esPrecarga ? (p.carrera || '') : '');
+      initSelectCarrera('perfil-carrera-select', 'perfil-carrera', universityId, esPrecarga ? (p.carrera || '') : '');
     });
     document.getElementById('perfil-email').textContent = CURRENT_USER ? CURRENT_USER.email : '';
     // Duplicado del de arriba: en mobile el perfil pasa a ser una pantalla
@@ -6291,6 +6309,9 @@
   // ================================================================
   async function onSignedIn(user) {
     CURRENT_USER = user;
+    // Bloque 7: preferencia de "Ver clases" del Calendario, por usuario —
+    // recién acá hay CURRENT_USER.id para armar la clave de localStorage.
+    STATE.mostrarClases = cargarMostrarClasesPref();
     setGateLoadingText('Cargando tus datos…');
     setGate('gate-loading');
     try {

@@ -87,7 +87,7 @@ instalado:
   en el mismo día y horario, se muestran lado a lado (no una tapando a la
   otra).
 - **Barra superior**: cambiar tema claro/oscuro, exportar tus datos a JSON,
-  importar un JSON, borrar todo (con confirmación) e imprimir.
+  importar un JSON, borrar todo (con confirmación).
 - **Semestres**: selector en el side nav para crear un semestre nuevo o
   volver a uno anterior sin perder nada — ver la sección "Semestres" más
   abajo para el detalle completo de qué se acota por semestre y qué no.
@@ -3684,3 +3684,59 @@ selector de grupo existe para simplificar).
   revisión final mostró exactamente 4 materias (3 matutinas + 1 nocturna,
   sin duplicados ni conflicto), y Materias tras confirmar mostró esas
   mismas 4 con los horarios correctos. Sin errores de consola.
+
+## Bloque 7 — UI, responsive y limpieza
+
+Pedido: cinco reportes sueltos de UI/responsive/limpieza, sin relación
+entre sí (a diferencia de otros bloques de esta tanda, acá no hay una
+causa raíz compartida).
+
+- **Horario "cortado" en mobile — no era un cutoff, era falta de pista de
+  scroll**: la grilla ya tenía `overflow-x:auto` en mobile (`≤760px`,
+  tanto la vista real — que además tiene su timeline alternativo — como el
+  preview del onboarding, que no lo tiene y sigue usando la grilla con
+  scroll horizontal a propósito, ver más arriba "Ronda de bugs..."). El
+  scroll funcionaba, pero en iOS/Android el scrollbar nativo no se ve
+  hasta que se toca — sin ninguna pista visual, jue/vie/sáb quedaban fuera
+  de cuadro y se leía como "la grilla está cortada", no como "hay que
+  deslizar". Comprobado inyectando datos reales en `#wiz-horario-grid` a
+  375px: los últimos días quedaban invisibles sin ningún indicio. Se
+  agrega `#wiz-horario-scroll-hint` ("← Deslizá para ver el resto de la
+  semana →"), visible sólo en ese ancho. Además, red de seguridad nueva
+  para tablet (761–1024px, arriba del breakpoint mobile): `overflow-x:auto`
+  + `min-width:620px` en la grilla real, por si un iPad angosto (split
+  view u orientación rara) la aprieta más de lo que se pudo reproducir acá.
+- **Menú de perfil, carrera separada de "no está en la lista"**:
+  `initSelectCarrera()` armaba el `<select>` del catálogo y el `<input>`
+  de texto libre en dos `.field` distintos, cada uno con su propio label
+  (el del input cambiaba a "¿No está en la lista? Escribila" cuando
+  convivían) — se leía como dos campos. Ahora los dos viven en el mismo
+  `.field` (`auth-carrera-field`/`perfil-carrera-field`) bajo un único
+  label fijo "Carrera"; la opción se renombró a "No está en la lista"
+  (antes "Otra…") y es la última del propio `<select>` — elegirla revela
+  el input debajo, dentro del mismo campo.
+- **Buscador siempre desplegado**: el patrón de colapso lupa↔input
+  (`data-toggle-search`/`.is-searching`) ya existía pero sus reglas de
+  `display` sólo vivían dentro de `@media(max-width:760px)` — en desktop
+  el input de 220px quedaba siempre visible junto a una lupa inerte. Se
+  movieron las reglas base fuera del `@media` (colapsado por default en
+  cualquier ancho); mobile conserva su comportamiento propio (el input
+  toma toda la topbar en vez de sólo expandirse in situ). Encontrado al
+  mover las reglas: `.topbar-search-done` (el botón "Listo") es
+  `.btn.btn-ghost` — misma especificidad que `.btn{display:inline-flex}`,
+  así que el `display:none` colapsado sólo ganaba si su regla queda
+  *después* de `.btn` en el archivo (por eso vive ahí y no junto al resto
+  de `.search-input`).
+- **Imprimir**: sacado de todos lados — `#btn-imprimir` (barra superior),
+  `#btn-horario-imprimir` (header de Horario) y sus handlers en
+  `runtime.js`, el `@media print` completo y las reglas mobile que
+  ocultaban esos botones.
+- **Clases del Calendario, ocultas por default y por usuario**:
+  `STATE.mostrarClases` pasa de `true` fijo a `false` por default, cargado
+  por cuenta (`cargarMostrarClasesPref()`/`guardarMostrarClasesPref()`,
+  localStorage con el id de usuario en la clave — mismo patrón que
+  `cursada:theme`/`completadas-collapsed`, pero con id de cuenta porque acá
+  sí importa no mezclar preferencias entre cuentas del mismo navegador). El
+  switch en el side nav ahora se sincroniza desde `STATE` en cada render
+  (antes su estado visual sólo cambiaba al click, arrancaba "encendido" a
+  fuego en el HTML).
