@@ -191,6 +191,7 @@
               <button type="button" role="menuitem" id="nuevo-menu-evaluacion">Evaluación</button>
               <button type="button" role="menuitem" id="nuevo-menu-tarea">Tarea</button>
               <button type="button" role="menuitem" id="nuevo-menu-nota">Cargar nota</button>
+              <button type="button" role="menuitem" id="nuevo-menu-evento">Evento personal</button>
             </div>
           </div>
         </div>
@@ -469,7 +470,20 @@
           <button class="mono" id="cal-today-label" style="font-size:12px;color:var(--c-ink3);background:none;border:none;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;flex:none" title="Volver a hoy"></button>
         </div>
         <div class="topbar-actions">
-          <button class="btn btn-primary" id="btn-cal-evento">+ Evento personal</button>
+          <!-- Bloque 6: mismo componente "+ Nuevo" que Inicio (ver
+               .nuevo-menu-wrap/.nuevo-menu más arriba) en vez de un botón
+               suelto de "+ Evento personal" — ids propios (nuevo-menu-cal*)
+               para no chocar con los de Inicio. -->
+          <div class="nuevo-menu-wrap">
+            <button class="btn btn-primary" id="btn-cal-nuevo" aria-haspopup="true" aria-expanded="false">+ Nuevo</button>
+            <div class="nuevo-menu hidden" id="nuevo-menu-cal" role="menu" aria-label="Crear nuevo">
+              <button type="button" role="menuitem" id="nuevo-menu-cal-materia">Materia</button>
+              <button type="button" role="menuitem" id="nuevo-menu-cal-evaluacion">Evaluación</button>
+              <button type="button" role="menuitem" id="nuevo-menu-cal-tarea">Tarea</button>
+              <button type="button" role="menuitem" id="nuevo-menu-cal-nota">Cargar nota</button>
+              <button type="button" role="menuitem" id="nuevo-menu-cal-evento">Evento personal</button>
+            </div>
+          </div>
         </div>
       </header>
       <div class="calendario-wrap">

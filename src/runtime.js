@@ -823,6 +823,10 @@
     agendaFiltroMateria: '',
     agendaFiltroEstado: '',
     agendaQuery: '',
+    // Bloque 6: id de un ítem a resaltar/scrollear en el próximo render de
+    // Agenda — lo setea "Ver en agenda" del widget "Lo próximo" de Inicio,
+    // se consume una sola vez (ver renderAgenda).
+    agendaHighlightId: null,
     calYear: today().getFullYear(),
     calMonth: today().getMonth(),
     calViewMode: 'mes',
@@ -1228,10 +1232,25 @@
         document.getElementById('inicio-hero-bar').setAttribute('style', css({ width: pct + '%', background: TONE[m.tone] }));
         document.getElementById('inicio-hero-sub').textContent = m.riesgoTxt || ('Vas aprobando · aprobás con ' + m.aprobTxt + '.');
       }
+      // Bloque 6: "Abrir materia" va a la materia (antes abría el modal de
+      // la evaluación, que ya tiene su propio punto de entrada en la fila
+      // de abajo). Si por lo que sea la materia ya no existe, cae al
+      // comportamiento viejo en vez de navegar a una vista rota.
       primary.textContent = 'Abrir materia';
-      primary.onclick = function () { openEvaluacionModal({ editId: p.item.id }); };
+      primary.onclick = m ? function () { location.hash = '#materia-' + m.id; } : function () { openEvaluacionModal({ editId: p.item.id }); };
       secondary.classList.remove('hidden');
-      secondary.onclick = function () { location.hash = '#agenda'; };
+      // "Ver en agenda" navega Y resalta/scrollea hasta el ítem puntual
+      // (antes sólo navegaba) — ver STATE.agendaHighlightId, consumido en
+      // renderAgenda().
+      secondary.onclick = function () {
+        // Limpia los filtros que podrían esconder el ítem (si quedó, por
+        // ejemplo, "Sólo pendientes" de una visita anterior a Agenda) —
+        // si no, "Ver en agenda" podría navegar a una lista donde el
+        // ítem ni siquiera aparece.
+        STATE.agendaFiltroKind = ''; STATE.agendaFiltroMateria = ''; STATE.agendaFiltroEstado = ''; STATE.agendaQuery = '';
+        STATE.agendaHighlightId = p.item.id;
+        location.hash = '#agenda';
+      };
     } else {
       badgeEl.setAttribute('style', badgeStyle('neutral')); badgeEl.textContent = 'Personal';
       document.getElementById('inicio-hero-title').textContent = p.item.titulo;
@@ -2146,6 +2165,32 @@
       empty.textContent = 'No hay ítems con estos filtros.';
       groupsNode.appendChild(empty);
     }
+
+    // Bloque 6: "Ver en agenda" (widget "Lo próximo" de Inicio) deja acá el
+    // id a resaltar — se consume una sola vez (se limpia apenas se lee) para
+    // no volver a scrollear/resaltar en cada re-render posterior de Agenda.
+    if (STATE.agendaHighlightId) {
+      var highlightId = STATE.agendaHighlightId;
+      STATE.agendaHighlightId = null;
+      var targetNode = groupsNode.querySelector('[data-agenda-item-id="' + highlightId + '"]');
+      if (targetNode) {
+        // Si el ítem cayó en "Completadas" (colapsada por default), se
+        // despliega la sección primero — si no, scrollIntoView apuntaría a
+        // un elemento visualmente recortado por el collapse.
+        var collapseOuter = targetNode.closest('.agenda-collapse');
+        if (collapseOuter && collapseOuter.classList.contains('is-collapsed')) {
+          collapseOuter.classList.remove('is-collapsed');
+          var grupoCollapsible = collapseOuter.closest('.agenda-group-collapsible');
+          if (grupoCollapsible) grupoCollapsible.classList.remove('is-collapsed');
+          setCompletadasCollapsed('agenda', false);
+        }
+        setTimeout(function () {
+          targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetNode.classList.add('is-highlighted');
+          setTimeout(function () { targetNode.classList.remove('is-highlighted'); }, 2200);
+        }, 50);
+      }
+    }
   }
 
   function buildAgendaGroup(titulo, items, danger, t, ocultarMateriaChip) {
@@ -2166,6 +2211,9 @@
     var list = el('div', 'card agenda-list');
     items.forEach(function (item) {
       var node = tpl('agenda-row');
+      // Bloque 6: ancla para el resaltado/scroll que dispara "Ver en
+      // agenda" desde el widget "Lo próximo" de Inicio (ver renderAgenda).
+      node.setAttribute('data-agenda-item-id', item.id);
       var check = qf(node, 'check');
       if (item.kind === 'materia') {
         wireTickButton(check, { id: item.id, kind: item.itemKind, hecho: item.hecho, nota: item.nota, notaMaxima: item.notaMaxima, titulo: item.titulo });
@@ -2811,35 +2859,52 @@
     return order.map(function (k) { return groups[k]; });
   }
 
-  // Menú "+ Nuevo" de Inicio (bloque C3) — 4 accesos directos a formularios
+  // Menú "+ Nuevo" (bloque C3, Bloque 6) — 5 accesos directos a formularios
   // ya existentes, ninguno nuevo: Materia (openMateriaModal), Evaluación y
   // Tarea (openEvaluacionModal, la única diferencia es el tipo preseleccionado),
   // Cargar nota (mismo modal de Evaluación, arranca con foco en el campo
-  // de nota — ver el flag opts.modoNota en openEvaluacionModal).
-  function toggleNuevoMenu(cerrar) {
-    var menu = document.getElementById('nuevo-menu');
-    var btn = document.getElementById('btn-inicio-nuevo');
-    var abrir = cerrar ? false : menu.classList.contains('hidden');
-    menu.classList.toggle('hidden', !abrir);
-    btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-    if (abrir) { var first = menu.querySelector('button'); if (first) first.focus(); }
-  }
-  function bindNuevoMenu() {
-    var btn = document.getElementById('btn-inicio-nuevo');
-    var menu = document.getElementById('nuevo-menu');
-    btn.addEventListener('click', function (ev) { ev.stopPropagation(); toggleNuevoMenu(); });
-    document.getElementById('nuevo-menu-materia').addEventListener('click', function () { toggleNuevoMenu(true); openMateriaModal(null); });
-    document.getElementById('nuevo-menu-evaluacion').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ kind: 'evaluacion' }); });
-    document.getElementById('nuevo-menu-tarea').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ kind: 'tarea' }); });
-    document.getElementById('nuevo-menu-nota').addEventListener('click', function () { toggleNuevoMenu(true); openEvaluacionModal({ kind: 'evaluacion', modoNota: true }); });
-    document.addEventListener('click', function () { toggleNuevoMenu(true); });
+  // de nota — ver el flag opts.modoNota en openEvaluacionModal), Evento
+  // personal (openPersonalModal). Mismo componente en Inicio y Calendario
+  // (mismo markup .nuevo-menu-wrap/.nuevo-menu, ver app.html) — crearNuevoMenu()
+  // arma el open/close/teclado una sola vez y bindNuevoMenus() lo instancia
+  // dos veces, cada una con sus propios ids para no chocar.
+  function crearNuevoMenu(btnId, menuId, acciones) {
+    var btn = document.getElementById(btnId);
+    var menu = document.getElementById(menuId);
+    function toggle(cerrar) {
+      var abrir = cerrar ? false : menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !abrir);
+      btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+      if (abrir) { var first = menu.querySelector('button'); if (first) first.focus(); }
+    }
+    btn.addEventListener('click', function (ev) { ev.stopPropagation(); toggle(); });
+    acciones.forEach(function (a) {
+      document.getElementById(a.id).addEventListener('click', function () { toggle(true); a.run(); });
+    });
+    document.addEventListener('click', function () { toggle(true); });
     menu.addEventListener('keydown', function (ev) {
       var items = Array.prototype.slice.call(menu.querySelectorAll('button'));
       var idx = items.indexOf(document.activeElement);
-      if (ev.key === 'Escape') { ev.preventDefault(); toggleNuevoMenu(true); btn.focus(); }
+      if (ev.key === 'Escape') { ev.preventDefault(); toggle(true); btn.focus(); }
       else if (ev.key === 'ArrowDown') { ev.preventDefault(); items[(idx + 1) % items.length].focus(); }
       else if (ev.key === 'ArrowUp') { ev.preventDefault(); items[(idx - 1 + items.length) % items.length].focus(); }
     });
+  }
+  function bindNuevoMenus() {
+    // eventoOpts es función (no valor fijo) porque Calendario necesita leer
+    // STATE.calSelected recién al momento del click, no al bindear — el día
+    // seleccionado cambia todo el tiempo.
+    function acciones(prefix, eventoOpts) {
+      return [
+        { id: prefix + '-materia', run: function () { openMateriaModal(null); } },
+        { id: prefix + '-evaluacion', run: function () { openEvaluacionModal({ kind: 'evaluacion' }); } },
+        { id: prefix + '-tarea', run: function () { openEvaluacionModal({ kind: 'tarea' }); } },
+        { id: prefix + '-nota', run: function () { openEvaluacionModal({ kind: 'evaluacion', modoNota: true }); } },
+        { id: prefix + '-evento', run: function () { openPersonalModal(eventoOpts()); } }
+      ];
+    }
+    crearNuevoMenu('btn-inicio-nuevo', 'nuevo-menu', acciones('nuevo-menu', function () { return {}; }));
+    crearNuevoMenu('btn-cal-nuevo', 'nuevo-menu-cal', acciones('nuevo-menu-cal', function () { return { fecha: STATE.calSelected }; }));
   }
 
   function openMateriaModal(id) {
@@ -4994,7 +5059,7 @@
     document.getElementById('btn-crear-semestre').addEventListener('click', function () { crearSemestre(document.getElementById('input-nuevo-semestre').value); });
     document.getElementById('input-nuevo-semestre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); crearSemestre(ev.target.value); } });
 
-    bindNuevoMenu();
+    bindNuevoMenus();
     document.getElementById('inicio-search').addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       var q = e.target.value.trim();
@@ -5028,7 +5093,6 @@
     document.getElementById('btn-progreso-semestre-cargar').addEventListener('click', function () { location.hash = '#agenda'; });
     document.getElementById('btn-agenda-nuevo').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('agenda-search').addEventListener('input', function (e) { STATE.agendaQuery = e.target.value; renderAgenda(); });
-    document.getElementById('btn-cal-evento').addEventListener('click', function () { openPersonalModal({ fecha: STATE.calSelected }); });
     document.getElementById('btn-horario-editar').addEventListener('click', function () { openMateriaModal(null); });
 
     // ---- Mobile: FAB (tap = alta principal de la vista, long-press = hoja

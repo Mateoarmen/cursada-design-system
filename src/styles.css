@@ -629,7 +629,11 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .agenda-collapse-inner{overflow:hidden;min-height:0}
 .agenda-collapse.is-collapsed{grid-template-rows:0fr}
 .agenda-list{overflow:hidden}
-.agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px 13px 26px;border-top:1px solid var(--c-line-faint);position:relative}
+.agenda-row{display:flex;align-items:center;gap:15px;padding:13px 20px 13px 26px;border-top:1px solid var(--c-line-faint);position:relative;background:transparent;transition:background 400ms var(--ease-out)}
+/* Bloque 6: resalte temporal cuando "Ver en agenda" (widget "Lo próximo"
+   de Inicio) navega y scrollea hasta un ítem puntual — la clase la agrega
+   y saca renderAgenda() por JS, no queda pegada. */
+.swipe-row.is-highlighted .agenda-row{background:rgba(44,123,255,.14)}
 /* Riel de color del borde izquierdo (bloque D1) — antes vivía en el flujo
    flex como "barrita suelta junto al checkbox" (barStyle() en runtime.js
    le fijaba width/height/radius por JS) y sólo en tema oscuro una regla

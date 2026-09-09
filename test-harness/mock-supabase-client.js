@@ -61,6 +61,11 @@
       { id: 'ag-2', user_id: 'test-user-id-000', materia_id: 'mat-2', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Primer parcial', fecha: todayPlus(2), hora: '23:59', hecho: true, nota: 10, nota_maxima: 12, notas: '' },
       { id: 'ag-2b', user_id: 'test-user-id-000', materia_id: 'mat-2', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Segundo parcial', fecha: todayPlus(16), hora: '14:00', hecho: false, nota: null, nota_maxima: 12, notas: '' },
       { id: 'ag-3', user_id: 'test-user-id-000', materia_id: 'mat-3', kind: 'evaluacion', tipo: 'Obligatorio', titulo: 'Recuperatorio de laboratorio', fecha: todayPlus(5), hora: '14:00', hecho: false, nota: null, nota_maxima: 12, notas: '' },
+      // Bloque 6: evaluación de materia pendiente para HOY, antes de
+      // cualquier evento personal — así "Lo próximo" en Inicio muestra el
+      // caso tipo:'materia' (Abrir materia / Ver en agenda + resaltado)
+      // sin tener que esperar a que cambie la fecha del sistema.
+      { id: 'ag-hero-test', user_id: 'test-user-id-000', materia_id: 'mat-2', kind: 'evaluacion', tipo: 'Control', titulo: 'Control de práctico', fecha: todayPlus(0), hora: '09:00', hecho: false, nota: null, nota_maxima: 12, notas: '' },
       { id: 'ag-4', user_id: 'test-user-id-000', materia_id: 'mat-4', kind: 'tarea', tipo: 'Tarea', titulo: 'Entregar informe del proyecto final', fecha: todayPlus(9), hora: '20:00', hecho: false, nota: null, nota_maxima: null, notas: '' },
       { id: 'ag-6', user_id: 'test-user-id-000', materia_id: 'mat-1', kind: 'tarea', tipo: 'Tarea', titulo: 'Estudiar capítulo 4', fecha: todayPlus(1), hora: '', hecho: true, nota: null, nota_maxima: null, notas: '' },
       { id: 'ag-5b', user_id: 'test-user-id-000', materia_id: 'mat-5', kind: 'evaluacion', tipo: 'Parcial', titulo: 'Parcial 1', fecha: todayPlus(6), hora: '10:00', hecho: false, nota: null, nota_maxima: 50, notas: '' },
