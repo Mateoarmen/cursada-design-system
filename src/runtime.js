@@ -904,7 +904,10 @@
       // leyenda no es sólo referencia visual, es el filtro por materia — click
       // prende/apaga esa materia en la grilla y en el panel del día.
       document.getElementById('sidenav-legend-lbl').textContent = 'Referencias';
-      computeMaterias().forEach(function (m) {
+      // Bloque 1: acotado al semestre activo (antes listaba materias de
+      // cualquier semestre) — ver plan, causa raíz compartida con Agenda y
+      // el selector de materia del modal de evaluación.
+      computeMateriasDelActivo().forEach(function (m) {
         var active = !STATE.materiasOcultasCal[m.id];
         list.appendChild(buildLeyendaItem(truncate(m.nombre, 22), m.strong, {
           active: active,
@@ -1879,7 +1882,9 @@
     var prevVal = STATE.agendaFiltroMateria;
     clear(materiaSel);
     var optTodas = el('option'); optTodas.value = ''; optTodas.textContent = 'Todas las materias'; materiaSel.appendChild(optTodas);
-    computeMaterias().forEach(function (m) { var o = el('option'); o.value = m.id; o.textContent = m.nombre; materiaSel.appendChild(o); });
+    // Bloque 1: acotado al semestre activo (antes listaba materias de
+    // cualquier semestre) — el resto de los filtros de Agenda queda igual.
+    computeMateriasDelActivo().forEach(function (m) { var o = el('option'); o.value = m.id; o.textContent = m.nombre; materiaSel.appendChild(o); });
     materiaSel.value = prevVal;
     materiaSel.onchange = function () { STATE.agendaFiltroMateria = materiaSel.value; renderAgenda(); };
     document.getElementById('agenda-filtro-estado').value = STATE.agendaFiltroEstado;
@@ -2971,9 +2976,10 @@
     if (!computeMaterias().length) { alert('Agregá primero una materia para poder cargar evaluaciones.'); return; }
     var ev = opts.editId ? agendaRawById(opts.editId) : null;
     var tipoEsPreset = ev ? TIPOS_EVAL.indexOf(ev.tipo) >= 0 : true;
-    // El selector de materia del modal lista TODAS (cualquier semestre — ver
-    // README), pero si hay que elegir un default preferimos una del
-    // semestre activo antes que una vieja al azar.
+    // El selector de materia del modal está acotado al semestre activo
+    // (Bloque 1 — ver renderModalEvalMaterias), así que el default también
+    // sale de ahí; si el semestre activo no tiene materias, cae a
+    // cualquiera para no bloquear la creación.
     var materiaDefault = opts.materiaId || (computeMateriasDelActivo()[0] || computeMaterias()[0]).id;
     var kind = ev ? ev.kind : (opts.kind || null);
     var notaMaximaDefault = ev ? ev.notaMaxima : null;
@@ -3132,7 +3138,16 @@
   function renderModalEvalMaterias() {
     var wrap = document.getElementById('modal-eval-materias');
     clear(wrap);
-    computeMaterias().forEach(function (m) {
+    // Bloque 1: acotado al semestre activo (antes listaba materias de
+    // cualquier semestre — ver README). Excepción: si se está editando una
+    // evaluación cuya materia ya no es del semestre activo, se agrega igual
+    // al final — si no, su chip desaparecería y la edición quedaría rota.
+    var materias = computeMateriasDelActivo();
+    if (STATE.editing.evalMateriaId && !materias.some(function (m) { return m.id === STATE.editing.evalMateriaId; })) {
+      var materiaActual = computeMateriaById(STATE.editing.evalMateriaId);
+      if (materiaActual) materias = materias.concat([materiaActual]);
+    }
+    materias.forEach(function (m) {
       var node = tpl('chip-materia');
       var on = STATE.editing.evalMateriaId === m.id;
       var chip = qf(node, 'chip');

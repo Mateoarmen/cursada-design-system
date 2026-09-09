@@ -254,16 +254,19 @@ Las decisiones detrás de esa tabla:
   semestre activo. Esto ya estaba implícito en el modelo de datos que pediste
   (`personal` no tiene `semestreId`) y me pareció la decisión correcta —
   no encontré una razón de UX para cuestionarlo.
-- **Agenda y Calendario muestran todo el historial, no sólo el semestre
-  activo.** Fue ambiguo a propósito en el pedido, con una preferencia
-  explícita por no ocultar historial por fricción — y tiene sentido de uso
-  real: querés poder revisar cuánto sacaste en un final de hace dos
-  semestres sin tener que cambiar de semestre activo primero. El selector de
-  materia del modal de evaluación sigue la misma lógica: lista materias de
-  cualquier semestre, así podés cargar o corregir una nota vieja sin cambiar
-  de semestre activo. Como concesión a la findability, si abrís "+ Nueva
-  evaluación" sin materia preseleccionada, el default preferido es una
-  materia del semestre activo (si hay alguna) antes que una vieja al azar.
+- **Agenda y Calendario muestran todo el historial (los ítems en sí, no el
+  filtro de materia), no sólo el semestre activo.** Los ítems de agenda que
+  aparecen en las listas y en la grilla del calendario no se acotan por
+  semestre — podés revisar cuánto sacaste en un final de hace dos semestres
+  sin cambiar de semestre activo primero. Lo que sí se acota (pedido nuevo,
+  ver README de cambios) es qué materias aparecen para *elegir*: la leyenda
+  del Calendario, el filtro de materia de Agenda y los chips de materia del
+  modal de evaluación/tarea listan sólo materias del semestre activo. Única
+  excepción: si editás una evaluación existente cuya materia ya no es del
+  semestre activo, esa materia se agrega igual a los chips del modal — si
+  no, no podrías reasignarla ni ver cuál es, y la edición quedaría rota. Si
+  abrís "+ Nueva evaluación" sin materia preseleccionada, el default también
+  sale del semestre activo (si tiene materias) antes que de cualquier otro.
 - **Alta de materia: automática, sin campo en el formulario.** Cuando creás
   una materia nueva se asigna sola al semestre activo — no hay que elegirlo
   a mano en el modal. La razón: el selector de semestre ya es el lugar
