@@ -7,8 +7,34 @@
   // runtime.js — si cambia uno, tiene que cambiar el otro.
   var ORT_UNIVERSITY_ID = '29e5e219-2967-4a63-99d7-5edd936d9b70';
   var PERIODO_ACTUAL = '2026-2';
+  function isoPlusHoras(h) { return new Date(Date.now() + h * 3600000).toISOString(); }
   var TABLES = {
-    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5 }],
+    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5, push_prompt_snoozed_until: null, last_seen_at: null }],
+    // Notificaciones: 10 filas de preferencias (defaults reales, ver
+    // migración notificaciones_schema), unas pocas de notification_queue
+    // (channel inapp — leídas, no leídas, hoy/ayer/semana, una de tipo
+    // digest sin entity_id) y un dispositivo push de ejemplo.
+    notification_preferences: [
+      { id: 'np-1', user_id: 'test-user-id-000', event_type: 'evaluacion_proxima', channel: 'inapp', enabled: true, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-2', user_id: 'test-user-id-000', event_type: 'tarea_proxima', channel: 'inapp', enabled: true, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-3', user_id: 'test-user-id-000', event_type: 'evento_personal_proximo', channel: 'inapp', enabled: true, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-4', user_id: 'test-user-id-000', event_type: 'resumen_diario', channel: 'inapp', enabled: true, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-5', user_id: 'test-user-id-000', event_type: 'resumen_semanal', channel: 'inapp', enabled: true, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-6', user_id: 'test-user-id-000', event_type: 'evaluacion_proxima', channel: 'push', enabled: true, lead_time_hours: 24, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-7', user_id: 'test-user-id-000', event_type: 'tarea_proxima', channel: 'push', enabled: true, lead_time_hours: 24, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-8', user_id: 'test-user-id-000', event_type: 'evento_personal_proximo', channel: 'push', enabled: false, lead_time_hours: 24, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-9', user_id: 'test-user-id-000', event_type: 'resumen_diario', channel: 'push', enabled: true, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' },
+      { id: 'np-10', user_id: 'test-user-id-000', event_type: 'resumen_semanal', channel: 'push', enabled: false, lead_time_hours: null, quiet_hours_start: '23:00', quiet_hours_end: '07:00', timezone: 'America/Montevideo' }
+    ],
+    notification_queue: [
+      { id: 'nq-1', user_id: 'test-user-id-000', event_type: 'evaluacion_proxima', channel: 'inapp', entity_type: 'evaluacion', entity_id: 'ag-hero-test', title: 'Control de práctico — Álgebra', body: 'Es hoy a las 09:00.', deep_link: '#agenda?nid=nq-1&hl=ag-hero-test', scheduled_for: isoPlusHoras(-1), status: 'sent', sent_at: isoPlusHoras(-1), read_at: null, dismissed_at: null },
+      { id: 'nq-2', user_id: 'test-user-id-000', event_type: 'evaluacion_proxima', channel: 'inapp', entity_type: 'evaluacion', entity_id: 'ag-1', title: 'Primer parcial — Análisis Matemático II', body: 'Vence en 2 días.', deep_link: '#agenda?nid=nq-2&hl=ag-1', scheduled_for: isoPlusHoras(-26), status: 'sent', sent_at: isoPlusHoras(-26), read_at: isoPlusHoras(-25), dismissed_at: null },
+      { id: 'nq-3', user_id: 'test-user-id-000', event_type: 'tarea_proxima', channel: 'inapp', entity_type: 'tarea', entity_id: 'ag-4', title: 'Entregar informe del proyecto final', body: 'Vence en 9 días.', deep_link: '#agenda?nid=nq-3&hl=ag-4', scheduled_for: isoPlusHoras(-72), status: 'sent', sent_at: isoPlusHoras(-72), read_at: null, dismissed_at: null },
+      { id: 'nq-4', user_id: 'test-user-id-000', event_type: 'resumen_diario', channel: 'inapp', entity_type: 'digest', entity_id: null, title: 'Tenés 3 entregas esta semana', body: 'Revisá tu agenda para no perderte nada.', deep_link: '#agenda?nid=nq-4', scheduled_for: isoPlusHoras(-96), status: 'sent', sent_at: isoPlusHoras(-96), read_at: isoPlusHoras(-95), dismissed_at: null }
+    ],
+    push_subscriptions: [
+      { id: 'ps-1', user_id: 'test-user-id-000', endpoint: 'https://fcm.googleapis.com/fcm/send/mock-endpoint-1', p256dh: 'mock-p256dh', auth: 'mock-auth', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15', created_at: '2026-09-01T00:00:00Z', last_success_at: '2026-09-08T00:00:00Z', failure_count: 0 }
+    ],
     universities: [
       { id: ORT_UNIVERSITY_ID, nombre: 'ORT Uruguay', created_at: '2026-08-30T00:00:00Z' },
       { id: 'uni-ucu', nombre: 'UCU – Universidad Católica del Uruguay', created_at: '2026-08-30T00:00:00Z' },
@@ -126,6 +152,7 @@
     var api = {
       select: function () { return api; },
       order: function () { return api; },
+      limit: function () { return api; },
       eq: function (col, val) { state.filters.push([col, val]); return api; },
       in: function (col, vals) {
         var err = sesionVencidaErrorSiCorresponde();
@@ -137,24 +164,43 @@
         var rows = applyFilters();
         return Promise.resolve({ data: rows[0] || null, error: null });
       },
-      upsert: function (rowsOrRow) {
+      // opts.onConflict (Notificaciones: push_subscriptions por endpoint,
+      // notification_preferences por user_id+event_type+channel): cuando la
+      // fila no trae `id` (lo genera la DB real, acá se simula con un
+      // contador), matchea por esas columnas en vez de por id.
+      upsert: function (rowsOrRow, opts) {
         var err = sesionVencidaErrorSiCorresponde();
         if (err) return Promise.resolve({ data: null, error: err });
         var rows = Array.isArray(rowsOrRow) ? rowsOrRow : [rowsOrRow];
-        rows.forEach(function (r) {
-          var idx = TABLES[table].findIndex(function (x) { return x.id === r.id; });
-          if (idx >= 0) TABLES[table][idx] = Object.assign({}, TABLES[table][idx], r);
-          else TABLES[table].push(Object.assign({}, r));
+        var conflictCols = opts && opts.onConflict ? opts.onConflict.split(',') : null;
+        var saved = rows.map(function (r) {
+          var idx = -1;
+          if (r.id != null) idx = TABLES[table].findIndex(function (x) { return x.id === r.id; });
+          else if (conflictCols) idx = TABLES[table].findIndex(function (x) { return conflictCols.every(function (c) { return x[c] === r[c]; }); });
+          if (idx >= 0) { TABLES[table][idx] = Object.assign({}, TABLES[table][idx], r); return TABLES[table][idx]; }
+          var row = Object.assign({ id: 'mock-' + table + '-' + (TABLES[table].length + 1) }, r);
+          TABLES[table].push(row);
+          return row;
         });
-        return Promise.resolve({ data: rows, error: null });
+        return Promise.resolve({ data: saved, error: null });
       },
+      // Encadenable (a diferencia de la versión vieja, sólo .eq()) — soporta
+      // cualquier combinación de .eq()/.in()/.is() antes de resolverse, como
+      // el cliente real.
       update: function (patch) {
-        return {
-          eq: function (col, val) {
-            TABLES[table].forEach(function (r) { if (r[col] === val) Object.assign(r, patch); });
-            return Promise.resolve({ data: null, error: null });
+        var filters = [];
+        var builder = {
+          eq: function (col, val) { filters.push(function (r) { return r[col] === val; }); return builder; },
+          in: function (col, vals) { filters.push(function (r) { return vals.indexOf(r[col]) >= 0; }); return builder; },
+          is: function (col, val) { filters.push(function (r) { return r[col] === val; }); return builder; },
+          then: function (resolve, reject) {
+            var e = sesionVencidaErrorSiCorresponde();
+            if (e) return Promise.resolve({ data: null, error: e }).then(resolve, reject);
+            TABLES[table].forEach(function (r) { if (filters.every(function (f) { return f(r); })) Object.assign(r, patch); });
+            return Promise.resolve({ data: null, error: null }).then(resolve, reject);
           }
         };
+        return builder;
       },
       delete: function () { return api; },
       // Tiene que ser un thenable de verdad (devolver la promesa, no sólo

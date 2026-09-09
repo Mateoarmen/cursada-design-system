@@ -7,8 +7,9 @@
   "scripts": {
     "build:app": "node build/build-app.mjs",
     "build:landing": "node build/build-landing.mjs",
+    "build:static": "node build/build-static.mjs",
     "build:test": "node build/build-test.mjs",
-    "build": "npm run build:app && npm run build:landing",
+    "build": "npm run build:app && npm run build:landing && npm run build:static",
     "test:sim": "node --test test/simulador.test.js"
   },
   "engines": {

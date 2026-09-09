@@ -346,7 +346,50 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2)}
 .icon-btn .ico{width:17px;height:17px}
 .icon-btn-bell{position:relative}
-.icon-btn-bell .bell-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
+.icon-btn-bell .bell-dot{display:none;position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
+.icon-btn-bell.has-unread .bell-dot{display:block}
+
+/* Notificaciones: panel de la campanita — mismo patrón que .nuevo-menu-wrap/
+   .nuevo-menu (popover anclado al botón), ver ese bloque más arriba. */
+.notif-menu-wrap{position:relative}
+.notif-panel{position:absolute;top:calc(100% + 6px);right:0;width:340px;max-width:calc(100vw - 24px);max-height:70vh;overflow-y:auto;background:var(--c-surface);border-radius:14px;box-shadow:var(--c-shadow);z-index:130}
+.notif-panel-head{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:var(--c-surface);border-bottom:1px solid var(--c-line-faint2)}
+.notif-panel-head .t{font-size:14px;font-weight:700}
+.notif-panel-list{padding:6px}
+.notif-empty{padding:28px 14px;text-align:center;font-size:13px;color:var(--c-ink3)}
+.notif-day-group{margin:8px 6px}
+.notif-day-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--c-ink3);padding:4px 8px}
+.notif-row{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:10px;cursor:pointer}
+.notif-row:hover{background:var(--c-surfaceAlt)}
+.notif-row.is-unread{background:rgba(10,132,255,.06)}
+.notif-row.is-unread:hover{background:rgba(10,132,255,.1)}
+.notif-row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.notif-row-title{font-size:13px;font-weight:600;color:var(--c-ink)}
+.notif-row-body{font-size:12.5px;color:var(--c-ink2);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.notif-row-time{font-size:11px;color:var(--c-ink3)}
+.notif-row-dismiss{flex-shrink:0;width:24px;height:24px;border:none;border-radius:7px;background:transparent;color:var(--c-ink3);font-size:16px;line-height:1;cursor:pointer}
+.notif-row-dismiss:hover{background:var(--c-surfaceAlt);color:var(--c-ink)}
+
+/* Banner de permission priming (Inicio) — mismo tratamiento visual de
+   tarjeta que el resto de Inicio (.card), fila con texto + acciones. */
+.push-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 16px}
+.push-banner-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:220px}
+.push-banner-text .t{font-size:14px;font-weight:700}
+.push-banner-text .s{font-size:12.5px;color:var(--c-ink2)}
+.push-banner-actions{display:flex;gap:8px;flex-shrink:0}
+
+/* Ajustes → grilla de preferencias de notificaciones */
+.ajustes-notif-master-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.ajustes-notif-grid{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.ajustes-notif-grid-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--c-line-faint2)}
+.ajustes-notif-grid-row:last-child{border-bottom:none}
+.ajustes-notif-grid-label{font-size:13px}
+.ajustes-notif-grid-cell{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--c-ink2)}
+.ajustes-notif-grid-lead select{height:28px;font-size:12px}
+.ajustes-notif-quiet{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px}
+.ajustes-notif-quiet input[type=time]{height:32px}
+.ajustes-notif-devices-wrap{margin-top:14px}
+.ajustes-notif-device-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px}
 /* Bloque 7: toggle lupa<->input de búsqueda (ver .search-input más arriba).
    Después de .btn a propósito: .topbar-search-done es .btn.btn-ghost, misma
    especificidad que .btn (una clase) — acá gana por orden en la cascada. */

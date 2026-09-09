@@ -191,7 +191,16 @@
           <button class="icon-btn topbar-search" data-toggle-search aria-label="Buscar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
           <input type="search" class="search-input" id="inicio-search" placeholder="Buscar materia o entrega" aria-label="Buscar materia o entrega" autocomplete="off">
           <button type="button" class="btn btn-ghost topbar-search-done" data-toggle-search>Listo</button>
-          <button class="icon-btn icon-btn-bell" title="Notificaciones" aria-label="Notificaciones"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="bell-dot" aria-hidden="true"></span></button>
+          <div class="notif-menu-wrap">
+            <button class="icon-btn icon-btn-bell" id="btn-notif-bell" title="Notificaciones" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="bell-dot" aria-hidden="true"></span></button>
+            <div class="notif-panel hidden" id="notif-panel" role="menu" aria-label="Notificaciones">
+              <div class="notif-panel-head">
+                <span class="t">Notificaciones</span>
+                <button type="button" class="btn btn-sm btn-ghost" id="btn-notif-marcar-todas">Marcar todas como leídas</button>
+              </div>
+              <div class="notif-panel-list" id="notif-panel-list"></div>
+            </div>
+          </div>
           <div class="nuevo-menu-wrap">
             <button class="btn btn-primary" id="btn-inicio-nuevo" aria-haspopup="true" aria-expanded="false">+ Nuevo</button>
             <div class="nuevo-menu hidden" id="nuevo-menu" role="menu" aria-label="Crear nuevo">
@@ -211,6 +220,25 @@
             <span class="inicio-date mono" id="inicio-date"></span>
           </div>
           <span class="inicio-note" id="inicio-note"></span>
+        </div>
+        <div class="card push-banner hidden" id="inicio-push-banner">
+          <div class="push-banner-text">
+            <span class="t">¿Querés que te avisemos de tus entregas?</span>
+            <span class="s">Notificaciones push en este dispositivo, aunque tengas la app cerrada.</span>
+          </div>
+          <div class="push-banner-actions">
+            <button type="button" class="btn" id="btn-push-banner-no">Ahora no</button>
+            <button type="button" class="btn btn-primary" id="btn-push-banner-si">Sí</button>
+          </div>
+        </div>
+        <div class="card push-banner hidden" id="inicio-push-banner-ios">
+          <div class="push-banner-text">
+            <span class="t">Activá los avisos en tu iPhone</span>
+            <span class="s">Safari sólo manda notificaciones si agregás Cursada a tu pantalla de inicio: tocá Compartir → "Agregar a pantalla de inicio", y volvé a entrar desde ese ícono.</span>
+          </div>
+          <div class="push-banner-actions">
+            <button type="button" class="btn" id="btn-push-banner-ios-entendido">Entendido</button>
+          </div>
         </div>
         <div class="card panel progreso-semestre-card" id="progreso-semestre-card">
           <div class="panel-head">
@@ -1021,6 +1049,30 @@
               <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
               <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
               <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
+            </div>
+          </div>
+        </div>
+        <div class="ajustes-row">
+          <div class="ajustes-row-label">
+            <span class="lbl">Notificaciones</span>
+            <span class="hint">In-app siempre disponible. Push necesita permiso del navegador — se pide una sola vez.</span>
+          </div>
+          <div class="ajustes-row-content">
+            <label class="ajustes-notif-master-row">
+              <input type="checkbox" id="ajustes-notif-master">
+              <span>Notificaciones push en este dispositivo</span>
+            </label>
+            <span class="hint" id="ajustes-notif-permiso"></span>
+            <div class="ajustes-notif-grid" id="ajustes-notif-grid"></div>
+            <div class="ajustes-notif-quiet">
+              <span class="lbl">No molestar</span>
+              <input type="time" id="ajustes-notif-quiet-start">
+              <span>a</span>
+              <input type="time" id="ajustes-notif-quiet-end">
+            </div>
+            <div class="ajustes-notif-devices-wrap">
+              <span class="lbl">Dispositivos conectados</span>
+              <div id="ajustes-notif-devices" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
           </div>
         </div>

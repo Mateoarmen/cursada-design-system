@@ -35,6 +35,13 @@
   var TONE_BADGE_FG = { success: '#248A3D', warning: '#B25C00', danger: '#C9271F', neutral: '#6E6E73' };
   var TONE_BADGE_ALPHA = { success: .14, warning: .16, danger: .13, neutral: .055 };
   var PERSONAL_COLOR = '#8E8E93';
+  // Notificaciones (in-app + Web Push). La pública es pública por diseño
+  // (va en el cliente, como la anon key de Supabase) — la privada vive como
+  // secret de la Edge Function notifications-send, nunca acá.
+  var VAPID_PUBLIC_KEY = 'BOLRtVRR2x12CqmnVCYioXKWZk_h8uJRyfu9GPnWcIFXqZ_57khaqfA9LvOtHQxwQ2iz3RoMCH9JaVMkXWu_0PI';
+  var NOTIF_EVENT_TYPES = ['evaluacion_proxima', 'tarea_proxima', 'evento_personal_proximo', 'resumen_diario', 'resumen_semanal'];
+  var NOTIF_EVENT_LABELS = { evaluacion_proxima: 'Evaluación próxima', tarea_proxima: 'Tarea próxima', evento_personal_proximo: 'Evento personal próximo', resumen_diario: 'Resumen diario', resumen_semanal: 'Resumen semanal' };
+  var NOTIF_LEAD_OPTIONS = [1, 3, 12, 24, 48];
   // Las 3 familias tipográficas del bundle anterior se reemplazan por la pila
   // de fuente del sistema (ver styles.css); MONO queda como alias para no
   // tocar cada llamada de chip()/badge()/ring() una por una.
@@ -272,7 +279,7 @@
   // Promise<boolean> y cada call site que la usa pasó a ser `async`/`await`.
   function sb() { return window.CURSADA_SUPABASE; }
 
-  var CACHE = { semestres: [], materias: [], agenda: [], personal: [], eventTags: [] };
+  var CACHE = { semestres: [], materias: [], agenda: [], personal: [], eventTags: [], notificaciones: [], notifPrefs: [], pushDevices: [] };
   var CURRENT_USER = null;    // objeto `user` de supabase-js: id, email, …
   var CURRENT_PROFILE = null; // fila de `profiles`: {id, nombre, foto_url}
 
@@ -322,6 +329,18 @@
   }
   function rowToTag(r) {
     return { id: r.id, nombre: r.name, kind: r.kind, colorId: r.color, esPredeterminada: !!r.is_default };
+  }
+  // notification_queue: sólo lectura desde el cliente salvo read_at/
+  // dismissed_at (marcar leída/descartar) — el insert real lo hace la Edge
+  // Function con service_role, no hay notifToRow de ida.
+  function rowToNotif(r) {
+    return { id: r.id, eventType: r.event_type, channel: r.channel, entityType: r.entity_type, entityId: r.entity_id, title: r.title, body: r.body, deepLink: r.deep_link, scheduledFor: r.scheduled_for, status: r.status, sentAt: r.sent_at, readAt: r.read_at, dismissedAt: r.dismissed_at };
+  }
+  function rowToNotifPref(r) {
+    return { id: r.id, eventType: r.event_type, channel: r.channel, enabled: !!r.enabled, leadTimeHours: r.lead_time_hours, quietHoursStart: r.quiet_hours_start, quietHoursEnd: r.quiet_hours_end, timezone: r.timezone };
+  }
+  function rowToPushDevice(r) {
+    return { id: r.id, endpoint: r.endpoint, userAgent: r.user_agent, createdAt: r.created_at, lastSuccessAt: r.last_success_at };
   }
 
   async function supaUpsert(table, rows) {
@@ -557,6 +576,33 @@
     CACHE.agenda = results[3].data.map(rowToAgenda);
     CACHE.personal = results[4].data.map(rowToPersonal);
     CACHE.eventTags = results[5].data.map(rowToTag);
+  }
+
+  // Separado de loadAllFromSupabase() a propósito: no es dato crítico para
+  // revelar #app (el gate no espera esto), y así una falla acá no tira el
+  // "no se pudo cargar tu cuenta" genérico. Se llama una vez al montar la
+  // app y de nuevo en cada `visibilitychange` que vuelve a foco (Parte 3:
+  // nada de Supabase Realtime, consume conexiones concurrentes limitadas
+  // por plan y acá no hace falta latencia de milisegundos).
+  async function cargarNotificaciones() {
+    if (!CURRENT_USER) return;
+    try {
+      var results = await Promise.all([
+        sb().from('notification_queue').select('*').eq('channel', 'inapp').order('scheduled_for', { ascending: false }).limit(100),
+        sb().from('notification_preferences').select('*'),
+        sb().from('push_subscriptions').select('*')
+      ]);
+      results.forEach(function (r) { if (r.error) throw r.error; });
+      CACHE.notificaciones = results[0].data.map(rowToNotif);
+      CACHE.notifPrefs = results[1].data.map(rowToNotifPref);
+      CACHE.pushDevices = results[2].data.map(rowToPushDevice);
+    } catch (e) {
+      console.warn('Cursada: error cargando notificaciones', e);
+      return;
+    }
+    renderNotifBadge();
+    if (!document.getElementById('notif-panel').classList.contains('hidden')) renderNotifPanel();
+    if (CURRENT_PROFILE) maybeMostrarBannerPush();
   }
 
   // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
@@ -4806,6 +4852,22 @@
     var full = location.hash || '#inicio';
     var hash = full.split('?')[0];
     var params = new URLSearchParams(full.indexOf('?') >= 0 ? full.slice(full.indexOf('?') + 1) : '');
+    // Deep link entrante de una notificación (push con la app cerrada, o
+    // "abrir en esta ventana" de notificationclick en sw.js): nid identifica
+    // la fila de notification_queue (se marca leída directo por id, sin
+    // depender de que CACHE.notificaciones ya esté cargado — puede ser un
+    // arranque en frío), hl es el id a resaltar en Agenda si corresponde
+    // (ver notifications-generate, arma el deep_link con estos params).
+    if (params.has('nid')) {
+      var nid = params.get('nid');
+      var hl = params.get('hl');
+      marcarNotifLeidaPorId(nid);
+      history.replaceState(null, '', hash);
+      STATE.route = { view: 'agenda' };
+      if (hl) STATE.agendaHighlightId = hl;
+      renderRoute();
+      return;
+    }
     if (hash === '#hoy') {
       STATE.calYear = today().getFullYear(); STATE.calMonth = today().getMonth();
       STATE.calWeekStart = mondayOf(today()); STATE.calSelected = todayISO();
@@ -5875,6 +5937,384 @@
   }
 
   // ================================================================
+  // NOTIFICACIONES (in-app + Web Push)
+  // ================================================================
+
+  // ---- Service Worker + suscripción --------------------------------
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var out = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
+    return out;
+  }
+  // iOS/Safari soporta Web Push desde 16.4 sólo con la app agregada a la
+  // pantalla de inicio (standalone) — fuera de eso, en vez del banner de
+  // permiso normal se muestra el de "Agregar a pantalla de inicio".
+  function esIOSSafariNoStandalone() {
+    var ua = navigator.userAgent || '';
+    var esIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var esSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+    var esStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    return esIOS && esSafari && !esStandalone;
+  }
+  var SW_REGISTRATION = null;
+  async function registrarServiceWorker() {
+    if (!('serviceWorker' in navigator)) return null;
+    try {
+      SW_REGISTRATION = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+      return SW_REGISTRATION;
+    } catch (e) {
+      console.warn('Cursada: no se pudo registrar el service worker', e);
+      return null;
+    }
+  }
+  // Deep link entrante desde notificationclick (sw.js) cuando YA había una
+  // ventana de Cursada abierta y enfocada (en vez de abrir una pestaña
+  // nueva) — reusa handleRoute()/STATE.agendaHighlightId, el mismo
+  // mecanismo que ya resuelve el caso de ventana nueva vía ?nid= en la URL,
+  // no hay un segundo camino de navegación.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function (event) {
+      if (!event.data || event.data.type !== 'cursada-notification-click' || !event.data.url) return;
+      var hash = event.data.url.indexOf('#') >= 0 ? event.data.url.slice(event.data.url.indexOf('#')) : '#inicio';
+      if (hash === location.hash) handleRoute(); else location.hash = hash;
+    });
+  }
+  async function suscribirPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    var permiso = await Notification.requestPermission();
+    if (permiso !== 'granted') return false;
+    var reg = SW_REGISTRATION || (await registrarServiceWorker());
+    if (!reg) return false;
+    try {
+      var sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+      var json = sub.toJSON();
+      var res = await sb().from('push_subscriptions').upsert(
+        { user_id: CURRENT_USER.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, user_agent: navigator.userAgent },
+        { onConflict: 'endpoint' }
+      );
+      if (res.error) throw res.error;
+      await cargarNotificaciones();
+      return true;
+    } catch (e) {
+      console.warn('Cursada: no se pudo suscribir a push', e);
+      return false;
+    }
+  }
+  async function desconectarDispositivo(id) {
+    var device = CACHE.pushDevices.filter(function (d) { return d.id === id; })[0];
+    var res = await sb().from('push_subscriptions').delete().in('id', [id]);
+    if (res.error) { avisarError(); return; }
+    // Si es la suscripción de ESTE navegador, desuscribir también acá —
+    // si no, sigue mandando push a un endpoint sin fila hasta que
+    // notifications-send lo borre solo por el 410 (best-effort, no crítico).
+    if (SW_REGISTRATION && device) {
+      try {
+        var subActual = await SW_REGISTRATION.pushManager.getSubscription();
+        if (subActual && subActual.endpoint === device.endpoint) await subActual.unsubscribe();
+      } catch (e) { /* best-effort */ }
+    }
+    await cargarNotificaciones();
+    renderAjustesNotificaciones();
+  }
+
+  // ---- Permission priming --------------------------------------------
+  // No se pide el permiso al cargar la app: se muestra un card propio en
+  // Inicio, con contexto (recién cuando ya hay al menos una evaluación o
+  // tarea cargada — nunca en el onboarding). "Ahora no" no vuelve a
+  // mostrarse por 30 días — se guarda en profiles.push_prompt_snoozed_until
+  // (server-side, sobrevive cambio de dispositivo), no en localStorage.
+  function tieneEvaluacionOTarea() {
+    return CACHE.agenda.some(function (a) { return a.kind === 'materia' && (a.tipo === 'evaluacion' || a.tipo === 'tarea'); });
+  }
+  function pushPrompSnoozed() {
+    return !!(CURRENT_PROFILE && CURRENT_PROFILE.push_prompt_snoozed_until && new Date(CURRENT_PROFILE.push_prompt_snoozed_until) > new Date());
+  }
+  function maybeMostrarBannerPush() {
+    var banner = document.getElementById('inicio-push-banner');
+    var bannerIOS = document.getElementById('inicio-push-banner-ios');
+    if (!banner || !bannerIOS) return;
+    if (!tieneEvaluacionOTarea()) { banner.classList.add('hidden'); bannerIOS.classList.add('hidden'); return; }
+    if (esIOSSafariNoStandalone()) {
+      banner.classList.add('hidden');
+      bannerIOS.classList.toggle('hidden', pushPrompSnoozed());
+      return;
+    }
+    bannerIOS.classList.add('hidden');
+    var permisoDecidido = ('Notification' in window) && Notification.permission !== 'default';
+    banner.classList.toggle('hidden', permisoDecidido || pushPrompSnoozed());
+  }
+  async function posponerBannerPush() {
+    var hasta = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    var res = await sb().from('profiles').update({ push_prompt_snoozed_until: hasta }).eq('id', CURRENT_USER.id);
+    if (!res.error) CURRENT_PROFILE = Object.assign({}, CURRENT_PROFILE, { push_prompt_snoozed_until: hasta });
+    maybeMostrarBannerPush();
+  }
+  function bindPushBanner() {
+    document.getElementById('btn-push-banner-si').addEventListener('click', async function (ev) {
+      ev.target.disabled = true;
+      var ok = await suscribirPush();
+      ev.target.disabled = false;
+      if (ok) { document.getElementById('inicio-push-banner').classList.add('hidden'); showToast('Listo — te vamos a avisar de tus entregas.'); }
+      else avisarError();
+    });
+    document.getElementById('btn-push-banner-no').addEventListener('click', posponerBannerPush);
+    document.getElementById('btn-push-banner-ios-entendido').addEventListener('click', posponerBannerPush);
+  }
+
+  // ---- Panel in-app ----------------------------------------------------
+  function notifsVisibles() {
+    return CACHE.notificaciones.filter(function (n) { return !n.dismissedAt; });
+  }
+  function renderNotifBadge() {
+    var unread = notifsVisibles().filter(function (n) { return !n.readAt; }).length;
+    document.getElementById('btn-notif-bell').classList.toggle('has-unread', unread > 0);
+  }
+  function relativoNotif(iso) {
+    var diffMin = Math.round((new Date() - new Date(iso)) / 60000);
+    if (diffMin < 1) return 'ahora';
+    if (diffMin < 60) return 'hace ' + diffMin + ' min';
+    var diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return 'hace ' + diffH + (diffH === 1 ? ' hora' : ' horas');
+    var diffD = Math.round(diffH / 24);
+    return 'hace ' + diffD + (diffD === 1 ? ' día' : ' días');
+  }
+  function grupoDeNotif(iso, t) {
+    var d = new Date(iso);
+    var diff = diffDias(new Date(d.getFullYear(), d.getMonth(), d.getDate()), t);
+    if (diff === 0) return 'Hoy';
+    if (diff === -1) return 'Ayer';
+    if (diff < -1 && diff >= -7) return 'Esta semana';
+    return diff > 0 ? 'Próximas' : 'Anteriores';
+  }
+  function buildNotifRow(n) {
+    var row = el('div', 'notif-row' + (n.readAt ? '' : ' is-unread'));
+    var main = el('div', 'notif-row-main');
+    var titulo = el('div', 'notif-row-title'); titulo.textContent = n.title;
+    var body = el('div', 'notif-row-body'); body.textContent = n.body;
+    var tiempo = el('div', 'notif-row-time'); tiempo.textContent = relativoNotif(n.scheduledFor);
+    main.appendChild(titulo); main.appendChild(body); main.appendChild(tiempo);
+    main.addEventListener('click', function () { abrirNotif(n); });
+    var dismiss = el('button', 'icon-btn notif-row-dismiss');
+    dismiss.type = 'button'; dismiss.title = 'Descartar'; dismiss.setAttribute('aria-label', 'Descartar'); dismiss.textContent = '×';
+    dismiss.addEventListener('click', function (ev) { ev.stopPropagation(); descartarNotif(n.id); });
+    row.appendChild(main); row.appendChild(dismiss);
+    return row;
+  }
+  function renderNotifPanel() {
+    var listNode = document.getElementById('notif-panel-list');
+    clear(listNode);
+    var visibles = notifsVisibles();
+    if (!visibles.length) {
+      var vacio = el('div', 'notif-empty');
+      vacio.textContent = 'No tenés notificaciones todavía. Acá vas a ver los avisos de tus próximas entregas.';
+      listNode.appendChild(vacio);
+      return;
+    }
+    var t = today();
+    var grupos = {};
+    visibles.forEach(function (n) {
+      var g = grupoDeNotif(n.scheduledFor, t);
+      (grupos[g] = grupos[g] || []).push(n);
+    });
+    ['Hoy', 'Ayer', 'Esta semana', 'Próximas', 'Anteriores'].forEach(function (g) {
+      if (!grupos[g] || !grupos[g].length) return;
+      var wrap = el('div', 'notif-day-group');
+      var label = el('div', 'notif-day-label'); label.textContent = g;
+      wrap.appendChild(label);
+      grupos[g].forEach(function (n) { wrap.appendChild(buildNotifRow(n)); });
+      listNode.appendChild(wrap);
+    });
+  }
+  async function marcarNotifLeidaPorId(id) {
+    var local = CACHE.notificaciones.filter(function (n) { return n.id === id; })[0];
+    if (local && local.readAt) return;
+    if (local) local.readAt = new Date().toISOString();
+    renderNotifBadge();
+    if (!document.getElementById('notif-panel').classList.contains('hidden')) renderNotifPanel();
+    try {
+      await sb().from('notification_queue').update({ read_at: new Date().toISOString() }).eq('id', id).is('read_at', null);
+    } catch (e) { console.warn('Cursada: no se pudo marcar la notificación como leída', e); }
+  }
+  async function marcarTodasNotifLeidas() {
+    var pendientes = notifsVisibles().filter(function (n) { return !n.readAt; });
+    if (!pendientes.length) return;
+    var ahora = new Date().toISOString();
+    pendientes.forEach(function (n) { n.readAt = ahora; });
+    renderNotifBadge(); renderNotifPanel();
+    try {
+      var ids = pendientes.map(function (n) { return n.id; });
+      await sb().from('notification_queue').update({ read_at: ahora }).in('id', ids);
+    } catch (e) { console.warn('Cursada: no se pudieron marcar todas como leídas', e); }
+  }
+  async function descartarNotif(id) {
+    var local = CACHE.notificaciones.filter(function (n) { return n.id === id; })[0];
+    if (local) local.dismissedAt = new Date().toISOString();
+    renderNotifBadge(); renderNotifPanel();
+    try {
+      await sb().from('notification_queue').update({ dismissed_at: new Date().toISOString() }).eq('id', id);
+    } catch (e) { console.warn('Cursada: no se pudo descartar la notificación', e); }
+  }
+  // Mismo criterio de navegación que "Ver en agenda" (Bloque 6, ver el
+  // onclick de #btn-inicio-proximo-ver): sólo toca location.hash, deja que
+  // el listener de hashchange dispare handleRoute()/renderRoute() — salvo
+  // que ya se esté en #agenda, donde el hash no cambia y hay que llamarlo
+  // a mano para no perder el resaltado.
+  function abrirNotif(n) {
+    marcarNotifLeidaPorId(n.id);
+    closeNotifPanel();
+    STATE.agendaFiltroKind = ''; STATE.agendaFiltroMateria = ''; STATE.agendaFiltroEstado = ''; STATE.agendaQuery = '';
+    if (n.entityId && n.entityType !== 'digest') STATE.agendaHighlightId = n.entityId;
+    if (location.hash === '#agenda') handleRoute(); else location.hash = '#agenda';
+  }
+  function openNotifPanel() {
+    document.getElementById('notif-panel').classList.remove('hidden');
+    document.getElementById('btn-notif-bell').setAttribute('aria-expanded', 'true');
+    renderNotifPanel();
+  }
+  function closeNotifPanel() {
+    document.getElementById('notif-panel').classList.add('hidden');
+    document.getElementById('btn-notif-bell').setAttribute('aria-expanded', 'false');
+  }
+  function bindNotifBell() {
+    var btn = document.getElementById('btn-notif-bell');
+    var panel = document.getElementById('notif-panel');
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (panel.classList.contains('hidden')) openNotifPanel(); else closeNotifPanel();
+    });
+    document.getElementById('btn-notif-marcar-todas').addEventListener('click', marcarTodasNotifLeidas);
+    document.addEventListener('click', function (ev) {
+      if (!panel.classList.contains('hidden') && !panel.contains(ev.target) && !btn.contains(ev.target)) closeNotifPanel();
+    });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeNotifPanel(); });
+  }
+
+  // ---- Preferencias (dentro de Ajustes) --------------------------------
+  function labelAnticipacion(h) {
+    if (h == null) return '';
+    return h < 24 ? h + ' h' : (h / 24) + ' d';
+  }
+  function notifPrefDe(eventType, channel) {
+    return CACHE.notifPrefs.filter(function (p) { return p.eventType === eventType && p.channel === channel; })[0] || null;
+  }
+  async function guardarNotifPref(eventType, channel, patch) {
+    var pref = notifPrefDe(eventType, channel);
+    var row = Object.assign({ user_id: CURRENT_USER.id, event_type: eventType, channel: channel }, patch);
+    var res = await sb().from('notification_preferences').upsert(row, { onConflict: 'user_id,event_type,channel' });
+    if (res.error) { avisarError(); return; }
+    // Optimista, sin volver a pedir la fila (mismo criterio que
+    // supaUpsert() para el resto de la app): se actualiza CACHE a mano con
+    // lo que ya se sabe que se mandó.
+    if (pref) {
+      if ('enabled' in patch) pref.enabled = patch.enabled;
+      if ('lead_time_hours' in patch) pref.leadTimeHours = patch.lead_time_hours;
+    } else {
+      CACHE.notifPrefs.push({ id: (res.data && res.data[0] && res.data[0].id) || uid(), eventType: eventType, channel: channel, enabled: patch.enabled !== undefined ? patch.enabled : true, leadTimeHours: patch.lead_time_hours !== undefined ? patch.lead_time_hours : null, quietHoursStart: '23:00', quietHoursEnd: '07:00', timezone: 'America/Montevideo' });
+    }
+  }
+  function renderAjustesNotificaciones() {
+    var permisoEl = document.getElementById('ajustes-notif-permiso');
+    var permiso = ('Notification' in window) ? Notification.permission : 'unsupported';
+    var permisoTxt = { granted: 'Concedido', denied: 'Denegado — revertilo desde la configuración del sitio en tu navegador para volver a activarlo', default: 'Todavía no lo pediste', unsupported: 'Tu navegador no soporta notificaciones push' }[permiso];
+    permisoEl.textContent = permisoTxt;
+    var master = document.getElementById('ajustes-notif-master');
+    master.checked = permiso === 'granted';
+    master.disabled = permiso === 'denied' || permiso === 'unsupported';
+
+    var grid = document.getElementById('ajustes-notif-grid');
+    clear(grid);
+    NOTIF_EVENT_TYPES.forEach(function (eventType) {
+      var row = el('div', 'ajustes-notif-grid-row');
+      var lbl = el('div', 'ajustes-notif-grid-label'); lbl.textContent = NOTIF_EVENT_LABELS[eventType];
+      row.appendChild(lbl);
+      ['inapp', 'push'].forEach(function (channel) {
+        var pref = notifPrefDe(eventType, channel);
+        var cell = el('label', 'ajustes-notif-grid-cell');
+        var input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !pref || pref.enabled;
+        input.addEventListener('change', function () { guardarNotifPref(eventType, channel, { enabled: input.checked }); });
+        var span = document.createElement('span'); span.textContent = channel === 'inapp' ? 'In-app' : 'Push';
+        cell.appendChild(input); cell.appendChild(span);
+        row.appendChild(cell);
+      });
+      var pushPref = notifPrefDe(eventType, 'push');
+      if (pushPref && pushPref.leadTimeHours != null) {
+        var selWrap = el('div', 'ajustes-notif-grid-lead');
+        var sel = document.createElement('select');
+        NOTIF_LEAD_OPTIONS.forEach(function (h) {
+          var opt = document.createElement('option'); opt.value = h; opt.textContent = labelAnticipacion(h);
+          if (pushPref.leadTimeHours === h) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener('change', function () { guardarNotifPref(eventType, 'push', { lead_time_hours: Number(sel.value) }); });
+        selWrap.appendChild(sel);
+        row.appendChild(selWrap);
+      } else {
+        row.appendChild(el('div', 'ajustes-notif-grid-lead'));
+      }
+      grid.appendChild(row);
+    });
+
+    // Quiet hours: una sola vez por usuario (no por event_type) — se lee/
+    // escribe contra cualquiera de las filas de push, todas comparten el
+    // mismo valor porque notifications-send las evalúa igual sin importar
+    // el tipo de evento.
+    var referencia = CACHE.notifPrefs.filter(function (p) { return p.channel === 'push'; })[0];
+    var qStart = document.getElementById('ajustes-notif-quiet-start');
+    var qEnd = document.getElementById('ajustes-notif-quiet-end');
+    if (referencia) { qStart.value = (referencia.quietHoursStart || '').slice(0, 5); qEnd.value = (referencia.quietHoursEnd || '').slice(0, 5); }
+    var guardarQuiet = async function () {
+      var patch = { quiet_hours_start: qStart.value, quiet_hours_end: qEnd.value };
+      await Promise.all(CACHE.notifPrefs.filter(function (p) { return p.channel === 'push'; }).map(function (p) {
+        return sb().from('notification_preferences').update(patch).eq('id', p.id);
+      }));
+      CACHE.notifPrefs.forEach(function (p) { if (p.channel === 'push') { p.quietHoursStart = qStart.value; p.quietHoursEnd = qEnd.value; } });
+    };
+    qStart.onchange = guardarQuiet; qEnd.onchange = guardarQuiet;
+
+    var devicesList = document.getElementById('ajustes-notif-devices');
+    clear(devicesList);
+    if (!CACHE.pushDevices.length) {
+      var vacio = el('div', 'hint'); vacio.textContent = 'No hay dispositivos conectados todavía.';
+      devicesList.appendChild(vacio);
+    } else {
+      CACHE.pushDevices.forEach(function (d) {
+        var row = el('div', 'ajustes-notif-device-row');
+        var nombre = el('span'); nombre.textContent = nombreDispositivo(d.userAgent);
+        var btn = el('button', 'btn btn-sm'); btn.type = 'button'; btn.textContent = 'Desconectar';
+        btn.addEventListener('click', function () { if (confirm('¿Desconectar este dispositivo de las notificaciones push?')) desconectarDispositivo(d.id); });
+        row.appendChild(nombre); row.appendChild(btn);
+        devicesList.appendChild(row);
+      });
+    }
+  }
+  // Best-effort, sólo para mostrarle al usuario cuál es cuál en la lista —
+  // no se usa para nada funcional, un user agent que no matchea ninguno
+  // cae en "Dispositivo" sin romper nada.
+  function nombreDispositivo(ua) {
+    ua = ua || '';
+    var so = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Mac OS/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Dispositivo';
+    var nav = /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'navegador';
+    return so + ' · ' + nav;
+  }
+  function bindAjustesNotificaciones() {
+    document.getElementById('ajustes-notif-master').addEventListener('change', async function (ev) {
+      if (ev.target.checked) {
+        var ok = await suscribirPush();
+        if (!ok) { ev.target.checked = false; avisarError(); }
+        renderAjustesNotificaciones();
+      }
+      // Revocar el permiso del navegador no se puede hacer por API — sólo
+      // se puede prender desde acá, apagar es cosa de la config del sitio
+      // (el texto de permisoTxt ya lo explica cuando está denegado).
+    });
+  }
+
+  // ================================================================
   // AJUSTES
   // ================================================================
   // Fase 6: se saca la edición del margen de riesgo — confundía y no
@@ -5892,6 +6332,7 @@
     STATE.editing = { ajustesTagNuevoAbierto: false, ajustesTagNuevoColor: 'azul' };
     renderAjustesTags();
     renderAjustesAprobadas();
+    renderAjustesNotificaciones();
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
@@ -6340,6 +6781,9 @@
     setGate(null);
     renderSidenavUser();
     handleRoute();
+    // No bloqueante a propósito (ver cargarNotificaciones) — no tiene que
+    // demorar la revelación de #app.
+    cargarNotificaciones();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // Con el perfil de Google ya resuelto (si correspondía), quedan estos
     // avisos posibles al entrar a la app — nunca más de uno a la vez (si
@@ -6355,6 +6799,8 @@
   function onSignedOut() {
     CURRENT_USER = null; CURRENT_PROFILE = null;
     CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
+    CACHE.notificaciones = []; CACHE.notifPrefs = []; CACHE.pushDevices = [];
+    renderNotifBadge();
     showFormPanel();
     setAuthMode('signin');
     setGate('auth-screen');
@@ -6387,6 +6833,19 @@
     bindProfileUI();
     bindWizardUI();
     iniciarCountdownGlobal();
+    bindNotifBell();
+    bindPushBanner();
+    bindAjustesNotificaciones();
+    // El registro del Service Worker no depende de haber iniciado sesión
+    // (scope sobre /, sirve tanto a la landing como a la app) — se hace acá,
+    // apenas carga el documento. La SUSCRIPCIÓN a push sí requiere sesión y
+    // permiso explícito (ver suscribirPush(), disparado desde el banner o
+    // desde Ajustes).
+    registrarServiceWorker();
+    // Parte 3: nada de Supabase Realtime acá — refresco en foco, no en vivo.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && CURRENT_USER) cargarNotificaciones();
+    });
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();
     });
