@@ -430,7 +430,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 .ajustes-notif-card{border:1px solid var(--c-line-faint);border-radius:var(--r-tile);padding:2px 14px;margin-top:14px}
 .ajustes-notif-grid{display:flex;flex-direction:column}
-.ajustes-notif-grid-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--c-line-faint2)}
+/* Columnas en px fijos, no auto: cada fila es su propio grid (son divs
+   hermanos, no filas de una sola tabla), así que con "auto" el ancho de
+   cada columna se recalculaba por fila según su propio contenido — el
+   header (texto "In-app"/"Push", sin select en la 4ª columna) terminaba
+   con anchos de columna distintos a las filas de datos (switch angosto +
+   select en la 4ª), y los switches quedaban desalineados debajo de sus
+   títulos. Fijo = misma grilla en todas las filas, alineación garantizada. */
+.ajustes-notif-grid-row{display:grid;grid-template-columns:1fr 60px 60px 112px;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--c-line-faint2)}
 .ajustes-notif-grid-row:first-child{border-top:none}
 .ajustes-notif-grid-head{padding:11px 0;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-ink3)}
 .ajustes-notif-grid-head+.ajustes-notif-grid-row{border-top:1px solid var(--c-line-faint2)}
