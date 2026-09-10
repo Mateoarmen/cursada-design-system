@@ -4151,3 +4151,49 @@ verde, "Vas aprobando esta materia" (con el mínimo equivocado) —
 contradictorio con el propio badge. Verificado que con el fix ese
 mismo caso queda en rojo, "Te faltan X pts para llegar a la
 aprobación", con el mínimo correcto (70) en el mensaje.
+
+## Agenda mobile: countdown/badge desalineado + diferenciar Tarea de evaluación
+
+Dos reportes sobre la misma vista, con capturas reales del celular. El
+primero: el badge de estado (a la derecha de fecha/countdown) se
+desacomodaba fila a fila en mobile — en una tarea con etiqueta (2 chips
+en el meta: materia + etiqueta) quedaba mucho más abajo que en un
+parcial sin etiqueta (1 chip).
+
+**Causa**: `.agenda-row` en mobile era `flex-wrap:wrap` con `.agenda-body`,
+`.agenda-fecha-col` y el `.badge` como flex-items sueltos — cada uno
+envolvía a su propia línea según cuánto ancho le quedara libre, así que
+la línea en la que terminaba cayendo el badge dependía de cuánto
+midiera el bloque de título/meta de esa fila puntual. Con `flex-wrap`
+eso nunca iba a ser determinístico entre filas de distinto contenido.
+
+**Fix**: `.agenda-row` pasa a `display:grid` en mobile
+(`grid-template-columns:28px 1fr auto`) con dos filas explícitas —
+fila 1: checkbox + `.agenda-body` (título/meta, alto variable); fila 2:
+`.agenda-fecha-col` (col 2) y el `.badge` (col 3, alineado a la
+derecha). El badge queda siempre en la fila 2, sin importar cuánto
+mida la fila 1 arriba — determinístico por construcción, no por ajuste
+fino de márgenes (que es lo que había antes y por lo que se
+desacomodaba). De paso, `.agenda-fecha-col` ya no necesita el
+`margin-left` a mano que imitaba "alinear bajo el título" — la columna
+del grid lo hace sola.
+
+El segundo pedido, en la misma conversación: diferenciar visualmente
+tareas de evaluaciones ("Parcial", "Final", etc.), sutil pero notorio.
+Antes `.agenda-meta .m` (el texto "Tarea"/"Parcial") tenía exactamente
+el mismo tratamiento para los dos — un pase anterior ya lo había hecho
+semibold y más oscuro que la fecha de al lado, pero por igual para
+ambos casos, así que en los hechos no diferenciaba nada.
+
+**Fix**: `buildAgendaRowsList()` marca la fila con `.is-evaluacion`
+cuando `item.itemKind === 'evaluacion'` (cualquier tipo — Parcial,
+Final, Obligatorio, Examen, etc. — no sólo los de `TIPOS_EVAL`). Esa
+clase suma 3 señales, ninguna un color nuevo (mismo `--c-warning` que ya
+usan los badges de "por vencer"): el riel de color se engrosa (6px vs
+4px), el título pasa a semibold fuerte (700), y el texto del tipo deja
+de ser texto plano para ser una etiqueta con fondo tinte + mayúsculas —
+mismo lenguaje visual que los chips/badges del resto de la app. Tareas
+y eventos personales quedan con el tratamiento neutro de siempre, sin
+tocarlos. Verificado en `Cursada.test.html` con una mezcla real de
+tareas/evaluaciones/eventos personales, filtros "Evaluaciones"/"Tareas",
+mobile (375px), desktop y los dos temas.

@@ -884,6 +884,25 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    propia y no como relleno (feedback: "todo muy parecido y mezclado"). */
 .agenda-meta .chip{max-width:200px;overflow:hidden;text-overflow:ellipsis}
 .agenda-meta .m{font-size:13px;font-weight:600;color:var(--c-ink2)}
+/* Tarea vs. evaluación (feedback: "diferenciar de manera sutil pero
+   notoria" — el "Tarea"/"Parcial" de arriba ya los iguala en peso, nada
+   distingue una entrega de bajo riesgo de un parcial). Una evaluación
+   suma 3 señales chicas, ninguna nueva en el vocabulario de color
+   (mismo warning que ya usan badges de "por vencer"): el riel se
+   engrosa, el título pasa a semibold fuerte, y el tipo deja de ser texto
+   plano para ser una etiqueta con fondo — mismo tratamiento visual que
+   ya tienen los chips/badges del resto de la app, sólo que en tono
+   warning para que lea "esto pesa más". Tarea/eventos personales quedan
+   con el tratamiento neutro de siempre, sin tocar nada acá.
+   */
+.agenda-row.is-evaluacion .bar4{width:6px}
+.agenda-row.is-evaluacion .agenda-title{font-weight:700}
+.agenda-row.is-evaluacion .agenda-meta .m{
+  background:rgba(255,149,0,.14);color:#B25C00;
+  padding:2px 8px;border-radius:6px;
+  font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+}
+html[data-theme="oscuro"] .agenda-row.is-evaluacion .agenda-meta .m{background:rgba(255,159,10,.18);color:#FFB454}
 .agenda-fecha-col{display:flex;flex-direction:column;gap:2px;width:170px;text-align:right;flex:none}
 .agenda-fecha{font-size:14px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
 .agenda-fecha-col .prox-countdown{align-self:flex-end}
@@ -1754,16 +1773,26 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .mini-day .box{height:48px!important;font-size:10.5px!important}
 
   /* ---------- Agenda ---------- */
-  /* Filas más espaciadas (grid de 8px, dirección "Pro Edition") — el
-     margin-left de .agenda-fecha-col alinea esa columna bajo el título cuando
-     wrappea a su propia línea (ver .agenda-body flex-basis arriba): tiene
-     que seguir siendo checkbox(22px) + gap para no perder esa alineación. */
+  /* Antes era flex-wrap: fecha-col y el badge de estado eran flex-items
+     sueltos que envolvían a su propia línea según cuánto ancho ocupara
+     .agenda-body arriba — con una tarea con etiqueta (2 chips en el
+     meta) el badge quedaba mucho más abajo que en un parcial sin
+     etiqueta (1 chip), un desacomodo real según la cantidad de
+     etiquetas (reportado por el usuario). Grid con filas explícitas fija
+     fecha+countdown y el badge SIEMPRE en la misma fila (la de abajo),
+     sin importar cuánto mida el bloque de título/meta arriba. */
   .agenda-groups{gap:16px}
-  .agenda-row{padding:16px 16px 16px 22px;gap:16px}
+  .agenda-row{
+    display:grid;grid-template-columns:28px 1fr auto;
+    column-gap:14px;row-gap:8px;align-items:start;
+    padding:16px 16px 16px 22px;
+  }
+  .agenda-row .lp-toggle-btn{grid-column:1;grid-row:1;align-self:start}
+  .agenda-row .agenda-body{grid-column:2 / span 2;grid-row:1}
+  .agenda-row .agenda-fecha-col{grid-column:2;grid-row:2;margin-left:0}
+  .agenda-row > .badge{grid-column:3;grid-row:2;margin-left:0;align-self:center;justify-self:end}
   .agenda-title{font-size:14.5px}
-  .agenda-fecha-col{margin-left:38px}
   .agenda-fecha{font-size:12.5px}
-  .agenda-row > .badge{margin-left:auto}
 
   /* Swipe para marcar entregado. El verde vive en .swipe-action (fondo
      propio), no en .swipe-row: la primera versión lo ponía en .swipe-row de
@@ -6364,6 +6393,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         chip.textContent = m ? truncate(m.nombre, 30) : 'Personal';
       }
       qf(node, 'tipo').textContent = item.tipo;
+      // Diferenciar evaluación de tarea a simple vista (feedback: "todo muy
+      // parecido y mezclado" — antes "Tarea" y "Parcial" tenían exactamente
+      // el mismo peso visual). Sólo evaluaciones (Parcial/Final/Examen/etc,
+      // ver TIPOS_EVAL) llevan la clase — tareas y eventos personales quedan
+      // con el tratamiento neutro de siempre.
+      node.querySelector('.agenda-row').classList.toggle('is-evaluacion', item.kind === 'materia' && item.itemKind === 'evaluacion');
       renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
       setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);

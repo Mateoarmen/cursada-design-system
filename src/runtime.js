@@ -2562,6 +2562,12 @@
         chip.textContent = m ? truncate(m.nombre, 30) : 'Personal';
       }
       qf(node, 'tipo').textContent = item.tipo;
+      // Diferenciar evaluación de tarea a simple vista (feedback: "todo muy
+      // parecido y mezclado" — antes "Tarea" y "Parcial" tenían exactamente
+      // el mismo peso visual). Sólo evaluaciones (Parcial/Final/Examen/etc,
+      // ver TIPOS_EVAL) llevan la clase — tareas y eventos personales quedan
+      // con el tratamiento neutro de siempre.
+      node.querySelector('.agenda-row').classList.toggle('is-evaluacion', item.kind === 'materia' && item.itemKind === 'evaluacion');
       renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
       setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);
