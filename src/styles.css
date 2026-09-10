@@ -531,10 +531,19 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .card{background:var(--c-surface);border:var(--c-card-border);border-radius:var(--r-card);box-shadow:var(--c-shadow)}
 
 /* ---------- Inicio ---------- */
-.inicio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
-.inicio-hello{font-family:var(--font-display);font-size:34px;font-weight:600;letter-spacing:-.025em;line-height:1.05}
-.inicio-date{font-size:14px;color:var(--c-ink2)}
-.inicio-note{font-size:14px;color:var(--c-ink2)}
+.inicio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:2px}
+.inicio-hello{font-family:var(--font-display);font-size:36px;font-weight:600;letter-spacing:-.025em;line-height:1.05}
+.inicio-date{font-size:14px;color:var(--c-ink3)}
+/* "Tenés N entregas pendientes" como pill, no texto suelto — mismo peso
+   visual que el resto de los chips/badges de la app en vez de competir a
+   media altura con el saludo grande de al lado. */
+/* inline-block + line-height, no inline-flex: el contenido es texto con un
+   <b> en el medio (innerHTML armado en JS, ver renderInicio) — un
+   contenedor flex convierte cada tramo de texto en un flex item anónimo y
+   el navegador recorta el espacio al principio/final de esos ítems, que es
+   justo donde caen los espacios alrededor del <b> ("Tenés 7 entregas" quedaba
+   "Tenés7entregas"). inline-block no tiene ese problema. */
+.inicio-note{font-size:13px;font-weight:500;color:var(--c-ink2);display:inline-block;line-height:34px;padding:0 16px;border-radius:var(--r-chip);background:var(--c-surfaceAlt)}
 /* Tarjeta "Progreso del semestre" (bloque C1) — la de más peso visual de
    Inicio: promedio grande + anillo de notas cargadas arriba, desglose por
    materia (peor encaminada primero) abajo. */
@@ -547,6 +556,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-materia-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px;border-top:1px solid var(--c-line-faint);font-size:13.5px;cursor:pointer;border-radius:8px}
 .progreso-semestre-materia-row:first-child{border-top:none}
 .progreso-semestre-materia-row:hover{background:var(--c-surfaceAlt)}
+.progreso-semestre-materia-nombre{display:flex;align-items:center;gap:9px;min-width:0}
+.progreso-semestre-materia-nombre span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
 .progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
 .progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
@@ -599,8 +610,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .panel-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:4px}
 .panel-title{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-.015em}
 .panel-hint{font-size:13px;color:var(--c-ink3)}
-.prox-row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
+.prox-row{display:flex;align-items:center;gap:16px;padding:13px 6px;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:12px;transition:background 150ms var(--ease-out)}
 .prox-row:first-child{border-top:none}
+.prox-row[role="button"]:hover{background:var(--c-surfaceAlt)}
 .prox-date{width:44px;flex:none;text-align:center}
 .prox-date .d{font-size:20px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
 .prox-date .m{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3)}
@@ -613,8 +625,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    (ver iniciarCountdownGlobal en runtime.js), acá sólo el estilo del texto. */
 .prox-countdown{font-size:11.5px;color:var(--c-accent);font-weight:600}
 .prox-countdown.vencido{color:var(--c-danger)}
-.riesgo-row{display:flex;align-items:center;gap:15px;padding-top:14px;border-top:1px solid var(--c-line-faint)}
+.riesgo-row{display:flex;align-items:center;gap:15px;padding:14px 6px 0;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:12px;transition:background 150ms var(--ease-out)}
 .riesgo-row:first-child{border-top:none;padding-top:0}
+.riesgo-row[role="button"]:hover{background:var(--c-surfaceAlt)}
 .riesgo-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .riesgo-body b{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .riesgo-body span{font-size:13px;color:var(--c-ink3);line-height:1.4}
@@ -627,7 +640,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .ajustes-danger-zone-text{display:flex;flex-direction:column;gap:3px;min-width:0}
 .ajustes-danger-zone-text .lbl{font-size:13px;font-weight:600;color:var(--c-ink)}
 .ajustes-danger-zone-text .hint{font-size:11.5px;line-height:1.5;color:var(--c-ink3);max-width:360px}
-.acceso-btn{height:36px;display:flex;align-items:center;padding:0 15px;border:none;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt)}
+.acceso-btn{height:36px;display:flex;align-items:center;gap:7px;padding:0 15px;border:none;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt);transition:background 150ms var(--ease-out)}
+.acceso-btn:hover{background:var(--c-muted4)}
+.acceso-btn .ico{width:14px;height:14px;flex:none;color:var(--c-ink3)}
 
 /* ---------- ring ---------- */
 .ring{border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center}
@@ -1029,13 +1044,18 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .ajustes-row:last-child{padding-bottom:2px}
 .ajustes-row+.ajustes-row{border-top:1px solid var(--c-line-faint2)}
 .ajustes-row-label{flex:0 0 196px;display:flex;gap:12px}
-.ajustes-icon-tile{
+/* Tile cuadrado redondeado para un ícono de trazo fino (34px, radio 11px) —
+   primitivo compartido, no específico de ningún panel: Ajustes lo usa
+   siempre con el color de acento por default; Inicio (KPIs) lo tiñe por
+   tono via style inline (mismo criterio que badgeStyle()/ringStyle(), no
+   hace falta un modificador CSS por tono acá). */
+.icon-tile{
   width:34px;height:34px;border-radius:11px;flex:none;
   display:flex;align-items:center;justify-content:center;
   background:var(--c-surfaceAlt);color:var(--c-accent);
 }
-.ajustes-icon-tile svg{width:16px;height:16px}
-.ajustes-icon-tile.is-danger{color:var(--c-danger)}
+.icon-tile svg{width:16px;height:16px}
+.icon-tile.is-danger{color:var(--c-danger)}
 .ajustes-row-label-text{display:flex;flex-direction:column;gap:4px;min-width:0;padding-top:2px}
 .ajustes-row-label .lbl{font-size:14px;font-weight:600;color:var(--c-ink);letter-spacing:-.005em}
 .ajustes-row-label .hint{font-size:11.5px;line-height:1.5;color:var(--c-ink3)}

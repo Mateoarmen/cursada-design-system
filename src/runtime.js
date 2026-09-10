@@ -35,6 +35,10 @@
   var TONE_BADGE_FG = { success: '#248A3D', warning: '#B25C00', danger: '#C9271F', neutral: '#6E6E73' };
   var TONE_BADGE_ALPHA = { success: .14, warning: .16, danger: .13, neutral: .055 };
   var PERSONAL_COLOR = '#8E8E93';
+  // Ícono de cada kpi-card de Inicio, por el label fijo que arma
+  // computeKpis() — ver renderInicio(). Los 3 templates viven junto a
+  // data-template="kpi-card" en app.html.
+  var KPI_ICON = { 'Próxima evaluación': 'ico-kpi-evaluacion', 'Promedio general': 'ico-kpi-promedio', 'Pendientes esta semana': 'ico-kpi-pendientes' };
   // Notificaciones (in-app + Web Push). La pública es pública por diseño
   // (va en el cliente, como la anon key de Supabase) — la privada vive como
   // secret de la Edge Function notifications-send, nunca acá.
@@ -1120,9 +1124,12 @@
     clear(list);
     p.materias.forEach(function (m) {
       var row = el('div', 'progreso-semestre-materia-row');
+      var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+      var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
       var nombre = el('span'); nombre.textContent = m.nombre;
+      nombreWrap.appendChild(dot); nombreWrap.appendChild(nombre);
       var valEl = el('span', 'mono'); valEl.style.color = TONE[m.tone]; valEl.textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
-      row.appendChild(nombre); row.appendChild(valEl);
+      row.appendChild(nombreWrap); row.appendChild(valEl);
       makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
       list.appendChild(row);
     });
@@ -1142,6 +1149,10 @@
     clear(kpiRow);
     computeKpis().forEach(function (k) {
       var node = tpl('kpi-card');
+      var icon = qf(node, 'icon');
+      icon.appendChild(tpl(KPI_ICON[k.label]));
+      var kpiTone = k.tone || 'neutral';
+      icon.setAttribute('style', css({ background: rgba(TONE[kpiTone], TONE_BADGE_ALPHA[kpiTone]), color: TONE_BADGE_FG[kpiTone] }));
       qf(node, 'label').textContent = k.label;
       // Bloque 5: estado vacío con acción para "Promedio general" sin
       // notas cargadas — mismo botón que abre "Nueva evaluación", nada de

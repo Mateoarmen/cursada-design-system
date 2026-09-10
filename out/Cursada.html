@@ -544,10 +544,19 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .card{background:var(--c-surface);border:var(--c-card-border);border-radius:var(--r-card);box-shadow:var(--c-shadow)}
 
 /* ---------- Inicio ---------- */
-.inicio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
-.inicio-hello{font-family:var(--font-display);font-size:34px;font-weight:600;letter-spacing:-.025em;line-height:1.05}
-.inicio-date{font-size:14px;color:var(--c-ink2)}
-.inicio-note{font-size:14px;color:var(--c-ink2)}
+.inicio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:2px}
+.inicio-hello{font-family:var(--font-display);font-size:36px;font-weight:600;letter-spacing:-.025em;line-height:1.05}
+.inicio-date{font-size:14px;color:var(--c-ink3)}
+/* "Tenés N entregas pendientes" como pill, no texto suelto — mismo peso
+   visual que el resto de los chips/badges de la app en vez de competir a
+   media altura con el saludo grande de al lado. */
+/* inline-block + line-height, no inline-flex: el contenido es texto con un
+   <b> en el medio (innerHTML armado en JS, ver renderInicio) — un
+   contenedor flex convierte cada tramo de texto en un flex item anónimo y
+   el navegador recorta el espacio al principio/final de esos ítems, que es
+   justo donde caen los espacios alrededor del <b> ("Tenés 7 entregas" quedaba
+   "Tenés7entregas"). inline-block no tiene ese problema. */
+.inicio-note{font-size:13px;font-weight:500;color:var(--c-ink2);display:inline-block;line-height:34px;padding:0 16px;border-radius:var(--r-chip);background:var(--c-surfaceAlt)}
 /* Tarjeta "Progreso del semestre" (bloque C1) — la de más peso visual de
    Inicio: promedio grande + anillo de notas cargadas arriba, desglose por
    materia (peor encaminada primero) abajo. */
@@ -560,6 +569,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-materia-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px;border-top:1px solid var(--c-line-faint);font-size:13.5px;cursor:pointer;border-radius:8px}
 .progreso-semestre-materia-row:first-child{border-top:none}
 .progreso-semestre-materia-row:hover{background:var(--c-surfaceAlt)}
+.progreso-semestre-materia-nombre{display:flex;align-items:center;gap:9px;min-width:0}
+.progreso-semestre-materia-nombre span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
 .progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
 .progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
@@ -612,8 +623,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .panel-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:4px}
 .panel-title{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-.015em}
 .panel-hint{font-size:13px;color:var(--c-ink3)}
-.prox-row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--c-line-faint)}
+.prox-row{display:flex;align-items:center;gap:16px;padding:13px 6px;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:12px;transition:background 150ms var(--ease-out)}
 .prox-row:first-child{border-top:none}
+.prox-row[role="button"]:hover{background:var(--c-surfaceAlt)}
 .prox-date{width:44px;flex:none;text-align:center}
 .prox-date .d{font-size:20px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
 .prox-date .m{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3)}
@@ -626,8 +638,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    (ver iniciarCountdownGlobal en runtime.js), acá sólo el estilo del texto. */
 .prox-countdown{font-size:11.5px;color:var(--c-accent);font-weight:600}
 .prox-countdown.vencido{color:var(--c-danger)}
-.riesgo-row{display:flex;align-items:center;gap:15px;padding-top:14px;border-top:1px solid var(--c-line-faint)}
+.riesgo-row{display:flex;align-items:center;gap:15px;padding:14px 6px 0;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:12px;transition:background 150ms var(--ease-out)}
 .riesgo-row:first-child{border-top:none;padding-top:0}
+.riesgo-row[role="button"]:hover{background:var(--c-surfaceAlt)}
 .riesgo-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .riesgo-body b{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .riesgo-body span{font-size:13px;color:var(--c-ink3);line-height:1.4}
@@ -640,7 +653,9 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .ajustes-danger-zone-text{display:flex;flex-direction:column;gap:3px;min-width:0}
 .ajustes-danger-zone-text .lbl{font-size:13px;font-weight:600;color:var(--c-ink)}
 .ajustes-danger-zone-text .hint{font-size:11.5px;line-height:1.5;color:var(--c-ink3);max-width:360px}
-.acceso-btn{height:36px;display:flex;align-items:center;padding:0 15px;border:none;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt)}
+.acceso-btn{height:36px;display:flex;align-items:center;gap:7px;padding:0 15px;border:none;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt);transition:background 150ms var(--ease-out)}
+.acceso-btn:hover{background:var(--c-muted4)}
+.acceso-btn .ico{width:14px;height:14px;flex:none;color:var(--c-ink3)}
 
 /* ---------- ring ---------- */
 .ring{border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center}
@@ -1042,13 +1057,18 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .ajustes-row:last-child{padding-bottom:2px}
 .ajustes-row+.ajustes-row{border-top:1px solid var(--c-line-faint2)}
 .ajustes-row-label{flex:0 0 196px;display:flex;gap:12px}
-.ajustes-icon-tile{
+/* Tile cuadrado redondeado para un ícono de trazo fino (34px, radio 11px) —
+   primitivo compartido, no específico de ningún panel: Ajustes lo usa
+   siempre con el color de acento por default; Inicio (KPIs) lo tiñe por
+   tono via style inline (mismo criterio que badgeStyle()/ringStyle(), no
+   hace falta un modificador CSS por tono acá). */
+.icon-tile{
   width:34px;height:34px;border-radius:11px;flex:none;
   display:flex;align-items:center;justify-content:center;
   background:var(--c-surfaceAlt);color:var(--c-accent);
 }
-.ajustes-icon-tile svg{width:16px;height:16px}
-.ajustes-icon-tile.is-danger{color:var(--c-danger)}
+.icon-tile svg{width:16px;height:16px}
+.icon-tile.is-danger{color:var(--c-danger)}
 .ajustes-row-label-text{display:flex;flex-direction:column;gap:4px;min-width:0;padding-top:2px}
 .ajustes-row-label .lbl{font-size:14px;font-weight:600;color:var(--c-ink);letter-spacing:-.005em}
 .ajustes-row-label .hint{font-size:11.5px;line-height:1.5;color:var(--c-ink3)}
@@ -2285,10 +2305,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <div class="card panel">
               <h2 class="panel-title">Accesos rápidos</h2>
               <div class="accesos-row">
-                <button class="acceso-btn" id="acceso-materia">+ Materia</button>
-                <button class="acceso-btn" id="acceso-entrega">+ Tarea o evaluación</button>
-                <button class="acceso-btn" id="acceso-evento">+ Evento personal</button>
-                <button class="acceso-btn" data-nav="horario">Ver horario</button>
+                <button class="acceso-btn" id="acceso-materia"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Materia</button>
+                <button class="acceso-btn" id="acceso-entrega"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tarea o evaluación</button>
+                <button class="acceso-btn" id="acceso-evento"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>Evento personal</button>
+                <button class="acceso-btn" data-nav="horario"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>Ver horario</button>
               </div>
             </div>
           </div>
@@ -3017,7 +3037,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <div class="modal-body pad-lg">
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
+            <div class="icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
             <div class="ajustes-row-label-text"><span class="lbl">Tema</span></div>
           </div>
           <div class="ajustes-row-content">
@@ -3030,7 +3050,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+            <div class="icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
             <div class="ajustes-row-label-text">
               <span class="lbl">Notificaciones</span>
               <span class="hint">In-app siempre disponible. Push necesita permiso del navegador — se pide una sola vez.</span>
@@ -3065,7 +3085,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
+            <div class="icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
             <div class="ajustes-row-label-text">
               <span class="lbl">Meta de carrera</span>
               <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
@@ -3077,7 +3097,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+            <div class="icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
             <div class="ajustes-row-label-text">
               <span class="lbl">Etiquetas</span>
               <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
@@ -3101,7 +3121,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         </div>
         <div class="ajustes-row hidden" id="ajustes-aprobadas-group">
           <div class="ajustes-row-label">
-            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+            <div class="icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
             <div class="ajustes-row-label-text">
               <span class="lbl">Progreso</span>
               <span class="hint">Tenés materias marcadas como aprobadas sin ninguna nota cargada — hace que no cuenten en tu promedio.</span>
@@ -3113,7 +3133,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
             <div class="ajustes-row-label-text"><span class="lbl">Datos y cuenta</span></div>
           </div>
           <div class="ajustes-row-content">
@@ -3182,7 +3202,21 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
 <!-- ============ TEMPLATES ============ -->
 <template data-template="kpi-card">
-  <div class="card kpi-card"><span class="kpi-label" data-f="label"></span><span class="kpi-value" data-f="valor"></span><span class="kpi-sub mono" data-f="sub"></span></div>
+  <div class="card kpi-card"><div class="icon-tile" data-f="icon" aria-hidden="true"></div><span class="kpi-label" data-f="label"></span><span class="kpi-value" data-f="valor"></span><span class="kpi-sub mono" data-f="sub"></span></div>
+</template>
+
+<!-- Íconos de #kpi-row (Inicio), clonados por tpl() según el label fijo de
+     computeKpis() — ver renderInicio(). No van en <defs>/<symbol> porque
+     tpl() clona firstElementChild tal cual, mismo mecanismo que cualquier
+     otro template de fila. -->
+<template data-template="ico-kpi-evaluacion">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+</template>
+<template data-template="ico-kpi-promedio">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="4" y2="12"/><line x1="10" y1="19" x2="10" y2="7"/><line x1="16" y1="19" x2="16" y2="14"/><line x1="22" y1="19" x2="22" y2="4"/></svg>
+</template>
+<template data-template="ico-kpi-pendientes">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
 </template>
 
 <template data-template="prox-row">
@@ -3674,6 +3708,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   var TONE_BADGE_FG = { success: '#248A3D', warning: '#B25C00', danger: '#C9271F', neutral: '#6E6E73' };
   var TONE_BADGE_ALPHA = { success: .14, warning: .16, danger: .13, neutral: .055 };
   var PERSONAL_COLOR = '#8E8E93';
+  // Ícono de cada kpi-card de Inicio, por el label fijo que arma
+  // computeKpis() — ver renderInicio(). Los 3 templates viven junto a
+  // data-template="kpi-card" en app.html.
+  var KPI_ICON = { 'Próxima evaluación': 'ico-kpi-evaluacion', 'Promedio general': 'ico-kpi-promedio', 'Pendientes esta semana': 'ico-kpi-pendientes' };
   // Notificaciones (in-app + Web Push). La pública es pública por diseño
   // (va en el cliente, como la anon key de Supabase) — la privada vive como
   // secret de la Edge Function notifications-send, nunca acá.
@@ -4759,9 +4797,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     clear(list);
     p.materias.forEach(function (m) {
       var row = el('div', 'progreso-semestre-materia-row');
+      var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+      var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
       var nombre = el('span'); nombre.textContent = m.nombre;
+      nombreWrap.appendChild(dot); nombreWrap.appendChild(nombre);
       var valEl = el('span', 'mono'); valEl.style.color = TONE[m.tone]; valEl.textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
-      row.appendChild(nombre); row.appendChild(valEl);
+      row.appendChild(nombreWrap); row.appendChild(valEl);
       makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
       list.appendChild(row);
     });
@@ -4781,6 +4822,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     clear(kpiRow);
     computeKpis().forEach(function (k) {
       var node = tpl('kpi-card');
+      var icon = qf(node, 'icon');
+      icon.appendChild(tpl(KPI_ICON[k.label]));
+      var kpiTone = k.tone || 'neutral';
+      icon.setAttribute('style', css({ background: rgba(TONE[kpiTone], TONE_BADGE_ALPHA[kpiTone]), color: TONE_BADGE_FG[kpiTone] }));
       qf(node, 'label').textContent = k.label;
       // Bloque 5: estado vacío con acción para "Promedio general" sin
       // notas cargadas — mismo botón que abre "Nueva evaluación", nada de
