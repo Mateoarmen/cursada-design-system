@@ -397,6 +397,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .btn-ghost{background:transparent;color:var(--c-ink2);font-weight:500}
 .btn-danger{background:transparent;color:var(--c-danger)}
 .btn-danger:hover{background:rgba(255,59,48,.1);filter:none}
+.btn-danger-solid{background:var(--c-danger);color:#fff}
+.btn-danger-solid:hover{filter:brightness(1.08)}
 .btn-sm{height:30px;padding:0 12px;font-size:12px}
 .icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2)}
 .icon-btn .ico{width:17px;height:17px}
@@ -434,17 +436,37 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .push-banner-actions{display:flex;gap:8px;flex-shrink:0}
 
 /* Ajustes → grilla de preferencias de notificaciones */
-.ajustes-notif-master-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
-.ajustes-notif-grid{display:flex;flex-direction:column;gap:2px;margin-top:10px}
-.ajustes-notif-grid-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--c-line-faint2)}
-.ajustes-notif-grid-row:last-child{border-bottom:none}
-.ajustes-notif-grid-label{font-size:13px}
-.ajustes-notif-grid-cell{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--c-ink2)}
-.ajustes-notif-grid-lead select{height:28px;font-size:12px}
-.ajustes-notif-quiet{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px}
-.ajustes-notif-quiet input[type=time]{height:32px}
-.ajustes-notif-devices-wrap{margin-top:14px}
-.ajustes-notif-device-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px}
+.ajustes-notif-master-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 16px;border-radius:var(--r-tile);background:var(--c-surfaceAlt);
+  font-size:13.5px;font-weight:600;color:var(--c-ink);
+}
+.ajustes-notif-card{border:1px solid var(--c-line-faint);border-radius:var(--r-tile);padding:2px 14px;margin-top:14px}
+.ajustes-notif-grid{display:flex;flex-direction:column}
+.ajustes-notif-grid-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--c-line-faint2)}
+.ajustes-notif-grid-row:first-child{border-top:none}
+.ajustes-notif-grid-head{padding:11px 0;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-ink3)}
+.ajustes-notif-grid-head+.ajustes-notif-grid-row{border-top:1px solid var(--c-line-faint2)}
+.ajustes-notif-grid-cell-head{justify-content:center;text-align:center}
+.ajustes-notif-grid-label{font-size:13.5px;color:var(--c-ink)}
+.ajustes-notif-grid-cell{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--c-ink2)}
+/* El texto "In-app"/"Push" de cada celda queda accesible (nombre del label
+   para el checkbox) pero oculto visualmente — la columna ya está rotulada
+   en el header del card (.ajustes-notif-grid-head), repetirlo en cada fila
+   era ruido. */
+.ajustes-notif-grid-cell span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* El tamaño real lo da .ajustes-switch-sm (runtime.js se lo asigna al crear
+   el checkbox) — nada que fijar acá aparte del centrado ya heredado. */
+.ajustes-notif-grid-lead{min-width:118px}
+.ajustes-notif-grid-lead select{height:30px;font-size:12px;border:none;border-radius:8px;padding:0 8px;background:var(--c-surfaceAlt);color:var(--c-ink)}
+.ajustes-notif-quiet{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--c-line-faint2);font-size:13px}
+.ajustes-notif-quiet .lbl{font-weight:600;color:var(--c-ink);margin-right:2px}
+.ajustes-notif-quiet input[type=time]{height:34px;border:none;border-radius:10px;padding:0 10px;background:var(--c-surfaceAlt);color:var(--c-ink);font-size:13px}
+.ajustes-notif-quiet input[type=time]:focus-visible{outline:none;box-shadow:var(--c-focus)}
+.ajustes-notif-devices-wrap{margin-top:16px;padding-top:16px;border-top:1px solid var(--c-line-faint2);display:flex;flex-direction:column;gap:4px}
+.ajustes-notif-devices-wrap>.lbl{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-ink3);margin-bottom:2px}
+.ajustes-notif-device-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;font-size:13px;border-top:1px solid var(--c-line-faint2)}
+.ajustes-notif-device-row:first-child{border-top:none}
 /* Bloque 7: toggle lupa<->input de búsqueda (ver .search-input más arriba).
    Después de .btn a propósito: .topbar-search-done es .btn.btn-ghost, misma
    especificidad que .btn (una clase) — acá gana por orden en la cascada. */
@@ -454,7 +476,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .topbar.is-searching .topbar-search-done{display:flex}
 
 .seg{display:flex;background:var(--c-surfaceAlt);border-radius:10px;padding:2px;gap:2px}
-.seg-item{height:30px;padding:0 14px;border-radius:8px;font-size:13px;color:var(--c-ink2);display:flex;align-items:center;gap:7px;border:none;background:transparent}
+.seg-item{height:30px;padding:0 14px;border-radius:8px;font-size:13px;color:var(--c-ink2);display:flex;align-items:center;gap:7px;border:none;background:transparent;transition:background 150ms var(--ease-out),color 150ms var(--ease-out)}
+.seg-item svg{width:14px;height:14px;flex:none}
 .seg-item.is-on{background:var(--c-surface);font-weight:600;color:var(--c-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 
 .pill{height:32px;display:inline-flex;align-items:center;padding:0 15px;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt);border:none}
@@ -471,6 +494,27 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .switch.is-on{background:var(--c-success)}
 .switch.is-on .knob{transform:translateX(18px)}
 .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* Mismo look que .switch pero sobre un <input type=checkbox> real (appearance:
+   none + ::after como knob) — para filas de Ajustes que ya dependen de la API
+   nativa de checkbox (.checked, evento change) y no vale la pena reescribir a
+   botón sólo por estética. */
+.ajustes-switch{
+  appearance:none;-webkit-appearance:none;margin:0;position:relative;flex:none;
+  width:44px;height:26px;border-radius:999px;background:var(--c-muted4);cursor:pointer;
+  transition:background 150ms ease;
+}
+.ajustes-switch::after{
+  content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform 150ms var(--ease-in-out);
+}
+.ajustes-switch:checked{background:var(--c-success)}
+.ajustes-switch:checked::after{transform:translateX(18px)}
+.ajustes-switch:disabled{opacity:.45;cursor:not-allowed}
+.ajustes-switch:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+.ajustes-switch-sm{width:34px;height:20px}
+.ajustes-switch-sm::after{width:16px;height:16px}
+.ajustes-switch-sm:checked::after{transform:translateX(14px)}
 
 /* ---------- tick de "hecho" (redondo, como el check de la hoja de evaluación) ----------
    Fase 4: antes era un <input type=checkbox> con un <span> visual encima
@@ -581,6 +625,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .riesgo-body b{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .riesgo-body span{font-size:13px;color:var(--c-ink3);line-height:1.4}
 .accesos-row{display:flex;flex-wrap:wrap;gap:8px}
+.ajustes-danger-zone{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  margin-top:14px;padding:16px 18px;border-radius:var(--r-tile);
+  background:rgba(255,59,48,.06);border:1px solid rgba(255,59,48,.16);
+}
+.ajustes-danger-zone-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ajustes-danger-zone-text .lbl{font-size:13px;font-weight:600;color:var(--c-ink)}
+.ajustes-danger-zone-text .hint{font-size:11.5px;line-height:1.5;color:var(--c-ink3);max-width:360px}
 .acceso-btn{height:36px;display:flex;align-items:center;padding:0 15px;border:none;border-radius:var(--r-chip);font-size:13px;font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt)}
 
 /* ---------- ring ---------- */
@@ -944,6 +996,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 .modal.modal-sm{width:560px}
 .modal.modal-xs{width:480px}
+.modal.modal-lg{width:700px}
 .modal-head{position:sticky;top:0;z-index:2;background:var(--c-surface);padding:22px 26px;border-bottom:1px solid var(--c-line-faint);display:flex;align-items:center;justify-content:space-between;gap:12px}
 .modal-head .titles{display:flex;flex-direction:column;gap:4px}
 .modal-head .titles .t{font-family:var(--font-display);font-size:18px;font-weight:600;letter-spacing:-.015em}
@@ -977,13 +1030,22 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 /* Fila de Ajustes: etiqueta a la izquierda, control a la derecha, separadas
    por un hairline entre filas (patrón tomado de una referencia de Figma,
    adaptado a los tokens/colores propios en vez de copiar su estilo visual). */
-.ajustes-row{display:flex;gap:24px;padding:20px 0}
-.ajustes-row:first-child{padding-top:0}
+.ajustes-row{display:flex;gap:24px;padding:26px 0}
+.ajustes-row:first-child{padding-top:2px}
+.ajustes-row:last-child{padding-bottom:2px}
 .ajustes-row+.ajustes-row{border-top:1px solid var(--c-line-faint2)}
-.ajustes-row-label{flex:0 0 168px;display:flex;flex-direction:column;gap:4px}
-.ajustes-row-label .lbl{font-size:13.5px;font-weight:600;color:var(--c-ink)}
-.ajustes-row-label .hint{font-size:11.5px;line-height:1.45;color:var(--c-ink3)}
-.ajustes-row-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.ajustes-row-label{flex:0 0 196px;display:flex;gap:12px}
+.ajustes-icon-tile{
+  width:34px;height:34px;border-radius:11px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--c-surfaceAlt);color:var(--c-accent);
+}
+.ajustes-icon-tile svg{width:16px;height:16px}
+.ajustes-icon-tile.is-danger{color:var(--c-danger)}
+.ajustes-row-label-text{display:flex;flex-direction:column;gap:4px;min-width:0;padding-top:2px}
+.ajustes-row-label .lbl{font-size:14px;font-weight:600;color:var(--c-ink);letter-spacing:-.005em}
+.ajustes-row-label .hint{font-size:11.5px;line-height:1.5;color:var(--c-ink3)}
+.ajustes-row-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding-top:2px}
 
 .swatches{display:flex;gap:10px;flex-wrap:wrap}
 .swatch{width:34px;height:34px;border-radius:50%;border:2px solid transparent;flex:none;padding:0}
@@ -1854,8 +1916,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     text-transform:uppercase;color:var(--c-ink3)}
   /* En pantalla angosta la fila de Ajustes pasa a apilarse: la columna fija
      de la etiqueta no tiene sentido a este ancho. */
-  .ajustes-row{flex-direction:column;gap:10px;padding:16px 0}
+  .ajustes-row{flex-direction:column;gap:12px;padding:20px 0}
   .ajustes-row-label{flex:none}
+  .ajustes-danger-zone{flex-direction:column;align-items:stretch}
+  .ajustes-danger-zone .btn-danger-solid{width:100%;justify-content:center}
   /* Cerrar sesión vive acá además del ⏻ del cajón: es donde la gente lo busca. */
   .perfil-logout{width:100%;justify-content:center;height:48px;color:var(--c-danger);
     border-color:var(--c-line)}
@@ -2937,7 +3001,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 
 <!-- ============ MODAL AJUSTES ============ -->
 <div class="modal-backdrop" id="modal-ajustes" role="dialog" aria-modal="true" aria-labelledby="modal-ajustes-title">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-head">
       <div class="titles"><h2 class="t" id="modal-ajustes-title">Ajustes</h2></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
@@ -2945,27 +3009,41 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
     <form id="form-ajustes">
       <div class="modal-body pad-lg">
         <div class="ajustes-row">
-          <div class="ajustes-row-label"><span class="lbl">Tema</span></div>
+          <div class="ajustes-row-label">
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
+            <div class="ajustes-row-label-text"><span class="lbl">Tema</span></div>
+          </div>
           <div class="ajustes-row-content">
             <div class="seg" id="ajustes-theme-toggle">
-              <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
-              <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-              <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
+              <button type="button" class="seg-item" data-theme-btn="sistema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Sistema</button>
+              <button type="button" class="seg-item" data-theme-btn="claro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="4.6" y1="4.6" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.4" y2="19.4"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.6" y1="19.4" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.4" y2="4.6"/></svg>Claro</button>
+              <button type="button" class="seg-item" data-theme-btn="oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Oscuro</button>
             </div>
           </div>
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <span class="lbl">Notificaciones</span>
-            <span class="hint">In-app siempre disponible. Push necesita permiso del navegador — se pide una sola vez.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Notificaciones</span>
+              <span class="hint">In-app siempre disponible. Push necesita permiso del navegador — se pide una sola vez.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
             <label class="ajustes-notif-master-row">
-              <input type="checkbox" id="ajustes-notif-master">
               <span>Notificaciones push en este dispositivo</span>
+              <input type="checkbox" class="ajustes-switch" id="ajustes-notif-master">
             </label>
             <span class="hint" id="ajustes-notif-permiso"></span>
-            <div class="ajustes-notif-grid" id="ajustes-notif-grid"></div>
+            <div class="ajustes-notif-card">
+              <div class="ajustes-notif-grid-row ajustes-notif-grid-head">
+                <div>Evento</div>
+                <div class="ajustes-notif-grid-cell-head">In-app</div>
+                <div class="ajustes-notif-grid-cell-head">Push</div>
+                <div></div>
+              </div>
+              <div class="ajustes-notif-grid" id="ajustes-notif-grid"></div>
+            </div>
             <div class="ajustes-notif-quiet">
               <span class="lbl">No molestar</span>
               <input type="time" id="ajustes-notif-quiet-start">
@@ -2974,23 +3052,29 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             </div>
             <div class="ajustes-notif-devices-wrap">
               <span class="lbl">Dispositivos conectados</span>
-              <div id="ajustes-notif-devices" style="display:flex;flex-direction:column;gap:6px"></div>
+              <div id="ajustes-notif-devices" style="display:flex;flex-direction:column;gap:2px"></div>
             </div>
           </div>
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <span class="lbl">Meta de carrera</span>
-            <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Meta de carrera</span>
+              <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
-            <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
+            <div class="field" style="max-width:260px"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
           </div>
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <span class="lbl">Etiquetas</span>
-            <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Etiquetas</span>
+              <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
             <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -3010,15 +3094,21 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
         </div>
         <div class="ajustes-row hidden" id="ajustes-aprobadas-group">
           <div class="ajustes-row-label">
-            <span class="lbl">Progreso</span>
-            <span class="hint">Tenés materias marcadas como aprobadas sin ninguna nota cargada — hace que no cuenten en tu promedio.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Progreso</span>
+              <span class="hint">Tenés materias marcadas como aprobadas sin ninguna nota cargada — hace que no cuenten en tu promedio.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
             <button type="button" class="btn btn-sm" id="btn-ajustes-progreso-abrir" style="align-self:flex-start">Cargar notas pendientes</button>
           </div>
         </div>
         <div class="ajustes-row">
-          <div class="ajustes-row-label"><span class="lbl">Datos y cuenta</span></div>
+          <div class="ajustes-row-label">
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="ajustes-row-label-text"><span class="lbl">Datos y cuenta</span></div>
+          </div>
           <div class="ajustes-row-content">
             <div class="accesos-row">
               <button type="button" class="btn" id="btn-exportar">Exportar</button>
@@ -3027,8 +3117,12 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
               <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
               <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
             </div>
-            <div class="accesos-row" style="margin-top:4px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
-              <button type="button" class="btn btn-danger" id="btn-borrar-todo">Borrar todo</button>
+            <div class="ajustes-danger-zone">
+              <div class="ajustes-danger-zone-text">
+                <span class="lbl">Borrar todo</span>
+                <span class="hint">Elimina materias, evaluaciones, tareas y eventos personales. No se puede deshacer.</span>
+              </div>
+              <button type="button" class="btn btn-danger-solid" id="btn-borrar-todo"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Borrar todo</button>
             </div>
           </div>
         </div>
@@ -9841,6 +9935,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         var cell = el('label', 'ajustes-notif-grid-cell');
         var input = document.createElement('input');
         input.type = 'checkbox';
+        input.className = 'ajustes-switch ajustes-switch-sm';
         input.checked = !pref || pref.enabled;
         input.addEventListener('change', function () { guardarNotifPref(eventType, channel, { enabled: input.checked }); });
         var span = document.createElement('span'); span.textContent = channel === 'inapp' ? 'In-app' : 'Push';

@@ -1035,7 +1035,7 @@
 
 <!-- ============ MODAL AJUSTES ============ -->
 <div class="modal-backdrop" id="modal-ajustes" role="dialog" aria-modal="true" aria-labelledby="modal-ajustes-title">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-head">
       <div class="titles"><h2 class="t" id="modal-ajustes-title">Ajustes</h2></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
@@ -1043,27 +1043,41 @@
     <form id="form-ajustes">
       <div class="modal-body pad-lg">
         <div class="ajustes-row">
-          <div class="ajustes-row-label"><span class="lbl">Tema</span></div>
+          <div class="ajustes-row-label">
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
+            <div class="ajustes-row-label-text"><span class="lbl">Tema</span></div>
+          </div>
           <div class="ajustes-row-content">
             <div class="seg" id="ajustes-theme-toggle">
-              <button type="button" class="seg-item" data-theme-btn="sistema">Sistema</button>
-              <button type="button" class="seg-item" data-theme-btn="claro">Claro</button>
-              <button type="button" class="seg-item" data-theme-btn="oscuro">Oscuro</button>
+              <button type="button" class="seg-item" data-theme-btn="sistema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Sistema</button>
+              <button type="button" class="seg-item" data-theme-btn="claro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="4.6" y1="4.6" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.4" y2="19.4"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.6" y1="19.4" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.4" y2="4.6"/></svg>Claro</button>
+              <button type="button" class="seg-item" data-theme-btn="oscuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Oscuro</button>
             </div>
           </div>
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <span class="lbl">Notificaciones</span>
-            <span class="hint">In-app siempre disponible. Push necesita permiso del navegador — se pide una sola vez.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Notificaciones</span>
+              <span class="hint">In-app siempre disponible. Push necesita permiso del navegador — se pide una sola vez.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
             <label class="ajustes-notif-master-row">
-              <input type="checkbox" id="ajustes-notif-master">
               <span>Notificaciones push en este dispositivo</span>
+              <input type="checkbox" class="ajustes-switch" id="ajustes-notif-master">
             </label>
             <span class="hint" id="ajustes-notif-permiso"></span>
-            <div class="ajustes-notif-grid" id="ajustes-notif-grid"></div>
+            <div class="ajustes-notif-card">
+              <div class="ajustes-notif-grid-row ajustes-notif-grid-head">
+                <div>Evento</div>
+                <div class="ajustes-notif-grid-cell-head">In-app</div>
+                <div class="ajustes-notif-grid-cell-head">Push</div>
+                <div></div>
+              </div>
+              <div class="ajustes-notif-grid" id="ajustes-notif-grid"></div>
+            </div>
             <div class="ajustes-notif-quiet">
               <span class="lbl">No molestar</span>
               <input type="time" id="ajustes-notif-quiet-start">
@@ -1072,23 +1086,29 @@
             </div>
             <div class="ajustes-notif-devices-wrap">
               <span class="lbl">Dispositivos conectados</span>
-              <div id="ajustes-notif-devices" style="display:flex;flex-direction:column;gap:6px"></div>
+              <div id="ajustes-notif-devices" style="display:flex;flex-direction:column;gap:2px"></div>
             </div>
           </div>
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <span class="lbl">Meta de carrera</span>
-            <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Meta de carrera</span>
+              <span class="hint">Opcional — si la cargás, la sección Progreso muestra tu avance hacia el título. Podés completarla después.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
-            <div class="field"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
+            <div class="field" style="max-width:260px"><label for="ajustes-materias-carrera">Cantidad de materias de la carrera</label><input id="ajustes-materias-carrera" name="materias_carrera" type="number" min="0" step="1" placeholder="Ej: 40"></div>
           </div>
         </div>
         <div class="ajustes-row">
           <div class="ajustes-row-label">
-            <span class="lbl">Etiquetas</span>
-            <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Etiquetas</span>
+              <span class="hint">Se pueden agregar desde acá o desde el selector al cargar una evaluación, tarea o evento — acá además se renombran o se borran las que creaste vos. Las predeterminadas no se pueden borrar ni renombrar.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
             <div id="ajustes-tags-list" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -1108,15 +1128,21 @@
         </div>
         <div class="ajustes-row hidden" id="ajustes-aprobadas-group">
           <div class="ajustes-row-label">
-            <span class="lbl">Progreso</span>
-            <span class="hint">Tenés materias marcadas como aprobadas sin ninguna nota cargada — hace que no cuenten en tu promedio.</span>
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+            <div class="ajustes-row-label-text">
+              <span class="lbl">Progreso</span>
+              <span class="hint">Tenés materias marcadas como aprobadas sin ninguna nota cargada — hace que no cuenten en tu promedio.</span>
+            </div>
           </div>
           <div class="ajustes-row-content">
             <button type="button" class="btn btn-sm" id="btn-ajustes-progreso-abrir" style="align-self:flex-start">Cargar notas pendientes</button>
           </div>
         </div>
         <div class="ajustes-row">
-          <div class="ajustes-row-label"><span class="lbl">Datos y cuenta</span></div>
+          <div class="ajustes-row-label">
+            <div class="ajustes-icon-tile" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="ajustes-row-label-text"><span class="lbl">Datos y cuenta</span></div>
+          </div>
           <div class="ajustes-row-content">
             <div class="accesos-row">
               <button type="button" class="btn" id="btn-exportar">Exportar</button>
@@ -1125,8 +1151,12 @@
               <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
               <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
             </div>
-            <div class="accesos-row" style="margin-top:4px;padding-top:14px;border-top:1px solid var(--c-line-faint2)">
-              <button type="button" class="btn btn-danger" id="btn-borrar-todo">Borrar todo</button>
+            <div class="ajustes-danger-zone">
+              <div class="ajustes-danger-zone-text">
+                <span class="lbl">Borrar todo</span>
+                <span class="hint">Elimina materias, evaluaciones, tareas y eventos personales. No se puede deshacer.</span>
+              </div>
+              <button type="button" class="btn btn-danger-solid" id="btn-borrar-todo"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Borrar todo</button>
             </div>
           </div>
         </div>

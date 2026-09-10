@@ -6303,6 +6303,7 @@
         var cell = el('label', 'ajustes-notif-grid-cell');
         var input = document.createElement('input');
         input.type = 'checkbox';
+        input.className = 'ajustes-switch ajustes-switch-sm';
         input.checked = !pref || pref.enabled;
         input.addEventListener('change', function () { guardarNotifPref(eventType, channel, { enabled: input.checked }); });
         var span = document.createElement('span'); span.textContent = channel === 'inapp' ? 'In-app' : 'Push';
