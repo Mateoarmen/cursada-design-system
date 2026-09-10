@@ -3872,3 +3872,93 @@ insertó correctamente una notificación in-app real después del fix de la
 RPC; `notifications-send` confirma en los logs que el único punto que le
 falta son esos tres secrets (`No key set vapidDetails.publicKey`), el
 resto del código corre.
+
+## Redisño Hallmark: proyecto completo (landing + app + legal)
+
+Se pidió un redisño del proyecto completo porque el conjunto se sentía
+"genérico/plantilla" — no un problema de una pantalla puntual. Se usó la
+skill `hallmark redesign` (alcance: proyecto), que primero produce un
+`design.md` en la raíz (sistema de diseño bloqueado, ver ese archivo) y
+después redisñea cada superficie leyendo de ahí, en vez de improvisar por
+página.
+
+**Decisión clave, tomada explícitamente con el usuario antes de tocar
+nada**: `design.md`/`design-reference/DESIGN.md` ya documentaban un
+sistema propio, cuidado ("Apple-inspired", azul de marca único,
+glassmorphism puntual) — esto no era una plantilla de IA sin pensar, así
+que un redisño "a ciegas" (agarrar un tema nuevo del catálogo de Hallmark)
+hubiera tirado trabajo real. Antes de escribir código se preguntó (a)
+sobre qué superficie aplicaba el pedido y (b) si la tipografía nueva
+aplicaba a todo el proyecto o sólo a la landing — porque `build-app.mjs`
+tiene un comentario de historial documentando que una tipografía de marca
+propia (Manrope + IBM Plex Mono) ya se había probado una vez y se revirtió
+a pedido del usuario, volviendo a la fuente de sistema. La respuesta esta
+vez fue "en todo el proyecto", así que esa reversión se deshace acá — a
+pedido explícito, no por default de la skill.
+
+**Qué cambió y por qué:**
+
+- **Tipografía**: Instrument Sans (display + body, misma familia — la
+  landing es "modern-minimal" en la taxonomía de Hallmark, que pide
+  disciplina de una sola familia) + JetBrains Mono para datos (notas,
+  porcentajes, fechas — antes usaba la misma pila de sistema para todo).
+  Se carga por `<link>` a Google Fonts en las tres cabeceras de build
+  (`build-app.mjs`/`build-landing.mjs`/`build-legal.mjs`), no se descarga
+  nada en build time (a diferencia del intento anterior que se había
+  revertido) — si la red no responde, la pila de fallback cae a la fuente
+  de sistema, no rompe nada.
+- **Landing (`src/landing.html`), redisño completo de estructura**: pasó
+  de la secuencia clásica de SaaS (hero grande con doble CTA → bento de
+  features → cross-device → testimonios → FAQ → CTA final — el mismo
+  orden que cualquier landing genérica) a la macrostructure "Workbench" de
+  Hallmark: encabezado chico y funcional, el producto entra a los tres
+  segundos como una serie de "capturas" (en realidad mockups HTML/CSS
+  fieles a la UI real de Cursada — Inicio, el simulador de "cuánto
+  necesitás para aprobar", Materias/Horario/Riesgo/Semestres, Cuenta), con
+  caption debajo de cada una en vez de alrededor. Se sacó la única foto de
+  stock (picsum.photos, en la tarjeta de "Agenda y calendario") y se
+  reemplazó por un mockup propio — no tiene sentido un "workbench" que
+  muestra el producto real en todos lados menos en un tile con una foto de
+  desk genérica. Nav: cápsula flotante con blur (antes: barra de ancho
+  completo). Se agregó una barra de CTA sticky-bottom que aparece después
+  de la tercera captura y se esconde cerca del CTA final/footer para no
+  pisarlos (`#tour-end` como marcador + un solo listener de scroll —
+  se probó primero con dos `IntersectionObserver` separados y un salto de
+  scroll grande podía saltearse el cruce del 0%, dejando la barra colgada;
+  un chequeo de posición en cada scroll no tiene ese punto ciego). El
+  copy, los datos de ejemplo (Joaquín, Valentina, Nicolás) y los IDs de
+  sección (`#top`/`#nota`/`#funciones`/`#preguntas`/`#crear`, para no
+  romper los links del footer ni el nav) se preservaron tal cual.
+- **App (`src/app.html` + `src/styles.css`)**: sin ningún cambio de
+  estructura — cero renombres de clase, `data-f`, `<template>` o del
+  sistema de modales/`TONE` (`runtime.js` depende de esos nombres exactos,
+  ver skill `cursada-conventions`). El redisño acá es sólo de capa visual:
+  tipografía nueva vía `--font-display`/`--font-body`/`--font-mono`. Todo
+  lo demás (paleta, radios, easings, los 9 colores de materia) ya estaba
+  bien resuelto y se dejó igual.
+- **Legal (`src/legal.html`)**: mismo cambio de tipografía en los
+  encabezados y el `<code>` de `localStorage` (ahora mono). Contenido
+  legal sin tocar una palabra.
+
+**Qué se preservó sin discusión** (ver `design.md`, "Qué preserva cada
+superficie"): el azul de marca (`#0A63F0`/`#2C7BFF` oscuro) y su gradiente,
+el isotipo, el wordmark en minúscula, los 9 colores de materia, y en la
+app puntualmente todo lo que `runtime.js` referencia por nombre.
+
+**Verificado en navegador** (no sólo que el build no tira error): las tres
+páginas servidas desde `out/` sobre `python3 -m http.server`; en la
+landing, el selector de escala (0-12/puntaje/porcentaje) recalculando los
+números en vivo, el acordeón de FAQ, la barra sticky apareciendo/
+ocultándose en los puntos correctos, sin scroll horizontal a 375px; en la
+app (`Cursada.test.html`, datos mock), Inicio y Materias con las fuentes
+nuevas, anillos de progreso y colores de riesgo intactos, tema oscuro
+verificado. Un bug real encontrado y corregido durante esta verificación:
+la primera versión de la barra sticky usaba dos `IntersectionObserver`
+independientes y quedaba sin mostrarse nunca si el scroll saltaba de golpe
+(ver arriba) — se simplificó a un solo listener de `scroll` con
+`getBoundingClientRect`, más robusto y más corto.
+
+**Qué falta**: `npm run build:app` (con Supabase real, no el mock) para el
+entregable final — no se corrió en esta sesión porque no hacía falta para
+verificar el redisño visual, y esa build no debería correrse sin que el
+usuario confirme que quiere generar el artefacto de producción.

@@ -1,0 +1,12 @@
+[
+  {
+    "date": "2026-09-10",
+    "scope": "app",
+    "macrostructure": "Workbench (marketing) + shell existente preservado (app) + tipografía sola (legal)",
+    "theme": "custom",
+    "theme_axes": "light+dark / geometric-sans / cool",
+    "vibe": "preservar el azul de marca ya lanzado, sacarle la pinta de plantilla SaaS a la estructura",
+    "enrichment": "Tier-A/B: mockups HTML/CSS fieles a la UI real de Cursada, sin fotos de stock",
+    "brief": "Cursada · redisño de proyecto completo (landing + app + legal) a pedido del usuario porque se sentía genérico/plantilla"
+  }
+]

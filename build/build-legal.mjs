@@ -34,6 +34,10 @@ async function main() {
 <meta name="description" content="Qué datos guarda Cursada, dónde viven y cómo exportarlos o borrarlos — y las condiciones de uso de la app.">
 <meta name="theme-color" id="meta-theme-color" content="#FFFFFF">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${FAVICON_B64}">
+<!-- Ver build-landing.mjs: misma pareja tipográfica del redisño Hallmark. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..600&display=swap">
 </head>
 <body>
 ${legalHtml}

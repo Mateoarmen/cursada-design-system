@@ -52,6 +52,15 @@ async function main() {
 <meta name="twitter:image" content="og-image.png">
 <meta name="theme-color" id="meta-theme-color" content="#FFFFFF">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${FAVICON_B64}">
+<!-- Redisño Hallmark (ver design.md): pareja tipográfica propia (Instrument
+     Sans + JetBrains Mono) en vez de la pila de sistema — a pedido
+     explícito del usuario, revierte la decisión anterior de build-app.mjs
+     (ver ese archivo) de no depender de fuentes externas. preconnect
+     reduce la latencia de la primera carga; la pila de fallback en
+     styles.css/landing.html cae a system-ui si la red no responde. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..600&display=swap">
 </head>
 <body>
 ${landingHtml}

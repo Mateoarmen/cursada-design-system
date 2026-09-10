@@ -14,8 +14,17 @@
 // que este script descargara dos tipografías propias (Manrope + IBM Plex
 // Mono) desde Google Fonts en build time. A pedido del usuario esa parte se
 // revirtió: la tipografía volvió a ser una sola pila del sistema (turno 2,
-// "Apple"), así que no hace falta descargar ni embeber nada — el resto de
-// la marca (colores, isotipo, favicon) se mantiene igual.
+// "Apple").
+//
+// Redisño Hallmark (ver design.md, proyecto completo): a pedido explícito
+// del usuario esa reversión se deshace — la tipografía de sistema se sentía
+// "genérica" y el pedido esta vez fue una pareja propia (Instrument Sans +
+// JetBrains Mono) en las tres superficies del proyecto (landing, app,
+// legal). A diferencia del turno 3, no se descarga nada en build time: se
+// agrega un <link> a Google Fonts en el <head> (mismo patrón que
+// build-landing.mjs/build-legal.mjs) — no hace falta bundlear ni tocar el
+// pipeline de Node. Si la red no responde, la pila de fallback en
+// styles.css cae a la fuente de sistema.
 //
 // Cambio de arquitectura (migración a Supabase): el entregable dejó de ser
 // 100% offline. Necesita el SDK de supabase-js en el navegador, así que este
@@ -63,6 +72,9 @@ async function main() {
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${FAVICON_B64}">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" id="meta-theme-color" content="#EDEDF0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..600&display=swap">
 <style>
 ${stylesCss}
 </style>

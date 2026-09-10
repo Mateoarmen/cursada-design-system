@@ -7,12 +7,28 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMkM3QkZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBBNjNGMCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTgiIGZpbGw9InVybCgjZykiLz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjYiIHN0cm9rZS1kYXNoYXJyYXk9IjY2IDIyIiB0cmFuc2Zvcm09InJvdGF0ZSg0NSAzMiAzMikiLz4KPC9zdmc+Cg==">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" id="meta-theme-color" content="#EDEDF0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..600&display=swap">
 <style>
 /* Cursada — tokens + layout. Dirección visual "Apple" (turno 2) + marca propia
    (turno 3, Cursada Marca.dc.html) sobre esa misma base — colores, isotipo,
    wordmark en minúscula, favicon. La tipografía de la marca (Manrope + IBM
    Plex Mono) se revirtió a pedido del usuario a la pila única del sistema de
-   turno 2; el resto de la marca quedó igual. Ver README.md, sección "Marca". */
+   turno 2; el resto de la marca quedó igual. Ver README.md, sección "Marca".
+
+   Redisño Hallmark (ver design.md, proyecto completo): capa visual
+   refrescada sin tocar el contrato de runtime.js — cero cambios de nombre
+   de variable, clase o data-f (ver skill cursada-conventions). Lo único que
+   cambia acá es la pareja tipográfica (--font-*, deshace la reversión de
+   arriba a pedido explícito del usuario esta vez) y los tokens nuevos
+   --c-*-soft de acento/peligro que usa la landing rediseñada — el resto de
+   la paleta, radios y easings ya estaba bien y se preserva sin tocar. */
+/* Hallmark · redesign (proyecto completo) · genre: modern-minimal
+ * macrostructure: shell existente preservado (ver design.md, "App pages")
+ * theme: custom · paper: oklch(100% 0 0) · accent: oklch(54.6% 0.225 261)
+ * display: Instrument Sans · body: Instrument Sans · mono: JetBrains Mono
+ * axes: light+dark / geometric-sans / cool · studied: no · context: explicit */
 
 :root{
   --c-bg:#EDEDF0; --c-surface:#FFFFFF; --c-sidenav:#FBFBFD; --c-surfaceAlt:rgba(0,0,0,.05);
@@ -42,14 +58,16 @@
   --acc-indigo-soft:rgba(191,90,242,.12); --acc-indigo-strong:#8E3FBE;
   --acc-gris-soft:rgba(152,152,157,.14); --acc-gris-strong:#6E6E73;
 
-  /* Tipografía: una sola pila, la fuente del sistema (dirección "Apple",
-     turno 2). La marca (turno 3) había traído Manrope + IBM Plex Mono
-     propias; a pedido del usuario se revirtió sólo la tipografía y se
-     mantuvo el resto de la marca (colores, isotipo, favicon, wordmark en
-     minúscula) — ver README, sección "Marca". */
-  --font-display:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
-  --font-body:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
-  --font-mono:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+  /* Tipografía: pareja propia (redisño Hallmark, ver design.md) — Instrument
+     Sans para display y body (misma familia, disciplina "single-family" del
+     género modern-minimal) + JetBrains Mono como fuente de datos (notas,
+     porcentajes, fechas). Deshace la reversión anterior a la fuente de
+     sistema (ver comentario de arriba) a pedido explícito del usuario esta
+     vez. La pila de sistema queda como fallback si Google Fonts no responde
+     (link en build-app.mjs). */
+  --font-display:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+  --font-body:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,'SF Mono',Menlo,monospace;
 
   --r-control:10px; --r-card:20px; --r-chip:999px; --r-tile:12px; --r-modal:26px;
   --sidenav-w:236px;
@@ -4088,15 +4106,6 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     renderNotifBadge();
     if (!document.getElementById('notif-panel').classList.contains('hidden')) renderNotifPanel();
     if (CURRENT_PROFILE) maybeMostrarBannerPush();
-  }
-
-  // Parte 5: notifications-send lee esto para suprimir push a usuarios que
-  // ya estaban activos en la app hace poco (no le manda un push por algo
-  // que probablemente ya vio en pantalla) — fire-and-forget, no bloquea ni
-  // se refleja en CACHE/UI.
-  function actualizarUltimaActividad() {
-    if (!CURRENT_USER) return;
-    sb().from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', CURRENT_USER.id).then(function () {}, function () {});
   }
 
   // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
@@ -10321,7 +10330,6 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     // No bloqueante a propósito (ver cargarNotificaciones) — no tiene que
     // demorar la revelación de #app.
     cargarNotificaciones();
-    actualizarUltimaActividad();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // Con el perfil de Google ya resuelto (si correspondía), quedan estos
     // avisos posibles al entrar a la app — nunca más de uno a la vez (si
@@ -10382,7 +10390,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     registrarServiceWorker();
     // Parte 3: nada de Supabase Realtime acá — refresco en foco, no en vivo.
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible' && CURRENT_USER) { cargarNotificaciones(); actualizarUltimaActividad(); }
+      if (document.visibilityState === 'visible' && CURRENT_USER) cargarNotificaciones();
     });
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();

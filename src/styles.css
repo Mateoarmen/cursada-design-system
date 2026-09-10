@@ -2,7 +2,20 @@
    (turno 3, Cursada Marca.dc.html) sobre esa misma base — colores, isotipo,
    wordmark en minúscula, favicon. La tipografía de la marca (Manrope + IBM
    Plex Mono) se revirtió a pedido del usuario a la pila única del sistema de
-   turno 2; el resto de la marca quedó igual. Ver README.md, sección "Marca". */
+   turno 2; el resto de la marca quedó igual. Ver README.md, sección "Marca".
+
+   Redisño Hallmark (ver design.md, proyecto completo): capa visual
+   refrescada sin tocar el contrato de runtime.js — cero cambios de nombre
+   de variable, clase o data-f (ver skill cursada-conventions). Lo único que
+   cambia acá es la pareja tipográfica (--font-*, deshace la reversión de
+   arriba a pedido explícito del usuario esta vez) y los tokens nuevos
+   --c-*-soft de acento/peligro que usa la landing rediseñada — el resto de
+   la paleta, radios y easings ya estaba bien y se preserva sin tocar. */
+/* Hallmark · redesign (proyecto completo) · genre: modern-minimal
+ * macrostructure: shell existente preservado (ver design.md, "App pages")
+ * theme: custom · paper: oklch(100% 0 0) · accent: oklch(54.6% 0.225 261)
+ * display: Instrument Sans · body: Instrument Sans · mono: JetBrains Mono
+ * axes: light+dark / geometric-sans / cool · studied: no · context: explicit */
 
 :root{
   --c-bg:#EDEDF0; --c-surface:#FFFFFF; --c-sidenav:#FBFBFD; --c-surfaceAlt:rgba(0,0,0,.05);
@@ -32,14 +45,16 @@
   --acc-indigo-soft:rgba(191,90,242,.12); --acc-indigo-strong:#8E3FBE;
   --acc-gris-soft:rgba(152,152,157,.14); --acc-gris-strong:#6E6E73;
 
-  /* Tipografía: una sola pila, la fuente del sistema (dirección "Apple",
-     turno 2). La marca (turno 3) había traído Manrope + IBM Plex Mono
-     propias; a pedido del usuario se revirtió sólo la tipografía y se
-     mantuvo el resto de la marca (colores, isotipo, favicon, wordmark en
-     minúscula) — ver README, sección "Marca". */
-  --font-display:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
-  --font-body:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
-  --font-mono:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+  /* Tipografía: pareja propia (redisño Hallmark, ver design.md) — Instrument
+     Sans para display y body (misma familia, disciplina "single-family" del
+     género modern-minimal) + JetBrains Mono como fuente de datos (notas,
+     porcentajes, fechas). Deshace la reversión anterior a la fuente de
+     sistema (ver comentario de arriba) a pedido explícito del usuario esta
+     vez. La pila de sistema queda como fallback si Google Fonts no responde
+     (link en build-app.mjs). */
+  --font-display:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+  --font-body:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,'SF Mono',Menlo,monospace;
 
   --r-control:10px; --r-card:20px; --r-chip:999px; --r-tile:12px; --r-modal:26px;
   --sidenav-w:236px;
