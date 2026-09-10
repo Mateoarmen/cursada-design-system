@@ -606,6 +606,17 @@
                  sin nota cargada), que el gráfico de arriba no puede plotear. -->
             <div id="progreso-semestres-lista" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
           </div>
+          <!-- Materias "Pendiente" (debés rendir examen) de TODA la cuenta,
+               agrupadas por semestre — mismo alcance histórico completo que
+               el resto de Progreso (ver README, sección Semestres). Oculta
+               si no hay ninguna, mismo criterio que progreso-este-semestre-
+               card. Cada fila abre el Detalle de la materia (ahí vive
+               "Cargar nota", que resuelve el estado solo — ver el hook en
+               el submit de evaluación). -->
+          <div class="card panel hidden" id="progreso-pendientes-card">
+            <div class="panel-head"><h2 class="panel-title">Materias pendientes</h2><span class="panel-hint" id="progreso-pendientes-count"></span></div>
+            <div id="progreso-pendientes-por-semestre"></div>
+          </div>
           <div class="card panel">
             <div class="panel-head"><h2 class="panel-title">Estado de todas tus materias</h2></div>
             <div class="progreso-dist-bar" id="progreso-dist-bar"></div>

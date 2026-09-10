@@ -78,6 +78,13 @@
       // Bloques 2 y 3): 80 (parcial) + 20 (participación) = 100 = esc.total,
       // sin inconsistencia de escala a propósito.
       { id: 'mat-6', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Bases de Datos', doc: 'Ing. Fontán', color_id: 'turquesa', salon: 'Lab 2', bloques: [{ dia: 4, ini: 16, fin: 18 }], esc: { tipo: 'puntos', total: 100, aprob: 60, exoneracion: 85 }, estado: 'cursando', componentes_fijos: [{ id: 'fijo-part-1', titulo: 'Participación en clase', puntajeMax: 20, valor: null }] },
+      // estado:'pendiente' ("debo rendir examen") del semestre ACTIVO — sin
+      // esto el fixture sólo cubría el caso histórico del onboarding, no
+      // una materia que quedó pendiente cursándose ahora. Prueba
+      // renderProgresoPendientes() con dos grupos (activo + histórico, ver
+      // mat-hist-6 más abajo) y el auto-pasaje a Aprobada al cargar la nota
+      // desde Detalle ("Cargar nota").
+      { id: 'mat-7', user_id: 'test-user-id-000', semestre_id: 'sem-1', nombre: 'Sistemas de Información', doc: 'Ing. Bruno', color_id: 'rosa', salon: '', bloques: [], esc: { tipo: 'puntos', total: 100, aprob: 70 }, estado: 'pendiente' },
       { id: 'mat-old-1', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Filosofía', doc: 'Dr. Rossi', color_id: 'azul', salon: 'Aula 1', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
       { id: 'mat-old-2', user_id: 'test-user-id-000', semestre_id: 'sem-0', nombre: 'Historia', doc: 'Dra. Luna', color_id: 'coral', salon: 'Aula 2', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
       // Bloque 4: materias del semestre histórico — sin nota cargada (el
@@ -87,7 +94,11 @@
       { id: 'mat-hist-5', user_id: 'test-user-id-000', semestre_id: 'sem-historico-2', nombre: 'Redes', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
       { id: 'mat-hist-1', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Cálculo I', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6, exoneracion: 10 }, estado: 'aprobada' },
       { id: 'mat-hist-2', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Química General', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6, exoneracion: 10 }, estado: 'aprobada' },
-      { id: 'mat-hist-3', user_id: 'test-user-id-000', semestre_id: 'sem-historico-5', nombre: 'Física II', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
+      { id: 'mat-hist-3', user_id: 'test-user-id-000', semestre_id: 'sem-historico-5', nombre: 'Física II', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
+      // Segunda "pendiente", en un semestre histórico distinto de mat-7 —
+      // agrupa por semestre en renderProgresoPendientes() en vez de una
+      // lista plana.
+      { id: 'mat-hist-6', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Estadística I', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'puntos', total: 100, aprob: 70 }, estado: 'pendiente' }
     ],
     // Fase 1: kind ('tarea'|'evaluacion') + nota_maxima (sólo evaluación).
     agenda: [

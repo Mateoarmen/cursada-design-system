@@ -592,6 +592,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
 .progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
 .progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
+/* "Materias pendientes" de Progreso — un grupo por semestre, filas con el
+   mismo look que .progreso-semestre-materia-row (reusado tal cual, ver
+   renderProgresoPendientes). El header no es un <h3> nuevo — mismo peso
+   visual chico que .progreso-semestre-promedio-lbl, para no competir con
+   el panel-title de la card que ya lo contiene. */
+.progreso-pendientes-grupo + .progreso-pendientes-grupo{margin-top:18px}
+.progreso-pendientes-grupo-header{font-size:12.5px;font-weight:600;color:var(--c-ink3);text-transform:uppercase;letter-spacing:.02em;padding:0 4px 6px}
 /* Card "Lo próximo": el ítem más cercano de proximos-list, destacado.
    Borde en degradé vía el truco de padding+gradiente en el wrapper de
    afuera (radio +2px) con el relleno sólido adentro (radio real) — ver

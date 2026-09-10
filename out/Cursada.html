@@ -605,6 +605,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
 .progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
 .progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
+/* "Materias pendientes" de Progreso — un grupo por semestre, filas con el
+   mismo look que .progreso-semestre-materia-row (reusado tal cual, ver
+   renderProgresoPendientes). El header no es un <h3> nuevo — mismo peso
+   visual chico que .progreso-semestre-promedio-lbl, para no competir con
+   el panel-title de la card que ya lo contiene. */
+.progreso-pendientes-grupo + .progreso-pendientes-grupo{margin-top:18px}
+.progreso-pendientes-grupo-header{font-size:12.5px;font-weight:600;color:var(--c-ink3);text-transform:uppercase;letter-spacing:.02em;padding:0 4px 6px}
 /* Card "Lo próximo": el ítem más cercano de proximos-list, destacado.
    Borde en degradé vía el truco de padding+gradiente en el wrapper de
    afuera (radio +2px) con el relleno sólido adentro (radio real) — ver
@@ -2659,6 +2666,17 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
                  sin promedio todavía (p. ej. materias aprobadas en el onboarding
                  sin nota cargada), que el gráfico de arriba no puede plotear. -->
             <div id="progreso-semestres-lista" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <!-- Materias "Pendiente" (debés rendir examen) de TODA la cuenta,
+               agrupadas por semestre — mismo alcance histórico completo que
+               el resto de Progreso (ver README, sección Semestres). Oculta
+               si no hay ninguna, mismo criterio que progreso-este-semestre-
+               card. Cada fila abre el Detalle de la materia (ahí vive
+               "Cargar nota", que resuelve el estado solo — ver el hook en
+               el submit de evaluación). -->
+          <div class="card panel hidden" id="progreso-pendientes-card">
+            <div class="panel-head"><h2 class="panel-title">Materias pendientes</h2><span class="panel-hint" id="progreso-pendientes-count"></span></div>
+            <div id="progreso-pendientes-por-semestre"></div>
           </div>
           <div class="card panel">
             <div class="panel-head"><h2 class="panel-title">Estado de todas tus materias</h2></div>
@@ -5363,6 +5381,60 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     });
   }
 
+  // "Materias pendientes" — todas las materias estado:'pendiente' (debés
+  // rendir examen) de TODA la cuenta, agrupadas por semestre en orden
+  // cronológico real (semestresOrdenados(), no el orden en que aparecen en
+  // computeMaterias()). Mismo alcance histórico completo que el resto de
+  // Progreso — a propósito, así una materia "Pendiente" de un semestre
+  // histórico del onboarding es tan visible acá como una del semestre
+  // activo. Cada fila lleva al Detalle de la materia, donde "Cargar nota"
+  // resuelve el estado solo (ver el hook en el submit de evaluación) — no
+  // hay acción de "cargar nota" acá mismo a propósito, ese modal ya pide
+  // fecha/tipo/etiqueta y no tiene sentido duplicarlo en una fila de lista.
+  function renderProgresoPendientes() {
+    var card = document.getElementById('progreso-pendientes-card');
+    var pendientes = computeMaterias().filter(function (m) { return m.estado === 'pendiente'; });
+    if (!pendientes.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    document.getElementById('progreso-pendientes-count').textContent = pendientes.length + (pendientes.length === 1 ? ' materia' : ' materias');
+
+    var porSemestre = {};
+    pendientes.forEach(function (m) { (porSemestre[m.semestreId] = porSemestre[m.semestreId] || []).push(m); });
+
+    var wrap = document.getElementById('progreso-pendientes-por-semestre');
+    clear(wrap);
+    var activoId = activeSemestreId();
+    var gruposIds = {};
+    function pintarGrupo(nombre, materias) {
+      var group = el('div', 'progreso-pendientes-grupo');
+      var header = el('div', 'progreso-pendientes-grupo-header');
+      header.textContent = nombre;
+      group.appendChild(header);
+      materias.slice().sort(function (a, b) { return a.nombre.localeCompare(b.nombre); }).forEach(function (m) {
+        var row = el('div', 'progreso-semestre-materia-row');
+        var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+        var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
+        var nombreEl = el('span'); nombreEl.textContent = m.nombre;
+        nombreWrap.appendChild(dot); nombreWrap.appendChild(nombreEl);
+        var valEl = el('span', 'mono'); valEl.style.cssText = 'color:var(--c-ink3);font-size:12.5px'; valEl.textContent = 'aprueba ' + m.aprobTxt;
+        row.appendChild(nombreWrap); row.appendChild(valEl);
+        makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
+        group.appendChild(row);
+      });
+      wrap.appendChild(group);
+    }
+    semestresOrdenados().forEach(function (s) {
+      var materias = porSemestre[s.id];
+      if (!materias || !materias.length) return;
+      gruposIds[s.id] = true;
+      pintarGrupo(s.nombre + (s.id === activoId ? ' · actual' : ''), materias);
+    });
+    // Red de seguridad: una materia sin semestreId (no debería pasar, ver
+    // README sección Semestres) no queda oculta en silencio.
+    var sueltas = pendientes.filter(function (m) { return !m.semestreId || !gruposIds[m.semestreId]; });
+    if (sueltas.length) pintarGrupo('Sin semestre', sueltas);
+  }
+
   // Bloque 4: la causa raíz de que esta vista no mostrara nada era que las
   // materias aprobadas del onboarding quedaban con semestreId:null (ver
   // wizCrearMateriasAprobadas, ahora apunta a un semestre histórico) — acá
@@ -5420,6 +5492,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       }
     }
     renderProgresoSemestresLista(puntos);
+    renderProgresoPendientes();
 
     renderProgresoDistribucion();
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');

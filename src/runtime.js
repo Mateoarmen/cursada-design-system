@@ -1607,6 +1607,60 @@
     });
   }
 
+  // "Materias pendientes" — todas las materias estado:'pendiente' (debés
+  // rendir examen) de TODA la cuenta, agrupadas por semestre en orden
+  // cronológico real (semestresOrdenados(), no el orden en que aparecen en
+  // computeMaterias()). Mismo alcance histórico completo que el resto de
+  // Progreso — a propósito, así una materia "Pendiente" de un semestre
+  // histórico del onboarding es tan visible acá como una del semestre
+  // activo. Cada fila lleva al Detalle de la materia, donde "Cargar nota"
+  // resuelve el estado solo (ver el hook en el submit de evaluación) — no
+  // hay acción de "cargar nota" acá mismo a propósito, ese modal ya pide
+  // fecha/tipo/etiqueta y no tiene sentido duplicarlo en una fila de lista.
+  function renderProgresoPendientes() {
+    var card = document.getElementById('progreso-pendientes-card');
+    var pendientes = computeMaterias().filter(function (m) { return m.estado === 'pendiente'; });
+    if (!pendientes.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    document.getElementById('progreso-pendientes-count').textContent = pendientes.length + (pendientes.length === 1 ? ' materia' : ' materias');
+
+    var porSemestre = {};
+    pendientes.forEach(function (m) { (porSemestre[m.semestreId] = porSemestre[m.semestreId] || []).push(m); });
+
+    var wrap = document.getElementById('progreso-pendientes-por-semestre');
+    clear(wrap);
+    var activoId = activeSemestreId();
+    var gruposIds = {};
+    function pintarGrupo(nombre, materias) {
+      var group = el('div', 'progreso-pendientes-grupo');
+      var header = el('div', 'progreso-pendientes-grupo-header');
+      header.textContent = nombre;
+      group.appendChild(header);
+      materias.slice().sort(function (a, b) { return a.nombre.localeCompare(b.nombre); }).forEach(function (m) {
+        var row = el('div', 'progreso-semestre-materia-row');
+        var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+        var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
+        var nombreEl = el('span'); nombreEl.textContent = m.nombre;
+        nombreWrap.appendChild(dot); nombreWrap.appendChild(nombreEl);
+        var valEl = el('span', 'mono'); valEl.style.cssText = 'color:var(--c-ink3);font-size:12.5px'; valEl.textContent = 'aprueba ' + m.aprobTxt;
+        row.appendChild(nombreWrap); row.appendChild(valEl);
+        makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
+        group.appendChild(row);
+      });
+      wrap.appendChild(group);
+    }
+    semestresOrdenados().forEach(function (s) {
+      var materias = porSemestre[s.id];
+      if (!materias || !materias.length) return;
+      gruposIds[s.id] = true;
+      pintarGrupo(s.nombre + (s.id === activoId ? ' · actual' : ''), materias);
+    });
+    // Red de seguridad: una materia sin semestreId (no debería pasar, ver
+    // README sección Semestres) no queda oculta en silencio.
+    var sueltas = pendientes.filter(function (m) { return !m.semestreId || !gruposIds[m.semestreId]; });
+    if (sueltas.length) pintarGrupo('Sin semestre', sueltas);
+  }
+
   // Bloque 4: la causa raíz de que esta vista no mostrara nada era que las
   // materias aprobadas del onboarding quedaban con semestreId:null (ver
   // wizCrearMateriasAprobadas, ahora apunta a un semestre histórico) — acá
@@ -1664,6 +1718,7 @@
       }
     }
     renderProgresoSemestresLista(puntos);
+    renderProgresoPendientes();
 
     renderProgresoDistribucion();
     renderMetaBarInto(document.getElementById('progreso-materias'), false, CURRENT_PROFILE && CURRENT_PROFILE.materias_carrera, materiasAprobadasCount(), 'materias', 'Completá la cantidad de materias de tu carrera en Ajustes para ver tu progreso hacia el título.');
