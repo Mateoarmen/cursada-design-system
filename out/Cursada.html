@@ -40,10 +40,21 @@
   /* Azul Cursada — el azul de marca, único acento en todo el producto. */
   --c-accent:#0A63F0;
   --c-accent-to:#0847B4;
-  --c-shadow:0 1px 3px rgba(0,0,0,.06);
+  /* Sombra "ambient" en capas (redisño Hallmark, ver README/design.md) —
+     antes una sola sombra casi imperceptible (0 1px 3px .06); esto reusa
+     la misma receta de profundidad que ya se afinó para los mockups de la
+     landing, para que .card tenga la elevación real que design-reference/
+     DESIGN.md pide ("Ambient Shadows") y que el claro no tenía. Sólo
+     claro — el oscuro se queda chato a propósito, ver el bloque
+     html[data-theme="oscuro"] más abajo. */
+  --c-shadow:0 1px 2px rgba(18,22,28,.04),0 8px 20px rgba(18,22,28,.05),0 24px 48px rgba(18,22,28,.05);
+  --c-card-border:1px solid rgba(18,22,28,.05);
   --c-modal-shadow:0 32px 80px rgba(0,0,0,.32);
   --c-focus:0 0 0 3px rgba(10,99,240,.25);
   --c-overlay:rgba(0,0,0,.22);
+  /* Sombra de acento — pill activa del sidenav y CTA primario, para que el
+     degradé de marca se sienta "levantado" en vez de sólo pintado. */
+  --c-accent-shadow:0 6px 16px rgba(10,99,240,.28);
 
   /* La materia "azul" usa el mismo azul de marca (antes eran dos azules
      parecidos pero distintos — ver README, sección Marca). El resto de la
@@ -123,8 +134,10 @@ html[data-theme="oscuro"]{
      sombra "ambient" de DESIGN.md se aplica puntualmente donde el mockup sí
      la muestra: FAB, día activo de Horario, y el modal (ver más abajo). */
   --c-shadow:none;
+  --c-card-border:none;
   --c-modal-shadow:0 32px 90px -8px rgba(0,0,0,.55);
   --c-overlay:rgba(0,0,0,.5);
+  --c-accent-shadow:0 6px 18px rgba(44,123,255,.34);
 }
 
 /* ============================================================================
@@ -258,7 +271,7 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .semestre-switcher .chev{color:var(--c-ink3);flex:none;width:13px;height:13px}
 .semestre-row{display:flex;align-items:center;gap:8px}
 .semestre-row-select{flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:42px;padding:0 10px;border-radius:10px;border:none;background:var(--c-surfaceAlt);text-align:left}
-.semestre-row-select.is-active{background:var(--c-accent)}
+.semestre-row-select.is-active{background:linear-gradient(135deg,var(--c-accent),var(--c-accent-to))}
 .semestre-row-check{width:16px;height:16px;flex:none;border-radius:50%;border:1.5px solid var(--c-muted4)}
 .semestre-row-select.is-active .semestre-row-check{background:#fff;border-color:#fff;position:relative}
 .semestre-row-select.is-active .semestre-row-check::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--c-accent)}
@@ -291,7 +304,7 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .ico{flex:none;display:block}
 .nav-item .nav-ico{width:18px;height:18px;color:var(--c-ink2)}
 .nav-item:hover:not(.is-active){background:var(--c-surfaceAlt)}
-.nav-item.is-active{font-weight:600;color:#fff;background:var(--c-accent)}
+.nav-item.is-active{font-weight:600;color:#fff;background:linear-gradient(135deg,var(--c-accent),var(--c-accent-to));box-shadow:var(--c-accent-shadow)}
 .nav-item.is-active .nav-ico{color:#fff}
 .sidenav-legend{display:flex;flex-direction:column;gap:9px;padding:0 10px}
 .sidenav-legend .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-ink3);font-weight:600}
@@ -365,7 +378,11 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 .btn .ico{width:14px;height:14px}
 .btn:hover{filter:brightness(.97)}
-.btn-primary{background:var(--c-accent);color:#fff}
+/* Degradé de marca (redisño Hallmark) — mismo par accent→accent-to que ya
+   usa el isotipo del sidenav, ahora también en el CTA primario en vez de un
+   relleno plano, para que la marca tenga un solo lenguaje de "acento" en
+   vez de dos (uno con degradé, uno sin). */
+.btn-primary{background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));color:#fff}
 .btn-primary:hover{filter:brightness(1.06)}
 .btn-ghost{background:transparent;color:var(--c-ink2);font-weight:500}
 .btn-danger{background:transparent;color:var(--c-danger)}
@@ -463,7 +480,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .lp-toggle-btn:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
 
 /* ---------- card ---------- */
-.card{background:var(--c-surface);border:none;border-radius:var(--r-card);box-shadow:var(--c-shadow)}
+.card{background:var(--c-surface);border:var(--c-card-border);border-radius:var(--r-card);box-shadow:var(--c-shadow)}
 
 /* ---------- Inicio ---------- */
 .inicio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}

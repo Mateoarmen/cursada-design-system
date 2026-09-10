@@ -3962,3 +3962,42 @@ independientes y quedaba sin mostrarse nunca si el scroll saltaba de golpe
 entregable final — no se corrió en esta sesión porque no hacía falta para
 verificar el redisño visual, y esa build no debería correrse sin que el
 usuario confirme que quiere generar el artefacto de producción.
+
+### Segunda pasada: la app se había quedado casi intacta
+
+El usuario marcó, después de ver el resultado, que la landing quedó bien
+pero el resto de la app "está igual" — con razón: la primera pasada sólo
+tocó tipografía (`--font-*`) y dejó todos los valores de color/sombra/radio
+de `.card`, `.btn-primary`, `.nav-item` tal cual estaban, por exceso de
+cautela con el contrato de `runtime.js`. El error de criterio: "no tocar
+el contrato de `runtime.js`" significa no renombrar clases/`data-f`/
+templates — no significa no tocar los *valores* CSS de esas mismas clases,
+que es exactamente donde vive el margen para redisñar sin ningún riesgo
+para la lógica.
+
+Segunda pasada, sólo valores (ningún selector nuevo, ningún nombre
+tocado):
+
+- `--c-shadow` (claro): de `0 1px 3px rgba(0,0,0,.06)` — casi imperceptible
+  — a una sombra "ambient" en capas (misma receta que ya se había afinado
+  para los mockups de la landing), para que `.card`, `.nuevo-menu`,
+  `.notif-panel` y `.cal-day-card` (todos comparten el token) tengan la
+  elevación real que `design-reference/DESIGN.md` pedía y que el claro
+  nunca tuvo. **El oscuro no se tocó** — `--c-shadow:none` ahí está
+  documentado como fiel a un mockup real (`Cursada Mobile Pro.dc.html`,
+  tarjetas opacas y chatas a propósito), tocarlo hubiera sido deshacer una
+  decisión ya validada, no arreglar algo genérico.
+- `--c-card-border` (token nuevo): hairline sutil en claro, `none` en
+  oscuro (mismo criterio que arriba).
+- `.btn-primary`, `.nav-item.is-active`, `.semestre-row-select.is-active`:
+  pasaron de relleno plano (`background:var(--c-accent)`) al mismo degradé
+  accent→accent-to que ya usaba el isotipo de marca — antes había dos
+  lenguajes de "acento" (uno con degradé, uno sin); ahora es uno solo.
+  `.nav-item.is-active` suma además `--c-accent-shadow` (token nuevo, un
+  glow azul suave) para que la pill activa del sidenav se sienta levantada,
+  no sólo pintada.
+
+Verificado de nuevo en navegador (`Cursada.test.html`, datos mock): Inicio,
+Materias y Detalle en claro y oscuro — el oscuro se ve pixel-idéntico a
+antes de esta pasada (como debía ser), el claro tiene profundidad real por
+primera vez. Sin errores de consola nuevos.
