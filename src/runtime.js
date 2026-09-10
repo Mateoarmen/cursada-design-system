@@ -289,6 +289,27 @@
     if (!esc || esc.aprob > 0 || esc.exoneracion == null) return esc;
     return Object.assign({}, esc, { aprob: esc.exoneracion });
   }
+  // "Debo rendir examen" (materia.estado:'pendiente'): decide sola si una
+  // nota de examen alcanza para pasar a Aprobada, o si la materia sigue
+  // pendiente para volver a rendir. Extraído del submit de #form-evaluacion
+  // para reusarlo también desde el mini-modal "Cargar nota" (ver
+  // abrirCargarNotaExamenModal) — misma lógica, un solo lugar. No hace nada
+  // si la materia no está pendiente (ej. se llama sobre una nota de una
+  // materia ya aprobada/cursando).
+  async function resolverPendienteSiCorresponde(materiaId, nota) {
+    if (nota == null) return;
+    var materiaPendiente = materiaRawById(materiaId);
+    if (!materiaPendiente || materiaPendiente.estado !== 'pendiente') return;
+    var escPendiente = escConAprobacionEfectiva(materiaPendiente.esc);
+    if (nota >= escPendiente.aprob) {
+      var okAprobada = await saveMateriasRaw(loadMateriasRaw().map(function (x) {
+        return x.id === materiaPendiente.id ? Object.assign({}, x, { estado: 'aprobada' }) : x;
+      }));
+      if (okAprobada) showToast('¡Aprobaste ' + materiaPendiente.nombre + '! La marcamos como aprobada.');
+    } else {
+      showToast('Nota cargada — no llegaste al mínimo, ' + materiaPendiente.nombre + ' sigue pendiente de rendir.');
+    }
+  }
   function toneDe(estado, esc, parciales) {
     if (estado === 'aprobada') return 'success';
     if (!parciales.length) return 'neutral';
@@ -1613,10 +1634,11 @@
   // computeMaterias()). Mismo alcance histórico completo que el resto de
   // Progreso — a propósito, así una materia "Pendiente" de un semestre
   // histórico del onboarding es tan visible acá como una del semestre
-  // activo. Cada fila lleva al Detalle de la materia, donde "Cargar nota"
-  // resuelve el estado solo (ver el hook en el submit de evaluación) — no
-  // hay acción de "cargar nota" acá mismo a propósito, ese modal ya pide
-  // fecha/tipo/etiqueta y no tiene sentido duplicarlo en una fila de lista.
+  // activo. Cada fila abre directo el mini-modal de "Cargar nota" (ver
+  // abrirCargarNotaExamenModal) — no pasa por Detalle ni por "Nueva
+  // evaluación": esa pantalla/modal completa pide título/fecha/tipo/
+  // etiqueta, de más para lo único que hace falta acá, cuánto te sacaste
+  // en el examen.
   function renderProgresoPendientes() {
     var card = document.getElementById('progreso-pendientes-card');
     var pendientes = computeMaterias().filter(function (m) { return m.estado === 'pendiente'; });
@@ -1642,9 +1664,9 @@
         var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
         var nombreEl = el('span'); nombreEl.textContent = m.nombre;
         nombreWrap.appendChild(dot); nombreWrap.appendChild(nombreEl);
-        var valEl = el('span', 'mono'); valEl.style.cssText = 'color:var(--c-ink3);font-size:12.5px'; valEl.textContent = 'aprueba ' + m.aprobTxt;
+        var valEl = el('span'); valEl.style.cssText = 'color:var(--c-ink3);font-size:12.5px'; valEl.textContent = 'Cargar nota ›';
         row.appendChild(nombreWrap); row.appendChild(valEl);
-        makeRowClickable(row, function () { location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
+        makeRowClickable(row, function () { abrirCargarNotaExamenModal(m.id); }, 'Cargar nota de ' + m.nombre);
         group.appendChild(row);
       });
       wrap.appendChild(group);
@@ -2078,7 +2100,16 @@
     document.getElementById('btn-detalle-editar').onclick = function () { openMateriaModal(m.id); };
     document.getElementById('btn-detalle-nueva-eval').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion' }); };
     document.getElementById('btn-detalle-nueva-tarea').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'tarea' }); };
-    document.getElementById('btn-detalle-cargar-nota').onclick = function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion', modoNota: true }); };
+    // "Debo rendir examen": acá "Cargar nota" es literalmente "cargar la
+    // nota del examen" — el mini-modal dedicado (ver
+    // abrirCargarNotaExamenModal), no el form completo de "Nueva
+    // evaluación" (título/fecha/tipo/etiqueta, pensado para llevar la
+    // agenda de parciales, no para esto). El resto de los estados sigue
+    // yendo al form completo — ahí sí puede haber más de una evaluación
+    // por materia.
+    document.getElementById('btn-detalle-cargar-nota').onclick = m.estado === 'pendiente'
+      ? function () { abrirCargarNotaExamenModal(m.id); }
+      : function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion', modoNota: true }); };
     document.getElementById('btn-detalle-escala').onclick = function () { openMateriaModal(m.id); };
     renderDetalleSimulador(m);
   }
@@ -3925,29 +3956,10 @@
       // progreso anterior en el onboarding") — la única forma de resolver
       // una pendiente era entrar a "Editar materia" y cambiar el estado a
       // mano, sin mirar siquiera la nota. Acá se decide sola en cuanto se
-      // carga la nota del examen: si llega al mínimo de aprobación pasa a
-      // Aprobada; si no, sigue Pendiente (no hace falta tocar nada — ya
-      // estaba así) para poder volver a rendir. Sólo dispara para
-      // evaluaciones con nota cargada, nunca para tareas ni para una
-      // evaluación que se deja sin calificar.
-      if (record.kind === 'evaluacion' && record.nota != null) {
-        var materiaPendiente = materiaRawById(record.materiaId);
-        if (materiaPendiente && materiaPendiente.estado === 'pendiente') {
-          // materiaRawById() da el registro crudo, no el de computeMateria
-          // — mismo ajuste que ahí (ver escConAprobacionEfectiva) para que
-          // una materia "Examen con exoneración" (esc.aprob:0 real en el
-          // catálogo) no se marque Aprobada con cualquier nota.
-          var escPendiente = escConAprobacionEfectiva(materiaPendiente.esc);
-          if (record.nota >= escPendiente.aprob) {
-            var okAprobada = await saveMateriasRaw(loadMateriasRaw().map(function (x) {
-              return x.id === materiaPendiente.id ? Object.assign({}, x, { estado: 'aprobada' }) : x;
-            }));
-            if (okAprobada) showToast('¡Aprobaste ' + materiaPendiente.nombre + '! La marcamos como aprobada.');
-          } else {
-            showToast('Nota cargada — no llegaste al mínimo, ' + materiaPendiente.nombre + ' sigue pendiente de rendir.');
-          }
-        }
-      }
+      // carga la nota del examen (ver resolverPendienteSiCorresponde). Sólo
+      // dispara para evaluaciones con nota cargada, nunca para tareas ni
+      // para una evaluación que se deja sin calificar.
+      if (record.kind === 'evaluacion') await resolverPendienteSiCorresponde(record.materiaId, record.nota);
       snapshotModalForm('modal-evaluacion');
       closeAllModals();
       renderRoute();
@@ -3959,6 +3971,55 @@
       var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
       if (!ok) avisarError();
       snapshotModalForm('modal-evaluacion');
+      closeAllModals();
+      renderRoute();
+    });
+  });
+
+  // Mini-modal "Cargar nota" para materias "debo rendir examen" — a
+  // diferencia de "Nueva evaluación" (título/fecha/tipo/etiqueta, pensado
+  // para llevar la agenda de parciales) esto es un solo campo: cuánto te
+  // sacaste en el examen. Se usa desde la card "Materias pendientes" de
+  // Progreso y desde "Cargar nota" en Detalle cuando la materia está
+  // pendiente (ver renderProgresoPendientes/renderDetalle). Guarda una
+  // evaluación tipo "Examen" (mismo saveAgendaRaw que el resto, la nota
+  // vive en la evaluación, nunca en la materia — ver README) y dispara
+  // resolverPendienteSiCorresponde() para el pasaje automático a Aprobada.
+  var CARGAR_EXAMEN_MATERIA_ID = null;
+  function abrirCargarNotaExamenModal(materiaId) {
+    var m = computeMateriaById(materiaId);
+    if (!m) return;
+    CARGAR_EXAMEN_MATERIA_ID = materiaId;
+    document.getElementById('modal-cargar-examen-title').textContent = 'Cargar nota — ' + m.nombre;
+    document.getElementById('modal-cargar-examen-sub').textContent = 'Se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Si llega al mínimo, la materia pasa a Aprobada sola; si no, seguís figurando pendiente para volver a rendir.';
+    document.getElementById('cargar-examen-label').textContent = 'Nota del examen (' + (m.esc.tipo === 'nota' ? '0–12' : (m.esc.tipo === 'pct' ? '%' : 'sobre ' + val(m.esc.total, m.esc))) + ')';
+    var input = document.getElementById('cargar-examen-nota');
+    input.value = '';
+    input.min = '0'; input.max = String(m.esc.total); input.step = m.esc.tipo === 'nota' ? '0.1' : '1';
+    openModal('modal-cargar-examen');
+    setTimeout(function () { input.focus(); }, 0);
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('form-cargar-examen');
+    form.addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var materiaId = CARGAR_EXAMEN_MATERIA_ID;
+      var m = computeMateriaById(materiaId);
+      if (!m) return;
+      var input = document.getElementById('cargar-examen-nota');
+      var v = input.value.trim();
+      if (v === '' || isNaN(Number(v))) { input.focus(); return; }
+      // El input ya bloquea con max= — este clamp es la red de seguridad si
+      // algo lo saltea (autofill, devtools), mismo patrón que el resto de
+      // los inputs de nota (ver renderProgresoPendientesModal).
+      var n = Math.max(0, Math.min(Number(v), m.esc.total));
+      var btn = document.getElementById('btn-cargar-examen-guardar');
+      setBtnBusy(btn, true, 'Guardando…');
+      var nueva = { id: uid(), materiaId: materiaId, kind: 'evaluacion', tipo: 'Examen', titulo: 'Examen', fecha: todayISO(), hora: '', hecho: true, nota: n, notaMaxima: m.esc.total, notas: '' };
+      var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
+      setBtnBusy(btn, false);
+      if (!ok) { avisarError(); return; }
+      await resolverPendienteSiCorresponde(materiaId, n);
       closeAllModals();
       renderRoute();
     });

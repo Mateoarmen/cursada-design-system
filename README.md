@@ -4076,3 +4076,42 @@ navegador. Los íconos PWA (`icon-192.png`, `icon-512.png`) ya tenían la
 orientación correcta — sólo el favicon SVG embebido (usado en
 `build-app.mjs`/`build-landing.mjs`/`build-legal.mjs`, un único string
 `FAVICON_B64` repetido en los tres) estaba mal.
+
+## Progreso: "Materias pendientes" por semestre + mini-modal de "Cargar nota"
+
+Dos pedidos seguidos sobre el mismo flujo. Primero: un menú dentro de
+Progreso para ver las materias "debo rendir examen" agrupadas por
+semestre (antes no había ningún camino de UI para verlas todas juntas,
+sólo aparecían sueltas dentro de cada materia o del selector de
+semestre). Se agregó la card `#progreso-pendientes-card`
+(`renderProgresoPendientes()`), oculta si no hay ninguna pendiente,
+agrupando por `semestresOrdenados()` real (histórico incluido — mismo
+alcance que el resto de Progreso).
+
+La primera versión llevaba cada fila al Detalle de la materia, donde
+"Cargar nota" abre el modal completo de "Nueva evaluación" (título,
+fecha, tipo, etiqueta) con el foco puesto en el campo de nota
+(`modoNota`). El usuario pidió sacar ese paso intermedio: para una
+materia pendiente lo único que hace falta es la nota del examen, nada
+de agendar un parcial.
+
+**Fix**: un mini-modal dedicado, `#modal-cargar-examen`
+(`abrirCargarNotaExamenModal()`), con un solo campo — nota del examen,
+acotado a la escala real de la materia — y un texto que recuerda el
+mínimo de aprobación. Guarda una evaluación tipo "Examen" (mismo
+`saveAgendaRaw`, la nota vive en la evaluación, nunca en la materia) y
+dispara el mismo pasaje automático a Aprobada que ya existía. Ese
+pasaje automático (antes vivía sólo en el submit de `#form-evaluacion`)
+se extrajo a `resolverPendienteSiCorresponde(materiaId, nota)` para no
+duplicar la lógica entre los dos modales — una sola fuente de verdad
+para "¿esta nota alcanza el mínimo (real o de exoneración, ver
+`escConAprobacionEfectiva`)?".
+
+Alcance deliberadamente acotado a "debo rendir examen": cada fila de la
+card ahora abre el mini-modal directo (no pasa más por Detalle), y en
+Detalle el botón "Cargar nota" usa el mini-modal sólo cuando
+`m.estado === 'pendiente'` — para cursando/aprobada sigue yendo al
+modal completo, porque ahí sí puede tener sentido más de una evaluación
+por materia con fecha/tipo propios. El "Cargar nota" del menú global
+"+ Nuevo" tampoco se tocó (no sabe de antemano qué materia ni si está
+pendiente).

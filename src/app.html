@@ -1222,6 +1222,34 @@
   </div>
 </div>
 
+<!-- Mini-modal "Cargar nota" para una materia "debo rendir examen" — sólo
+     pide la nota del examen, nada de título/fecha/tipo/etiqueta (eso es
+     "Nueva evaluación", pensada para la agenda de parciales, no para esto).
+     Se abre desde la card "Materias pendientes" de Progreso y desde
+     "Cargar nota" en Detalle cuando la materia está pendiente (ver
+     abrirCargarNotaExamenModal en runtime.js). -->
+<div class="modal-backdrop is-sheet" id="modal-cargar-examen" role="dialog" aria-modal="true" aria-labelledby="modal-cargar-examen-title">
+  <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
+    <div class="modal-head">
+      <div class="titles"><h2 class="t" id="modal-cargar-examen-title">Cargar nota</h2><span class="s" id="modal-cargar-examen-sub"></span></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <form id="form-cargar-examen">
+      <div class="modal-body pad-lg">
+        <div class="field">
+          <label for="cargar-examen-nota" id="cargar-examen-label">Nota</label>
+          <input id="cargar-examen-nota" type="number" step="0.1" min="0" inputmode="decimal" autocomplete="off" placeholder="Nota obtenida">
+        </div>
+      </div>
+      <div class="modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-cargar-examen-guardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
 <div class="modal-backdrop is-sheet" id="modal-importar-local" role="dialog" aria-modal="true" aria-labelledby="modal-importar-local-title">
   <div class="modal modal-xs">
