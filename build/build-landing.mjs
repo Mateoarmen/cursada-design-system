@@ -39,6 +39,7 @@ async function main() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cursada — Tu semestre, bajo control</title>
 <meta name="description" content="Materias, notas, parciales y entregas en un solo lugar. Cursada te dice cuánto te falta para aprobar.">
+<meta name="theme-color" id="meta-theme-color" content="#FFFFFF">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${FAVICON_B64}">
 </head>
 <body>

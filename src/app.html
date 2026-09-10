@@ -736,7 +736,7 @@
      paso = una decisión a la vez. Edición: los 3 pasos se muestran juntos,
      sin steps-track ni Atrás — ver openMateriaModal()/materiaAplicarPaso()
      en runtime.js. -->
-<div class="modal-backdrop" id="modal-materia">
+<div class="modal-backdrop" id="modal-materia" role="dialog" aria-modal="true" aria-labelledby="modal-materia-title">
   <div class="modal">
     <div class="modal-head">
       <div class="titles"><h2 class="t" id="modal-materia-title">Nueva materia</h2><span class="s" id="modal-materia-sub">Contános qué materia es y elegí un color para identificarla.</span></div>
@@ -808,7 +808,7 @@
 </div>
 
 <!-- ============ MODAL EVALUACIÓN ============ -->
-<div class="modal-backdrop" id="modal-evaluacion">
+<div class="modal-backdrop" id="modal-evaluacion" role="dialog" aria-modal="true" aria-labelledby="modal-evaluacion-title">
   <div class="modal modal-sm">
     <div class="modal-head">
       <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo</h2>
@@ -911,12 +911,12 @@
 </div>
 
 <!-- ============ MODAL EVENTO PERSONAL ============ -->
-<div class="modal-backdrop" id="modal-personal">
+<div class="modal-backdrop" id="modal-personal" role="dialog" aria-modal="true" aria-labelledby="modal-personal-title">
   <div class="modal modal-xs">
     <div class="modal-head">
       <div style="display:flex;align-items:center;gap:12px">
         <div style="width:10px;height:10px;border-radius:3px;background:var(--c-personal)"></div>
-        <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em">Nuevo evento personal</h2>
+        <h2 class="t" id="modal-personal-title" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em">Nuevo evento personal</h2>
       </div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
@@ -956,11 +956,11 @@
 </div>
 
 <!-- ============ MODAL SEMESTRES ============ -->
-<div class="modal-backdrop is-sheet" id="modal-semestres">
+<div class="modal-backdrop is-sheet" id="modal-semestres" role="dialog" aria-modal="true" aria-labelledby="modal-semestres-title">
   <div class="modal modal-xs">
     <div class="sheet-grabber"></div>
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Semestres</h2><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
+      <div class="titles"><h2 class="t" id="modal-semestres-title">Semestres</h2><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <div class="modal-body">
@@ -974,7 +974,7 @@
 </div>
 
 <!-- ============ MODAL PERFIL ============ -->
-<div class="modal-backdrop" id="modal-perfil">
+<div class="modal-backdrop" id="modal-perfil" role="dialog" aria-modal="true" aria-labelledby="modal-perfil-titulo">
   <div class="modal modal-xs">
     <div class="modal-head">
       <div class="titles"><h2 class="t" id="modal-perfil-titulo">Tu perfil</h2><span class="s" id="perfil-email"></span></div>
@@ -1034,10 +1034,10 @@
 </div>
 
 <!-- ============ MODAL AJUSTES ============ -->
-<div class="modal-backdrop" id="modal-ajustes">
+<div class="modal-backdrop" id="modal-ajustes" role="dialog" aria-modal="true" aria-labelledby="modal-ajustes-title">
   <div class="modal">
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Ajustes</h2></div>
+      <div class="titles"><h2 class="t" id="modal-ajustes-title">Ajustes</h2></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <form id="form-ajustes">
@@ -1146,11 +1146,11 @@
      bastante recién salido del wizard de catálogo (varias materias
      "debo rendir examen" de golpe) y no tiene sentido que ocupe ese
      espacio en el modal de Ajustes todo el tiempo. -->
-<div class="modal-backdrop is-sheet" id="modal-progreso-pendientes">
+<div class="modal-backdrop is-sheet" id="modal-progreso-pendientes" role="dialog" aria-modal="true" aria-labelledby="modal-progreso-pendientes-title">
   <div class="modal modal-xs">
     <div class="sheet-grabber"></div>
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Notas pendientes</h2><span class="s">Materias aprobadas sin nota cargada — no cuentan en tu promedio hasta que la anotes.</span></div>
+      <div class="titles"><h2 class="t" id="modal-progreso-pendientes-title">Notas pendientes</h2><span class="s">Materias aprobadas sin nota cargada — no cuentan en tu promedio hasta que la anotes.</span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <div class="modal-body">
@@ -1160,11 +1160,11 @@
 </div>
 
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
-<div class="modal-backdrop is-sheet" id="modal-importar-local">
+<div class="modal-backdrop is-sheet" id="modal-importar-local" role="dialog" aria-modal="true" aria-labelledby="modal-importar-local-title">
   <div class="modal modal-xs">
     <div class="sheet-grabber"></div>
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Encontramos datos locales</h2><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
+      <div class="titles"><h2 class="t" id="modal-importar-local-title">Encontramos datos locales</h2><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
     </div>
     <div class="modal-body pad-lg">
       <span id="import-local-resumen"></span>

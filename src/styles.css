@@ -625,6 +625,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    se pinta por JS con un linear-gradient inline (pintarRangeFill()), mismo
    criterio que .bar-fill con su width inline. */
 .detalle-sim-range{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:6px;border-radius:999px;background:var(--c-line);outline:none}
+.detalle-sim-range:focus-visible{box-shadow:var(--c-focus)}
 .detalle-sim-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--c-accent);border:2px solid var(--c-surface);box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
 .detalle-sim-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--c-accent);border:2px solid var(--c-surface);box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
 .detalle-sim-range::-moz-range-track{height:6px;border-radius:999px;background:transparent}

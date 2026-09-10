@@ -6,7 +6,7 @@
 <title>Cursada</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMkM3QkZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBBNjNGMCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTgiIGZpbGw9InVybCgjZykiLz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIxNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjYiIHN0cm9rZS1kYXNoYXJyYXk9IjY2IDIyIiB0cmFuc2Zvcm09InJvdGF0ZSg0NSAzMiAzMikiLz4KPC9zdmc+Cg==">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0A63F0">
+<meta name="theme-color" id="meta-theme-color" content="#EDEDF0">
 <style>
 /* Cursada — tokens + layout. Dirección visual "Apple" (turno 2) + marca propia
    (turno 3, Cursada Marca.dc.html) sobre esa misma base — colores, isotipo,
@@ -635,6 +635,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    se pinta por JS con un linear-gradient inline (pintarRangeFill()), mismo
    criterio que .bar-fill con su width inline. */
 .detalle-sim-range{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:6px;border-radius:999px;background:var(--c-line);outline:none}
+.detalle-sim-range:focus-visible{box-shadow:var(--c-focus)}
 .detalle-sim-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--c-accent);border:2px solid var(--c-surface);box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
 .detalle-sim-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--c-accent);border:2px solid var(--c-surface);box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer}
 .detalle-sim-range::-moz-range-track{height:6px;border-radius:999px;background:transparent}
@@ -2584,7 +2585,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
      paso = una decisión a la vez. Edición: los 3 pasos se muestran juntos,
      sin steps-track ni Atrás — ver openMateriaModal()/materiaAplicarPaso()
      en runtime.js. -->
-<div class="modal-backdrop" id="modal-materia">
+<div class="modal-backdrop" id="modal-materia" role="dialog" aria-modal="true" aria-labelledby="modal-materia-title">
   <div class="modal">
     <div class="modal-head">
       <div class="titles"><h2 class="t" id="modal-materia-title">Nueva materia</h2><span class="s" id="modal-materia-sub">Contános qué materia es y elegí un color para identificarla.</span></div>
@@ -2656,7 +2657,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL EVALUACIÓN ============ -->
-<div class="modal-backdrop" id="modal-evaluacion">
+<div class="modal-backdrop" id="modal-evaluacion" role="dialog" aria-modal="true" aria-labelledby="modal-evaluacion-title">
   <div class="modal modal-sm">
     <div class="modal-head">
       <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em" id="modal-evaluacion-title">Nuevo</h2>
@@ -2759,12 +2760,12 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL EVENTO PERSONAL ============ -->
-<div class="modal-backdrop" id="modal-personal">
+<div class="modal-backdrop" id="modal-personal" role="dialog" aria-modal="true" aria-labelledby="modal-personal-title">
   <div class="modal modal-xs">
     <div class="modal-head">
       <div style="display:flex;align-items:center;gap:12px">
         <div style="width:10px;height:10px;border-radius:3px;background:var(--c-personal)"></div>
-        <h2 class="t" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em">Nuevo evento personal</h2>
+        <h2 class="t" id="modal-personal-title" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em">Nuevo evento personal</h2>
       </div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
@@ -2804,11 +2805,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL SEMESTRES ============ -->
-<div class="modal-backdrop is-sheet" id="modal-semestres">
+<div class="modal-backdrop is-sheet" id="modal-semestres" role="dialog" aria-modal="true" aria-labelledby="modal-semestres-title">
   <div class="modal modal-xs">
     <div class="sheet-grabber"></div>
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Semestres</h2><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
+      <div class="titles"><h2 class="t" id="modal-semestres-title">Semestres</h2><span class="s">Cada semestre tiene sus propias materias y notas — nada se borra al cambiar.</span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <div class="modal-body">
@@ -2822,7 +2823,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL PERFIL ============ -->
-<div class="modal-backdrop" id="modal-perfil">
+<div class="modal-backdrop" id="modal-perfil" role="dialog" aria-modal="true" aria-labelledby="modal-perfil-titulo">
   <div class="modal modal-xs">
     <div class="modal-head">
       <div class="titles"><h2 class="t" id="modal-perfil-titulo">Tu perfil</h2><span class="s" id="perfil-email"></span></div>
@@ -2882,10 +2883,10 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL AJUSTES ============ -->
-<div class="modal-backdrop" id="modal-ajustes">
+<div class="modal-backdrop" id="modal-ajustes" role="dialog" aria-modal="true" aria-labelledby="modal-ajustes-title">
   <div class="modal">
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Ajustes</h2></div>
+      <div class="titles"><h2 class="t" id="modal-ajustes-title">Ajustes</h2></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <form id="form-ajustes">
@@ -2994,11 +2995,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
      bastante recién salido del wizard de catálogo (varias materias
      "debo rendir examen" de golpe) y no tiene sentido que ocupe ese
      espacio en el modal de Ajustes todo el tiempo. -->
-<div class="modal-backdrop is-sheet" id="modal-progreso-pendientes">
+<div class="modal-backdrop is-sheet" id="modal-progreso-pendientes" role="dialog" aria-modal="true" aria-labelledby="modal-progreso-pendientes-title">
   <div class="modal modal-xs">
     <div class="sheet-grabber"></div>
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Notas pendientes</h2><span class="s">Materias aprobadas sin nota cargada — no cuentan en tu promedio hasta que la anotes.</span></div>
+      <div class="titles"><h2 class="t" id="modal-progreso-pendientes-title">Notas pendientes</h2><span class="s">Materias aprobadas sin nota cargada — no cuentan en tu promedio hasta que la anotes.</span></div>
       <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
     </div>
     <div class="modal-body">
@@ -3008,11 +3009,11 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
 </div>
 
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
-<div class="modal-backdrop is-sheet" id="modal-importar-local">
+<div class="modal-backdrop is-sheet" id="modal-importar-local" role="dialog" aria-modal="true" aria-labelledby="modal-importar-local-title">
   <div class="modal modal-xs">
     <div class="sheet-grabber"></div>
     <div class="modal-head">
-      <div class="titles"><h2 class="t">Encontramos datos locales</h2><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
+      <div class="titles"><h2 class="t" id="modal-importar-local-title">Encontramos datos locales</h2><span class="s">De antes de tener cuenta, guardados en este navegador.</span></div>
     </div>
     <div class="modal-body pad-lg">
       <span id="import-local-resumen"></span>
@@ -6299,8 +6300,23 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // cajón abierto encima — el cajón tiene más z-index que un modal normal,
   // así que quedaba tapando el modal en vez de al revés.
   function openModal(id) {
-    document.getElementById(id).classList.add('is-open');
+    var elm = document.getElementById(id);
+    elm._elFocoPrevio = document.activeElement;
+    elm.classList.add('is-open');
     closeMobileNav();
+    // role="dialog"/aria-modal (ver app.html) no mueve el foco solo — sin
+    // esto, abrir un modal con teclado/lector de pantalla dejaba el foco
+    // atrás, sobre el botón que lo disparó. setTimeout (no rAF: rAF no
+    // corre si la pestaña quedó en background, y ahí es justo donde más
+    // importa que el foco quede bien puesto) porque .modal-backdrop pasa
+    // de visibility:hidden a visible con la misma clase que agregamos acá
+    // arriba — llamar a .focus() en el mismo tick síncrono no hace nada,
+    // el navegador todavía no aplicó el nuevo estilo (sigue "invisible").
+    var panel = elm.querySelector('.modal');
+    if (panel) {
+      panel.setAttribute('tabindex', '-1');
+      setTimeout(function () { panel.focus(); }, 0);
+    }
   }
   // Modales con un formulario real donde perder lo tipeado importa — se les
   // guarda una "foto" del formulario al abrir (snapshotModalForm) para poder
@@ -6351,8 +6367,27 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     if (elm.id === 'modal-perfil' && PERFIL_MODAL_BLOQUEANTE) return;
     if (modalTieneCambiosSinGuardar(elm.id) && !confirm('¿Descartar los cambios sin guardar?')) return;
     elm.classList.remove('is-open');
+    if (elm._elFocoPrevio && typeof elm._elFocoPrevio.focus === 'function') elm._elFocoPrevio.focus();
+    elm._elFocoPrevio = null;
   }
   function closeAllModals() { document.querySelectorAll('.modal-backdrop.is-open').forEach(closeModalEl); }
+  // Foco atrapado dentro del modal abierto mientras esté abierto — sin esto,
+  // Tab se escapaba al contenido de atrás aunque aria-modal="true" ya le
+  // dice a los lectores de pantalla que ese contenido es inerte.
+  function focosDeModal(panel) {
+    return Array.prototype.slice.call(panel.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+      .filter(function (n) { return n.offsetParent !== null; });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Tab') return;
+    var panel = document.querySelector('.modal-backdrop.is-open .modal');
+    if (!panel) return;
+    var f = focosDeModal(panel);
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  });
 
   // ---- Mobile: quick-sheet (long-press del FAB) y row-menu (long-press de
   // una fila de Agenda/evaluación) — dos popovers chicos, mismo patrón de
@@ -8277,10 +8312,16 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
   }
   function temaEfectivo(pref) { return pref === 'sistema' ? (sistemaPrefiereOscuro() ? 'oscuro' : 'claro') : pref; }
+  // Espejo de --c-bg (claro/oscuro) en styles.css — <meta name="theme-color">
+  // no puede leer variables CSS, así que el valor efectivo se empuja acá.
+  var THEME_COLOR_BG = { claro: '#EDEDF0', oscuro: '#0F1116' };
   function applyTheme(mode) {
     THEME_PREF = mode;
-    document.documentElement.setAttribute('data-theme', temaEfectivo(mode));
+    var efectivo = temaEfectivo(mode);
+    document.documentElement.setAttribute('data-theme', efectivo);
     document.querySelectorAll('[data-theme-btn]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-theme-btn') === mode); });
+    var metaThemeColor = document.getElementById('meta-theme-color');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', THEME_COLOR_BG[efectivo]);
     try { localStorage.setItem('cursada:theme', mode); } catch (e) {}
     renderRoute();
   }

@@ -2815,8 +2815,23 @@
   // cajón abierto encima — el cajón tiene más z-index que un modal normal,
   // así que quedaba tapando el modal en vez de al revés.
   function openModal(id) {
-    document.getElementById(id).classList.add('is-open');
+    var elm = document.getElementById(id);
+    elm._elFocoPrevio = document.activeElement;
+    elm.classList.add('is-open');
     closeMobileNav();
+    // role="dialog"/aria-modal (ver app.html) no mueve el foco solo — sin
+    // esto, abrir un modal con teclado/lector de pantalla dejaba el foco
+    // atrás, sobre el botón que lo disparó. setTimeout (no rAF: rAF no
+    // corre si la pestaña quedó en background, y ahí es justo donde más
+    // importa que el foco quede bien puesto) porque .modal-backdrop pasa
+    // de visibility:hidden a visible con la misma clase que agregamos acá
+    // arriba — llamar a .focus() en el mismo tick síncrono no hace nada,
+    // el navegador todavía no aplicó el nuevo estilo (sigue "invisible").
+    var panel = elm.querySelector('.modal');
+    if (panel) {
+      panel.setAttribute('tabindex', '-1');
+      setTimeout(function () { panel.focus(); }, 0);
+    }
   }
   // Modales con un formulario real donde perder lo tipeado importa — se les
   // guarda una "foto" del formulario al abrir (snapshotModalForm) para poder
@@ -2867,8 +2882,27 @@
     if (elm.id === 'modal-perfil' && PERFIL_MODAL_BLOQUEANTE) return;
     if (modalTieneCambiosSinGuardar(elm.id) && !confirm('¿Descartar los cambios sin guardar?')) return;
     elm.classList.remove('is-open');
+    if (elm._elFocoPrevio && typeof elm._elFocoPrevio.focus === 'function') elm._elFocoPrevio.focus();
+    elm._elFocoPrevio = null;
   }
   function closeAllModals() { document.querySelectorAll('.modal-backdrop.is-open').forEach(closeModalEl); }
+  // Foco atrapado dentro del modal abierto mientras esté abierto — sin esto,
+  // Tab se escapaba al contenido de atrás aunque aria-modal="true" ya le
+  // dice a los lectores de pantalla que ese contenido es inerte.
+  function focosDeModal(panel) {
+    return Array.prototype.slice.call(panel.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+      .filter(function (n) { return n.offsetParent !== null; });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Tab') return;
+    var panel = document.querySelector('.modal-backdrop.is-open .modal');
+    if (!panel) return;
+    var f = focosDeModal(panel);
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  });
 
   // ---- Mobile: quick-sheet (long-press del FAB) y row-menu (long-press de
   // una fila de Agenda/evaluación) — dos popovers chicos, mismo patrón de
@@ -4793,10 +4827,16 @@
     try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
   }
   function temaEfectivo(pref) { return pref === 'sistema' ? (sistemaPrefiereOscuro() ? 'oscuro' : 'claro') : pref; }
+  // Espejo de --c-bg (claro/oscuro) en styles.css — <meta name="theme-color">
+  // no puede leer variables CSS, así que el valor efectivo se empuja acá.
+  var THEME_COLOR_BG = { claro: '#EDEDF0', oscuro: '#0F1116' };
   function applyTheme(mode) {
     THEME_PREF = mode;
-    document.documentElement.setAttribute('data-theme', temaEfectivo(mode));
+    var efectivo = temaEfectivo(mode);
+    document.documentElement.setAttribute('data-theme', efectivo);
     document.querySelectorAll('[data-theme-btn]').forEach(function (b) { b.classList.toggle('is-on', b.getAttribute('data-theme-btn') === mode); });
+    var metaThemeColor = document.getElementById('meta-theme-color');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', THEME_COLOR_BG[efectivo]);
     try { localStorage.setItem('cursada:theme', mode); } catch (e) {}
     renderRoute();
   }

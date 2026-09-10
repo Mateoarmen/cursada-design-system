@@ -62,7 +62,7 @@ async function main() {
 <title>Cursada</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${FAVICON_B64}">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0A63F0">
+<meta name="theme-color" id="meta-theme-color" content="#EDEDF0">
 <style>
 ${stylesCss}
 </style>

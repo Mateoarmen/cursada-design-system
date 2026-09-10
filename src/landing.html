@@ -11,6 +11,10 @@
     var sistemaOscuro = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     var efectivo = (pref === 'claro' || pref === 'oscuro') ? pref : (sistemaOscuro ? 'oscuro' : 'claro');
     document.documentElement.setAttribute('data-theme', efectivo);
+    // Espejo de --lp-surface (claro/oscuro) en styles del landing —
+    // <meta name="theme-color"> no puede leer variables CSS.
+    var metaThemeColor = document.getElementById('meta-theme-color');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', efectivo === 'oscuro' ? '#191C22' : '#FFFFFF');
   } catch (e) {}
 })();
 </script>
