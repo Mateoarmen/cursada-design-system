@@ -1189,6 +1189,26 @@
   </div>
 </div>
 
+<!-- Se abre al tocar un semestre en Progreso (barras, lista "sin promedio
+     todavía" o el gráfico) — es la única forma de llegar a las materias de
+     un semestre que no es el activo: ni el selector de semestre ni Materias
+     los listan (los históricos del onboarding nunca aparecen ahí, ver
+     README sección Semestres), así que sin esto una materia vieja quedaba
+     sin ningún camino de UI hacia su Detalle (donde sí se puede ver/editar
+     la nota) pese a que la ruta #materia-<id> siempre funcionó. -->
+<div class="modal-backdrop is-sheet" id="modal-semestre-materias" role="dialog" aria-modal="true" aria-labelledby="modal-semestre-materias-title">
+  <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
+    <div class="modal-head">
+      <div class="titles"><h2 class="t" id="modal-semestre-materias-title">Semestre</h2><span class="s" id="modal-semestre-materias-sub">Tocá una materia para ver o editar su nota.</span></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="semestre-materias-list" class="progreso-semestre-materias"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
 <div class="modal-backdrop is-sheet" id="modal-importar-local" role="dialog" aria-modal="true" aria-labelledby="modal-importar-local-title">
   <div class="modal modal-xs">

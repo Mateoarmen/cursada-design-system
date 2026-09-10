@@ -1141,13 +1141,30 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 /* ---------- Progreso (histórico entre semestres) ---------- */
 .progreso-content{display:flex;flex-direction:column;gap:16px}
 /* Con muchos semestres el SVG es más ancho que el panel — scrollea en vez
-   de empujar la página entera (mismo criterio que .filtros-row/.mini-days). */
-.progreso-chart-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+   de empujar la página entera (mismo criterio que .filtros-row/.mini-days).
+   overflow-y:hidden explícito: `overflow-x:auto` solo, sin el otro eje
+   declarado, hace que el eje Y compute a `auto` también (así lo define la
+   spec) — con las barras (renderProgresoBarras) eso mostraba una barra de
+   scroll vertical fantasma por un desborde de pocos px que nunca hacía
+   falta scrollear (encontrado probando en mobile, no por lectura de CSS). */
+.progreso-chart-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .progreso-chart-wrap svg{display:block}
 /* <4 semestres con datos: comparación en barras en vez del SVG de línea de
    arriba (mismo .nota-row que "Progreso hacia el título" más abajo). */
 .progreso-barras{display:flex;flex-direction:column;gap:16px;padding:4px 0 2px}
 .progreso-barra-sub{font-size:12px;color:var(--c-ink3);margin-top:2px}
+/* Cada .progreso-barra-col (bloque de barras, y también las filas "sin
+   promedio todavía" de más abajo, mismo markup) abre el detalle de
+   materias de ese semestre — el mismo tratamiento hover/padding que ya usa
+   .progreso-semestre-materia-row para cualquier fila clickeable de esta
+   vista, no un estilo nuevo. */
+/* Vertical-only (nunca horizontal): el contenedor padre (.progreso-chart-
+   wrap) tiene overflow-x:auto para el SVG del gráfico (ver arriba) — un
+   margen negativo horizontal acá hacía que el fondo del hover sobresaliera
+   por scroll y el propio navegador dibujara la barra de scroll horizontal
+   de más (encontrado probando, no por lectura de código). */
+.progreso-barra-col[role="button"]{border-radius:10px;padding:6px 0;margin:-6px 0}
+.progreso-barra-col[role="button"]:hover{background:var(--c-surfaceAlt)}
 /* Distribución de materias por estado: una barra segmentada (proporcional a
    la cantidad de cada estado) + su leyenda con conteo — el color nunca es la
    única forma de distinguir un segmento, la leyenda siempre lo nombra. */

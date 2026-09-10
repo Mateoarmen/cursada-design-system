@@ -226,10 +226,20 @@
     svg += '<polyline points="' + polyPts + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
     puntos.forEach(function (p, i) {
       var x = xAt(i), y = yAt(p.promedio);
+      // <g class="progreso-chart-point" data-semestre-id>: cada punto abre
+      // el modal de materias de ese semestre (mismo destino que las barras/
+      // la lista "sin promedio todavía", ver openSemestreMateriasModal) —
+      // el círculo invisible de r=14 es el target real de toque/click, el
+      // visible (r=4.5) es sólo el trazo del gráfico, muy chico para tocarlo
+      // con precisión en mobile. Se cablea después de insertar el SVG (ver
+      // renderProgreso), no acá: es un string, no puede llevar closures.
+      svg += '<g class="progreso-chart-point" tabindex="0" role="button" aria-label="Ver materias de ' + escapeHtml(p.semestre.nombre) + '" data-semestre-id="' + escapeHtml(p.semestre.id) + '" style="cursor:pointer">';
+      svg += '<circle cx="' + x + '" cy="' + y + '" r="14" fill="transparent"/>';
       svg += '<circle cx="' + x + '" cy="' + y + '" r="4.5" fill="' + color + '"/>';
       svg += '<text x="' + x + '" y="' + (y - 22) + '" text-anchor="middle" font-size="10" fill="var(--c-ink3)">' + p.aprobadas + '/' + p.total + ' aprob.' + (p.exoneradas ? ' · ' + p.exoneradas + ' exon.' : '') + '</text>';
       svg += '<text x="' + x + '" y="' + (y - 10) + '" text-anchor="middle" font-size="12" font-weight="600" fill="var(--c-ink)">' + p.promedio + '%</text>';
       svg += '<text x="' + x + '" y="' + (h - 12) + '" text-anchor="middle" font-size="11" fill="var(--c-ink3)">' + escapeHtml(truncate(p.semestre.nombre, 14)) + '</text>';
+      svg += '</g>';
     });
     svg += '</svg>';
     return svg;
@@ -437,6 +447,18 @@
   function materiaRawById(id) { return loadMateriasRaw().filter(function (m) { return m.id === id; })[0] || null; }
   function agendaRawById(id) { return loadAgendaRaw().filter(function (a) { return a.id === id; })[0] || null; }
   function personalRawById(id) { return loadPersonalRaw().filter(function (p) { return p.id === id; })[0] || null; }
+  // Una materia de un semestre histórico (ver obtenerOCrearSemestreHistorico)
+  // no tiene horario ni fechas reales — su "Nota final" es un registro
+  // administrativo (carga rápida desde Ajustes/Progreso), no un evento
+  // agendado. eventosDeDia() la excluye con esto para que no ensucie el
+  // Calendario con un ítem fechado "hoy" (fecha de carga) que no representa
+  // nada que haya pasado ese día.
+  function materiaEsHistorica(materiaId) {
+    var m = materiaRawById(materiaId);
+    if (!m || !m.semestreId) return false;
+    var s = semestreRawById(m.semestreId);
+    return !!(s && s.historico);
+  }
   function semestreRawById(id) { return loadSemestresRaw().filter(function (s) { return s.id === id; })[0] || null; }
   function tagById(id) { return id ? (loadEventTagsRaw().filter(function (t) { return t.id === id; })[0] || null) : null; }
   // Chip de etiqueta — único render reusado en los 5 lugares donde se
@@ -1379,6 +1401,7 @@
       var sub = el('div', 'progreso-barra-sub');
       sub.textContent = p.aprobadas + '/' + p.total + ' aprobadas' + (p.exoneradas ? ' · ' + p.exoneradas + ' exoneradas' : '');
       col.appendChild(row); col.appendChild(sub);
+      makeRowClickable(col, function () { openSemestreMateriasModal(p.semestre.id); }, 'Ver materias de ' + p.semestre.nombre);
       wrap.appendChild(col);
     });
     container.appendChild(wrap);
@@ -1449,14 +1472,62 @@
     clear(wrap);
     var activoId = activeSemestreId();
     puntos.filter(function (p) { return p.promedio == null; }).forEach(function (p) {
+      // Mismo layout de dos líneas que renderProgresoBarras (columna +
+      // subtítulo), no `.nota-row .v` a secas: ese `.v` tiene un ancho fijo
+      // de 70px pensado para un valor corto ("72%"), y esta fila necesita
+      // una frase entera ("N aprob. · N exon. · sin promedio todavía") — se
+      // partía en 3-4 líneas amontonadas sobre el hueco vacío donde iría la
+      // barra (bug encontrado probando contra el fixture con semestres
+      // históricos, no por lectura de código).
+      var col = el('div', 'progreso-barra-col');
       var row = el('div', 'nota-row');
       var label = el('span', 'label');
       label.textContent = p.semestre.nombre + (p.semestre.id === activoId ? ' · actual' : '');
-      var v = el('span', 'v mono');
-      v.textContent = p.aprobadas + ' aprob. · ' + p.exoneradas + ' exon. · sin promedio todavía';
-      row.appendChild(label); row.appendChild(v);
-      wrap.appendChild(row);
+      var chev = el('span', 'v'); chev.style.cssText = 'width:auto;color:var(--c-ink3)'; chev.textContent = 'Ver materias ›';
+      row.appendChild(label); row.appendChild(chev);
+      var sub = el('div', 'progreso-barra-sub');
+      sub.textContent = p.aprobadas + ' aprob. · ' + p.exoneradas + ' exon. · sin promedio todavía';
+      col.appendChild(row); col.appendChild(sub);
+      makeRowClickable(col, function () { openSemestreMateriasModal(p.semestre.id); }, 'Ver materias de ' + p.semestre.nombre);
+      wrap.appendChild(col);
     });
+  }
+
+  // Modal "Materias de {semestre}" — el único camino de UI hacia las
+  // materias de un semestre que no es el activo (histórico del onboarding o
+  // cualquier semestre propio viejo): Materias y el selector de semestre
+  // sólo conocen el activo, así que sin esto una materia vieja no tenía
+  // forma de llegar a su Detalle (donde sí se ve/edita todo) salvo
+  // escribiendo el hash a mano. Se abre desde renderProgresoBarras,
+  // renderProgresoSemestresLista y los puntos del gráfico SVG (ver
+  // buildProgresoChartSvg) — misma lista para los tres casos.
+  function openSemestreMateriasModal(semestreId) {
+    var s = semestreRawById(semestreId);
+    if (!s) return;
+    document.getElementById('modal-semestre-materias-title').textContent = s.nombre;
+    var materias = computeMaterias({ semestreId: semestreId }).sort(function (a, b) { return a.nombre.localeCompare(b.nombre); });
+    var list = document.getElementById('semestre-materias-list');
+    clear(list);
+    if (!materias.length) {
+      var empty = el('div'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3);padding:8px 4px';
+      empty.textContent = 'Este semestre no tiene materias todavía.';
+      list.appendChild(empty);
+    }
+    materias.forEach(function (m) {
+      var row = el('div', 'progreso-semestre-materia-row');
+      var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+      var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
+      var nombre = el('span'); nombre.textContent = m.nombre;
+      nombreWrap.appendChild(dot); nombreWrap.appendChild(nombre);
+      var right = el('div'); right.style.cssText = 'display:flex;align-items:center;gap:8px;flex:none';
+      var badge = el('span', 'badge'); badge.setAttribute('style', badgeStyle(m.badgeTone)); badge.textContent = m.badgeLabel;
+      var valEl = el('span', 'mono'); valEl.style.color = TONE[m.tone]; valEl.textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
+      right.appendChild(badge); right.appendChild(valEl);
+      row.appendChild(nombreWrap); row.appendChild(right);
+      makeRowClickable(row, function () { closeAllModals(); location.hash = '#materia-' + m.id; }, 'Ver materia ' + m.nombre);
+      list.appendChild(row);
+    });
+    openModal('modal-semestre-materias');
   }
 
   // "Estado de todas tus materias" — TODAS las materias de la cuenta, no
@@ -1513,8 +1584,14 @@
     } else {
       chartWrap.classList.remove('hidden');
       chartEmpty.classList.add('hidden');
-      if (puntosConPromedio.length >= 4) chartWrap.innerHTML = buildProgresoChartSvg(puntosConPromedio);
-      else renderProgresoBarras(chartWrap, puntosConPromedio);
+      if (puntosConPromedio.length >= 4) {
+        chartWrap.innerHTML = buildProgresoChartSvg(puntosConPromedio);
+        chartWrap.querySelectorAll('.progreso-chart-point').forEach(function (g) {
+          var id = g.getAttribute('data-semestre-id');
+          g.addEventListener('click', function () { openSemestreMateriasModal(id); });
+          g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openSemestreMateriasModal(id); } });
+        });
+      } else renderProgresoBarras(chartWrap, puntosConPromedio);
     }
     renderProgresoSemestresLista(puntos);
 
@@ -1817,6 +1894,14 @@
     if (m.estado === 'aprobada') {
       document.getElementById('detalle-callout-t').textContent = 'Ya aprobaste esta materia';
       document.getElementById('detalle-callout-s').textContent = 'Se calificó por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprobaba con ' + m.aprobTxt + '.';
+    } else if (m.estado === 'pendiente' && !count) {
+      // "Debo rendir examen": la cursaste pero todavía falta el examen. Sin
+      // esta rama caía en la genérica "Todavía no cargaste notas" — cierta,
+      // pero no decía que cargar la nota acá (con "Cargar nota") resuelve el
+      // estado solo (ver hook en el submit de #form-evaluacion): si llega al
+      // mínimo pasa a Aprobada, si no, sigue Pendiente para volver a rendir.
+      document.getElementById('detalle-callout-t').textContent = 'Debés rendir examen';
+      document.getElementById('detalle-callout-s').textContent = 'Cursaste esta materia pero todavía te falta el examen. Se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Cargá la nota del examen con "Cargar nota" — si llega al mínimo, la materia pasa a Aprobada sola; si no, seguís figurando como pendiente para volver a rendir.';
     } else if (!count) {
       document.getElementById('detalle-callout-t').textContent = 'Todavía no cargaste notas';
       // Bloque 2: el estado vacío es el único lugar que hoy no informaba
@@ -2427,6 +2512,7 @@
       loadAgendaRaw().forEach(function (a) {
         if (a.fecha !== iso) return;
         if (a.materiaId && STATE.materiasOcultasCal[a.materiaId]) return;
+        if (a.materiaId && materiaEsHistorica(a.materiaId)) return;
         var m = computeMateriaById(a.materiaId);
         out.push({ kind: 'materia', item: a, color: m ? m.strong : PERSONAL_COLOR, label: a.titulo, allDay: false, materia: m });
       });
@@ -3709,6 +3795,29 @@
       var ok = await saveAgendaRaw(arr);
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      // "Debo rendir examen" (materia.estado:'pendiente'): hasta acá la nota
+      // y el estado vivían totalmente desconectados (ver README, "Cargar
+      // progreso anterior en el onboarding") — la única forma de resolver
+      // una pendiente era entrar a "Editar materia" y cambiar el estado a
+      // mano, sin mirar siquiera la nota. Acá se decide sola en cuanto se
+      // carga la nota del examen: si llega al mínimo de aprobación pasa a
+      // Aprobada; si no, sigue Pendiente (no hace falta tocar nada — ya
+      // estaba así) para poder volver a rendir. Sólo dispara para
+      // evaluaciones con nota cargada, nunca para tareas ni para una
+      // evaluación que se deja sin calificar.
+      if (record.kind === 'evaluacion' && record.nota != null) {
+        var materiaPendiente = materiaRawById(record.materiaId);
+        if (materiaPendiente && materiaPendiente.estado === 'pendiente') {
+          if (record.nota >= materiaPendiente.esc.aprob) {
+            var okAprobada = await saveMateriasRaw(loadMateriasRaw().map(function (x) {
+              return x.id === materiaPendiente.id ? Object.assign({}, x, { estado: 'aprobada' }) : x;
+            }));
+            if (okAprobada) showToast('¡Aprobaste ' + materiaPendiente.nombre + '! La marcamos como aprobada.');
+          } else {
+            showToast('Nota cargada — no llegaste al mínimo, ' + materiaPendiente.nombre + ' sigue pendiente de rendir.');
+          }
+        }
+      }
       snapshotModalForm('modal-evaluacion');
       closeAllModals();
       renderRoute();
