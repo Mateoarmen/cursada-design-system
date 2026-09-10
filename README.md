@@ -4115,3 +4115,39 @@ modal completo, porque ahí sí puede tener sentido más de una evaluación
 por materia con fecha/tipo propios. El "Cargar nota" del menú global
 "+ Nuevo" tampoco se tocó (no sabe de antemano qué materia ni si está
 pendiente).
+
+### Corrección: el mínimo del examen es fijo (70), no el de la materia
+
+La primera versión de `resolverPendienteSiCorresponde()` comparaba la
+nota del examen contra `escConAprobacionEfectiva(materia.esc).aprob` —
+el mismo mínimo que se usa durante la cursada (o la exoneración, como
+fallback). El usuario corrigió el modelo: **llegar a "debo rendir
+examen" ya significa que ese mínimo de la cursada se superó** (por
+eso no exoneró, pero tampoco quedó libre) — no es el número que hay
+que volver a alcanzar. El examen final tiene su propio mínimo, fijo,
+independiente de la materia: 70 puntos (sobre 100 — todas las materias
+de ORT se califican así, ver "Bug real: nota de exoneración con
+aprob:0" más arriba). Con el primer modelo, una materia cuya
+exoneración real era, por ejemplo, 60 pts, se daba por aprobada con
+una nota de examen de 60 — mal.
+
+**Fix**: `computeMateria()` ahora resuelve el umbral efectivo distinto
+según el estado — para `estado:'pendiente'` pisa `e.aprob` con la
+constante `APROBACION_EXAMEN_PENDIENTE` (70) y anula `e.exoneracion`
+(ya no aplica: no hay forma de exonerar una vez que tenés que rendir).
+Se resolvió en la fuente única (`computeMateria`), no en cada pantalla,
+para que `aprobTxt`/`tone`/`necesita`/`riesgoTxt` — y por lo tanto el
+anillo, el callout de Detalle, el mini-modal y el badge — queden
+consistentes en todos lados sin tener que acordarse de chequear el
+estado en cada lugar que hoy o mañana muestre "aprueba con X" de una
+materia. `resolverPendienteSiCorresponde()` volvió a leer
+`computeMateriaById(materiaId).esc.aprob` en vez de la constante
+directa, por la misma razón (una sola fuente de verdad).
+
+Encontrado probando: antes de este fix, cargar una nota de examen que
+no llegaba a 70 pero sí superaba el `esc.aprob` real de la materia
+dejaba el badge "Pendiente" (correcto) pero el callout de Detalle en
+verde, "Vas aprobando esta materia" (con el mínimo equivocado) —
+contradictorio con el propio badge. Verificado que con el fix ese
+mismo caso queda en rojo, "Te faltan X pts para llegar a la
+aprobación", con el mínimo correcto (70) en el mensaje.

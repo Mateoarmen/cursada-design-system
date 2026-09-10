@@ -54,6 +54,14 @@
   // edición desde Ajustes, confundía y no sumaba). Ver margenDe() más abajo.
   var MARGEN_RIESGO = 1;
   var NOTA_APROBACION_DEFECTO = 3;
+  // Mínimo para aprobar el examen de una materia "debo rendir examen"
+  // (estado:'pendiente') — fijo en 70, sobre el examen (siempre calificado
+  // sobre 100 puntos en ORT, confirmado por el usuario), NO el esc.aprob de
+  // la materia. Llegar a "debo rendir examen" ya significa que se superó
+  // el mínimo/umbral de exoneración de la cursada (esc.aprob o
+  // exoneración, ver escConAprobacionEfectiva) — ese número quedó atrás,
+  // el examen final tiene su propio mínimo, independiente de la materia.
+  var APROBACION_EXAMEN_PENDIENTE = 70;
 
   var ESTADO_LABEL = { cursando: 'Cursando', aprobada: 'Aprobada', recursando: 'Recursando', pendiente: 'Pendiente' };
   var ESTADO_TONE = { cursando: 'neutral', aprobada: 'success', recursando: 'danger', pendiente: 'neutral' };
@@ -295,13 +303,14 @@
   // para reusarlo también desde el mini-modal "Cargar nota" (ver
   // abrirCargarNotaExamenModal) — misma lógica, un solo lugar. No hace nada
   // si la materia no está pendiente (ej. se llama sobre una nota de una
-  // materia ya aprobada/cursando).
+  // materia ya aprobada/cursando). computeMateriaById ya resuelve el
+  // mínimo correcto para este estado (fijo, no el esc.aprob de la
+  // materia — ver el `if (m.estado === 'pendiente')` en computeMateria).
   async function resolverPendienteSiCorresponde(materiaId, nota) {
     if (nota == null) return;
-    var materiaPendiente = materiaRawById(materiaId);
+    var materiaPendiente = computeMateriaById(materiaId);
     if (!materiaPendiente || materiaPendiente.estado !== 'pendiente') return;
-    var escPendiente = escConAprobacionEfectiva(materiaPendiente.esc);
-    if (nota >= escPendiente.aprob) {
+    if (nota >= materiaPendiente.esc.aprob) {
       var okAprobada = await saveMateriasRaw(loadMateriasRaw().map(function (x) {
         return x.id === materiaPendiente.id ? Object.assign({}, x, { estado: 'aprobada' }) : x;
       }));
@@ -838,6 +847,14 @@
     // en pantallas ya usa esta versión, nunca el m.esc.aprob crudo (que
     // sigue viviendo sin tocar en el registro guardado, `m`).
     var e = escConAprobacionEfectiva(m.esc);
+    // "Debo rendir examen" (estado:'pendiente'): llegar acá ya significa
+    // que se superó el mínimo/exoneración de la cursada — ese número
+    // quedó atrás (ver APROBACION_EXAMEN_PENDIENTE). De acá en adelante
+    // (tone, aprobTxt, "Te faltan X", riesgoTxt, badge) todo tiene que ver
+    // el mínimo fijo del examen, no el de la materia — y la exoneración
+    // deja de aplicar (ya no hay forma de exonerar una vez que tenés que
+    // rendir), por eso se anula acá y no sólo en el texto.
+    if (m.estado === 'pendiente') e = Object.assign({}, e, { aprob: APROBACION_EXAMEN_PENDIENTE, exoneracion: null });
     var actual = parciales.length ? parciales.reduce(function (a, b) { return a + b; }, 0) / parciales.length : null;
     var tone = toneDe(m.estado, e, parciales);
     var acc = ACCENTS[m.colorId] || ACCENTS.gris;
@@ -2048,7 +2065,7 @@
       // estado solo (ver hook en el submit de #form-evaluacion): si llega al
       // mínimo pasa a Aprobada, si no, sigue Pendiente para volver a rendir.
       document.getElementById('detalle-callout-t').textContent = 'Debés rendir examen';
-      document.getElementById('detalle-callout-s').textContent = 'Cursaste esta materia pero todavía te falta el examen. Se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Cargá la nota del examen con "Cargar nota" — si llega al mínimo, la materia pasa a Aprobada sola; si no, seguís figurando como pendiente para volver a rendir.';
+      document.getElementById('detalle-callout-s').textContent = 'Cursaste esta materia pero todavía te falta el examen. El examen aprueba con ' + m.aprobTxt + ' (el mínimo de la cursada ya quedó atrás). Cargá la nota del examen con "Cargar nota" — si llega al mínimo, la materia pasa a Aprobada sola; si no, seguís figurando como pendiente para volver a rendir.';
     } else if (!count) {
       document.getElementById('detalle-callout-t').textContent = 'Todavía no cargaste notas';
       // Bloque 2: el estado vacío es el único lugar que hoy no informaba
@@ -3991,7 +4008,7 @@
     if (!m) return;
     CARGAR_EXAMEN_MATERIA_ID = materiaId;
     document.getElementById('modal-cargar-examen-title').textContent = 'Cargar nota — ' + m.nombre;
-    document.getElementById('modal-cargar-examen-sub').textContent = 'Se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Si llega al mínimo, la materia pasa a Aprobada sola; si no, seguís figurando pendiente para volver a rendir.';
+    document.getElementById('modal-cargar-examen-sub').textContent = 'El examen se califica por ' + m.escalaTxt.toLowerCase() + ' sobre ' + m.totalTxt + ' y aprueba con ' + m.aprobTxt + '. Si llega al mínimo, la materia pasa a Aprobada sola; si no, seguís figurando pendiente para volver a rendir.';
     document.getElementById('cargar-examen-label').textContent = 'Nota del examen (' + (m.esc.tipo === 'nota' ? '0–12' : (m.esc.tipo === 'pct' ? '%' : 'sobre ' + val(m.esc.total, m.esc))) + ')';
     var input = document.getElementById('cargar-examen-nota');
     input.value = '';
