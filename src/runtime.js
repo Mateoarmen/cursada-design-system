@@ -4280,7 +4280,18 @@
     idsPendientes.forEach(function (id) { idsPendientesSet[id] = true; });
     var nuevas = idsNuevos.map(function (id) {
       var m = fuentePorId[id];
-      var esc = escPorMateria[id] && escPorMateria[id].total > 0 ? escPorMateria[id] : { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
+      // Fallback cuando cat_esquema() no devuelve nada para esta materia
+      // (catalogo.esquemas sin fila — confirmado en cuenta real con 4
+      // materias: Taller de Comunicación Interpersonal y Negociación,
+      // Taller de Investigación Aplicada, Introducción a la Programación 1
+      // y 2). Antes caía a nota 0–12, pero en ORT toda materia se califica
+      // sobre 100 puntos (confirmado por el usuario). aprob:70 (no el 60
+      // genérico de ESC_DEFAULTS.puntos, pensado para "+ Nueva materia" sin
+      // ningún contexto de universidad) porque es el mínimo real que ya
+      // aparece en casi todas las materias de ORT con esquema sí cargado
+      // (70/86 puntos/exoneración) — la mejor aproximación posible sin
+      // datos propios para esta materia puntual.
+      var esc = escPorMateria[id] && escPorMateria[id].total > 0 ? escPorMateria[id] : { tipo: 'puntos', total: ESC_DEFAULTS.puntos.total, aprob: 70 };
       var colorId = colorKeys[colorIdx % colorKeys.length];
       colorIdx++;
       var semestreId = m.semestre_sugerido ? (semHistoricoPorNumero[m.semestre_sugerido] || null) : null;
@@ -4867,7 +4878,10 @@
       colorIdx++;
       var escIncompleto = !m.esc || m.esc.tipo == null || m.esc.total == null || m.esc.aprob == null;
       if (escIncompleto) {
-        cambios.esc = escPorMateria[m.catalogoMateriaId] || { tipo: 'nota', total: ESC_DEFAULTS.nota.total, aprob: ESC_DEFAULTS.nota.aprob };
+        // Mismo fallback que wizCrearMateriasAprobadas (ver comentario ahí):
+        // sin esquema en el catálogo, puntos sobre 100 con aprob:70 — no
+        // nota 0–12 ni el 60 genérico de ESC_DEFAULTS.puntos.
+        cambios.esc = escPorMateria[m.catalogoMateriaId] || { tipo: 'puntos', total: ESC_DEFAULTS.puntos.total, aprob: 70 };
         cambios.componentesFijos = componentesFijosPorMateria[m.catalogoMateriaId] || [];
       }
       huboCambios = true;
