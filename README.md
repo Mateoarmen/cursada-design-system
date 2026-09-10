@@ -4049,3 +4049,30 @@ vistas core en desktop, el mobile (375px) no cambió (ya usaba
 antes), y el estado del DOM tras cada navegación (`hidden`/`is-entering`/
 `opacity` computado) se confirmó correcto entrando y saliendo de Inicio ↔
 Materias repetidas veces.
+
+### Cuarta pasada: el favicon tenía el anillo mal rotado
+
+El usuario notó que el favicon de la pestaña no coincide con el isotipo
+real de la marca: en el logo real (`.sidenav-brand .mark` en styles.css)
+el hueco del anillo mira en diagonal (arriba a la derecha); en el favicon
+miraba derecho, como una "C" de libro.
+
+**Causa**: el isotipo real se dibuja con CSS (`border` + `border-top-color:
+transparent` + `transform:rotate(45deg)`) — el hueco arranca arriba (12 en
+punto) antes de rotar. El favicon SVG dibujaba el mismo anillo con
+`<circle stroke-dasharray="66 22">`, pero el dasharray de SVG arranca su
+patrón a las 3 en punto (0°) por espec, no arriba — así que el mismo
+`rotate(45)` aplicado a los dos terminaba en dos lugares distintos: el
+favicon quedaba 90° adelantado respecto al logo real (hueco mirando a la
+derecha en vez de en diagonal). No era un problema de "está rotado al
+revés", era un desfasaje en el punto de partida del dibujo.
+
+**Fix**: se reemplazó el `<circle stroke-dasharray>` por un `<path>` con un
+arco explícito (`A 14 14 0 1 1 ...`) que arranca el hueco en el mismo punto
+que el CSS (arriba) antes del mismo `rotate(45 32 32)` — verificado
+armando una página de comparación con el mark real (CSS), el SVG viejo y
+el candidato lado a lado, iterando hasta que coincidieran en el mismo
+navegador. Los íconos PWA (`icon-192.png`, `icon-512.png`) ya tenían la
+orientación correcta — sólo el favicon SVG embebido (usado en
+`build-app.mjs`/`build-landing.mjs`/`build-legal.mjs`, un único string
+`FAVICON_B64` repetido en los tres) estaba mal.
