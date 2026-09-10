@@ -227,7 +227,16 @@
     var plotW = w - padL - padR, plotH = h - padT - padB;
     var color = TONE.success;
     function xAt(i) { return padL + (puntos.length === 1 ? plotW / 2 : (plotW * i) / (puntos.length - 1)); }
-    function yAt(v) { return padT + plotH - (v / 100) * plotH; }
+    // Clamp a 0–100: `promedio` normalmente vive en ese rango, pero una
+    // nota mal cargada en una escala 0–12 (ej. 93 en vez de 9,3 — bug real
+    // encontrado en cuenta de producción, ver renderProgresoPendientesModal)
+    // podía dar un promedio de ~700% y mandar el punto/la línea bien afuera
+    // del viewBox — el SVG las recorta ahí (overflow:hidden por default en
+    // el <svg> raíz), así que se veía "cortado" en vez de simplemente mal.
+    // El clamp es sólo geométrico: el texto sigue mostrando el % real (acá
+    // abajo, sin tocar) para que un valor así siga siendo visible/raro en
+    // vez de invisible/roto.
+    function yAt(v) { var vc = Math.max(0, Math.min(100, v)); return padT + plotH - (vc / 100) * plotH; }
     var polyPts = puntos.map(function (p, i) { return xAt(i) + ',' + yAt(p.promedio); }).join(' ');
     var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMinYMid meet">';
     svg += '<line x1="' + padL + '" y1="' + yAt(0) + '" x2="' + (w - padR) + '" y2="' + yAt(0) + '" stroke="var(--c-line)" stroke-width="1"/>';
@@ -1402,7 +1411,12 @@
       label.textContent = p.semestre.nombre + (p.semestre.id === activoId ? ' · actual' : '');
       var barWrap = el('div', 'bar-wrap');
       var barFill = el('div', 'bar-fill');
-      barFill.setAttribute('style', css({ width: p.promedio + '%', background: TONE.success }));
+      // Clamp a 100 (mismo caso que buildProgresoChartSvg): un promedio mal
+      // calculado por una nota fuera de escala no debería mandar el ancho
+      // del div a un múltiplo de 100% — .bar-wrap tiene overflow:hidden así
+      // que no se ve roto, pero tampoco tiene sentido pedirle al layout un
+      // valor absurdo cuando 100% ya comunica "al tope" igual de bien.
+      barFill.setAttribute('style', css({ width: Math.min(100, p.promedio) + '%', background: TONE.success }));
       barWrap.appendChild(barFill);
       var v = el('span', 'v'); v.textContent = p.promedio + '%';
       row.appendChild(label); row.appendChild(barWrap); row.appendChild(v);
@@ -6647,6 +6661,16 @@
         var v = input.value.trim();
         var n = Number(v);
         if (v === '' || isNaN(n)) return;
+        // El input ya bloquea con max= (igual que el modal completo de
+        // evaluación) — este clamp es la red de seguridad si algo lo
+        // saltea (autofill, devtools, o el propio máx. no aplicado al
+        // tipear). Sin esto, una materia 0–12 podía terminar con una nota
+        // tipo 93 cargada acá y arruinar el promedio del semestre entero
+        // (bug real encontrado en cuenta de producción: dos "Nota final"
+        // de materias escala 0–12 con nota 93 y 89, ~700% normalizado,
+        // hacían que el punto del gráfico de Progreso se fuera del canvas
+        // y se viera "cortado").
+        n = Math.max(0, Math.min(n, m.esc.total));
         setBtnBusy(btn, true, 'Guardando…');
         var nueva = { id: uid(), materiaId: m.id, kind: 'evaluacion', tipo: 'Final', titulo: 'Nota final', fecha: todayISO(), hora: '', hecho: true, nota: n, notaMaxima: m.esc.total, notas: '' };
         var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
