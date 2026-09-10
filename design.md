@@ -138,13 +138,17 @@ un `.btn-primary` sin tocar su forma. Agregada a pedido explícito del
 usuario, probada primero como prototipo aislado antes de tocar el producto.
 
 Regla de uso, no decorativa: **sólo en los CTA de "primera acción"** —
-`#btn-ob-empezar` (onboarding) y `#btn-empty-primera` (estado vacío de
-Materias). Son los dos únicos botones del producto que un usuario ve una
-sola vez y que no compiten con ningún otro control en pantalla. No se usa
-en botones de acción repetida (Guardar, + Nuevo, Continuar, etc.) — ahí el
-movimiento constante sería ruido y rompería "éxito silencioso, no toasts
-celebratorios" de Microinteractions. Si se agrega un tercer lugar, tiene
-que cumplir el mismo criterio (única vez, sin competencia visual), no
+`#btn-ob-empezar` (onboarding), `#btn-empty-primera` (estado vacío de
+Materias) y `#btn-progreso-semestre-cargar` (estado vacío de "Progreso del
+semestre" en Inicio, `#progreso-semestre-empty`). Los tres son botones que
+un usuario ve una sola vez cada uno (hasta que carga su primera materia o
+su primera nota) y que no compiten con ningún otro control en pantalla —
+`#progreso-semestre-empty` sólo tiene ese botón, nada de "+ Nuevo" ni
+acciones secundarias al lado. No se usa en botones de acción repetida
+(Guardar, + Nuevo, Continuar, "Abrir materia" del hero de Inicio, etc.) —
+ahí el movimiento constante sería ruido y rompería "éxito silencioso, no
+toasts celebratorios" de Microinteractions. Si se agrega un cuarto lugar,
+tiene que cumplir el mismo criterio (única vez, sin competencia visual), no
 "se ve bien acá también".
 
 ## Qué preserva cada superficie
