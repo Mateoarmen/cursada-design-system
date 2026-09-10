@@ -2,12 +2,16 @@
 // pg_cron. Toma las filas `pending` de notification_queue (channel push,
 // scheduled_for <= now) y aplica, EN ESTE ORDEN, los filtros de supresión
 // de _shared/notif-core.ts antes de mandar nada: quiet hours (reprograma,
-// nunca descarta) → actividad reciente → cap diario → agregación. Recién
-// ahí firma con VAPID y manda el push.
+// nunca descarta) → cap diario → agregación. Recién ahí firma con VAPID y
+// manda el push.
+//
+// La supresión por actividad reciente (last_seen_at) se sacó a pedido
+// explícito: aunque el usuario haya abierto la app hace poco, igual quiere
+// el push.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3';
-import { CAP_DIARIO_PUSH, SUPRESION_ACTIVIDAD_HORAS, dentroDeQuietHours, horaLocal, proximaSalidaDeQuietHours } from '../_shared/notif-core.ts';
+import { CAP_DIARIO_PUSH, dentroDeQuietHours, horaLocal, proximaSalidaDeQuietHours } from '../_shared/notif-core.ts';
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
@@ -38,18 +42,7 @@ async function procesarUsuario(userId: string, notifs: any[], now: Date) {
     return { enviadas: 0, suprimidas: 0, fallidas: 0, reprogramadas: ids.length };
   }
 
-  // 2) Supresión por actividad reciente. Proxy simple de "ya vio esa
-  // entidad": si abrió la app hace poco, ya la tuvo en pantalla (Inicio/
-  // Agenda muestran lo mismo que dispara esta notificación) — no se lleva
-  // un tracking de qué entidad puntual vio cada usuario, sería una tabla
-  // nueva fuera de lo pedido.
-  const { data: profile } = await supabase.from('profiles').select('last_seen_at').eq('id', userId).maybeSingle();
-  if (profile?.last_seen_at && (now.getTime() - new Date(profile.last_seen_at).getTime()) / 3600000 <= SUPRESION_ACTIVIDAD_HORAS) {
-    await marcarSuprimidas(notifs.map((n) => n.id));
-    return { enviadas: 0, suprimidas: notifs.length, fallidas: 0, reprogramadas: 0 };
-  }
-
-  // 3) Cap diario — seguro contra bugs del cron, no regla de producto.
+  // 2) Cap diario — seguro contra bugs del cron, no regla de producto.
   const desdeHoyUTC = new Date(now); desdeHoyUTC.setUTCHours(0, 0, 0, 0);
   const { count: yaHoy } = await supabase.from('notification_queue').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('channel', 'push').eq('status', 'sent').gte('sent_at', desdeHoyUTC.toISOString());
   const cupo = Math.max(0, CAP_DIARIO_PUSH - (yaHoy || 0));
@@ -61,7 +54,7 @@ async function procesarUsuario(userId: string, notifs: any[], now: Date) {
   let sobrantes: any[] = [];
   if (notifs.length > cupo) { sobrantes = notifs.slice(cupo); aEnviar = notifs.slice(0, cupo); }
 
-  // 4) Agregación — 3+ en la misma tanda, un solo push agrupado.
+  // 3) Agregación — 3+ en la misma tanda, un solo push agrupado.
   type Payload = { title: string; body: string; url: string; tag: string; ids: string[] };
   let payloads: Payload[];
   if (aEnviar.length >= 3) {

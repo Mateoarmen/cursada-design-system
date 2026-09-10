@@ -605,15 +605,6 @@
     if (CURRENT_PROFILE) maybeMostrarBannerPush();
   }
 
-  // Parte 5: notifications-send lee esto para suprimir push a usuarios que
-  // ya estaban activos en la app hace poco (no le manda un push por algo
-  // que probablemente ya vio en pantalla) — fire-and-forget, no bloquea ni
-  // se refleja en CACHE/UI.
-  function actualizarUltimaActividad() {
-    if (!CURRENT_USER) return;
-    sb().from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', CURRENT_USER.id).then(function () {}, function () {});
-  }
-
   // Clasifica un error de Supabase como "sesión/token vencido" vs. cualquier
   // otro (red caída, RLS, etc.) — best-effort: la forma exacta del objeto de
   // error varía según si lo devuelve auth-js (falla al refrescar el token,
@@ -6836,7 +6827,6 @@
     // No bloqueante a propósito (ver cargarNotificaciones) — no tiene que
     // demorar la revelación de #app.
     cargarNotificaciones();
-    actualizarUltimaActividad();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // Con el perfil de Google ya resuelto (si correspondía), quedan estos
     // avisos posibles al entrar a la app — nunca más de uno a la vez (si
@@ -6897,7 +6887,7 @@
     registrarServiceWorker();
     // Parte 3: nada de Supabase Realtime acá — refresco en foco, no en vivo.
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible' && CURRENT_USER) { cargarNotificaciones(); actualizarUltimaActividad(); }
+      if (document.visibilityState === 'visible' && CURRENT_USER) cargarNotificaciones();
     });
     document.getElementById('btn-gate-retry').addEventListener('click', function () {
       if (CURRENT_USER) onSignedIn(CURRENT_USER); else location.reload();

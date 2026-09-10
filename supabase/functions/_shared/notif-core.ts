@@ -1,12 +1,11 @@
 // Cursada — módulo compartido entre notifications-generate y
 // notifications-send. Parte 6 del pedido: el armado de contenido (título/
-// body/deep_link) y la lógica de supresión (quiet hours, actividad, cap
-// diario, agregación) viven acá, separados del transporte — agregar email o
+// body/deep_link) y la lógica de supresión (quiet hours, cap diario,
+// agregación) viven acá, separados del transporte — agregar email o
 // WhatsApp más adelante es un transporte nuevo que llama a las mismas
 // funciones, no un refactor de esto.
 
 export const CAP_DIARIO_PUSH = 2; // Parte 5: seguro contra bugs del cron, no una regla de producto — constante fácil de encontrar/cambiar.
-export const SUPRESION_ACTIVIDAD_HORAS = 2; // "abrió la app en las últimas N horas"
 
 export interface EntidadNotificable {
   entityType: 'evaluacion' | 'tarea' | 'evento_personal';
