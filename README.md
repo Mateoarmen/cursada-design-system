@@ -4001,3 +4001,51 @@ Verificado de nuevo en navegador (`Cursada.test.html`, datos mock): Inicio,
 Materias y Detalle en claro y oscuro — el oscuro se ve pixel-idéntico a
 antes de esta pasada (como debía ser), el claro tiene profundidad real por
 primera vez. Sin errores de consola nuevos.
+
+### Tercera pasada: unificar las dos barras superiores + animar el cambio de vista
+
+Pedido del usuario, con una captura de pantalla mostrando `.app-toolbar`
+("cursada · Inicio", una tira fina) apilada arriba del `.topbar` de cada
+vista ("Inicio" + buscar/campana/+Nuevo) — dos barras haciendo un trabajo
+redundante en desktop.
+
+**Diagnóstico**: `.app-toolbar` es un elemento único y persistente (no uno
+por vista) que en mobile/tablet (≤900px) sirve para alojar el botón ☰ que
+abre el cajón del sidenav — necesario ahí porque el sidenav se vuelve
+`position:fixed` fuera de pantalla. En desktop (≥901px) el sidenav está
+siempre visible, así que esa barra no tiene ninguna función: sólo repite
+la marca "cursada" (ya está en el sidenav) y el nombre de la vista (ya
+está en el `<h1>` del `.topbar`). Se confirmó que ambos botones ☰ — el de
+`.app-toolbar` (`#btn-menu`) y el de cada `.topbar` (`.topbar-menu`,
+`data-menu`) — ya llamaban a la misma función (`openMobileNav`, delegado
+por atributo en runtime.js línea ~5161), así que no hacía falta unificar
+la lógica, sólo el chrome visual.
+
+**Fix, un solo `@media` nuevo**: `@media(min-width:901px){.app-toolbar{
+display:none}}` — complementario al `@media(max-width:900px)` que ya
+existía para el cajón del sidenav. `#btn-menu` sigue en el DOM (runtime.js
+le engancha un listener al arrancar; sacarlo tiraría un error), sólo
+invisible arriba de 900px. Nada se renombró, nada de JS se tocó para esta
+parte.
+
+**Animación de vistas**: `renderRoute()` hacía show/hide instantáneo vía
+`.hidden{display:none!important}`. Se agregó `.view-screen{transition:
+opacity 200ms, transform 200ms}` + una clase `.is-entering` (opacity:0,
+translateY(6px)) que `renderRoute()` aplica al mostrar una vista que
+estaba escondida, sacándosela enseguida. **Primer intento, con bug real
+encontrado en la propia verificación**: usar doble
+`requestAnimationFrame` (el patrón más común para esto) para esperar un
+frame antes de sacar `.is-entering` — funcionaba a simple vista, pero
+probando con la pestaña en background/oculta el rAF nunca disparaba y la
+vista quedaba en `opacity:0` para siempre, invisible. Se cambió a forzar
+un reflow síncrono (`void el.offsetHeight`) entre agregar y sacar la
+clase — mismo efecto visual, sin esa ventana de falla. Se decidió no
+animar los modales (el pedido era sobre "las vistas", no se quiso
+extender el alcance).
+
+Verificado en `Cursada.test.html`: la barra única se ve en las seis
+vistas core en desktop, el mobile (375px) no cambió (ya usaba
+`.topbar-menu` como único ☰, `.app-toolbar` ya estaba oculta ahí desde
+antes), y el estado del DOM tras cada navegación (`hidden`/`is-entering`/
+`opacity` computado) se confirmó correcto entrando y saliendo de Inicio ↔
+Materias repetidas veces.

@@ -358,6 +358,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .view{flex:1;min-height:0;padding:30px 34px;display:flex;flex-direction:column;gap:20px;max-width:1440px;width:100%;margin:0 auto}
 .view.hidden{display:none}
 
+/* Transición de vista (redisño Hallmark): opacity+translateY nada más
+   (nunca layout) al cambiar de ruta. Antes el cambio era instantáneo
+   (.hidden = display:none). .is-entering es el estado de arranque que
+   renderRoute() aplica un frame antes de dejarlo transicionar al estado
+   final de acá (ver runtime.js) — display:none no es animable, por eso
+   hace falta el paso intermedio en vez de una sola regla CSS. */
+.view-screen{opacity:1;transform:none;transition:opacity 200ms var(--ease-out),transform 200ms var(--ease-out)}
+.view-screen.is-entering{opacity:0;transform:translateY(6px)}
+@media(prefers-reduced-motion:reduce){.view-screen{transition:none}}
+
 /* ---------- buttons / pills ---------- */
 .btn{
   height:34px;display:inline-flex;align-items:center;gap:6px;padding:0 15px;border-radius:var(--r-control);
@@ -1137,6 +1147,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .app-toolbar .sep{width:1px;align-self:stretch;background:var(--c-line);margin:0 4px;flex:none}
 .app-toolbar .grow{flex:1}
 .app-toolbar .toolbar-btn{flex:none}
+/* Redisño Hallmark — unificar las dos barras superiores: en desktop el
+   sidenav siempre está visible (no hace falta ☰) y esta barra sólo mostraba
+   la marca "cursada" + el nombre de la vista, ambos ya repetidos en el
+   sidenav y en el <h1> de cada .topbar — pura redundancia. Se oculta acá
+   arriba de los 900px (el mismo corte donde el sidenav deja de ser cajón,
+   ver @media(max-width:900px) más abajo) y sigue viva tal cual entre
+   761-900px, donde todavía hace falta como única forma de abrir el cajón. */
+@media(min-width:901px){.app-toolbar{display:none}}
 .toolbar-btn{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;background:var(--c-surfaceAlt);color:var(--c-ink2);white-space:nowrap}
 .toolbar-btn.is-on{color:var(--c-ink);background:rgba(0,113,227,.12)}
 .file-input-hidden{display:none}

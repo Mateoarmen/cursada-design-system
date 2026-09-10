@@ -4854,7 +4854,32 @@
     // quede flotando sobre una vista distinta a la que lo abrió.
     closeQuickSheet();
     closeRowMenu();
-    CORE_VIEWS.forEach(function (id) { document.getElementById(id).classList.toggle('hidden', STATE.route.view !== id); });
+    // Transición de vista (redisño Hallmark, ver styles.css ".view-screen"):
+    // display:none no es animable, así que al mostrar una vista que estaba
+    // escondida se le saca .hidden, se la arranca en .is-entering (opacity
+    // 0) y se fuerza un reflow leyendo offsetHeight ANTES de sacarle
+    // .is-entering — eso "fija" el estado inicial en el navegador para que
+    // la transición de verdad anime desde ahí, en vez de que ambos cambios
+    // de clase se apliquen juntos sin transición visible. Se probó primero
+    // con doble requestAnimationFrame (patrón más común para esto) pero
+    // rAF nunca dispara con la pestaña en background/oculta — la vista se
+    // quedaba en opacity:0 para siempre; el reflow síncrono no tiene ese
+    // punto ciego. Un re-render de la MISMA vista (ej. cambiar de filtro en
+    // Materias) no dispara nada de esto porque el chequeo es sobre si ya
+    // tenía .hidden.
+    CORE_VIEWS.forEach(function (id) {
+      var el = document.getElementById(id);
+      var show = STATE.route.view === id;
+      if (show && el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        el.classList.add('is-entering');
+        void el.offsetHeight;
+        el.classList.remove('is-entering');
+      } else if (!show) {
+        el.classList.add('hidden');
+        el.classList.remove('is-entering');
+      }
+    });
     if (STATE.route.view === 'inicio') renderInicio();
     else if (STATE.route.view === 'materias') renderMaterias();
     else if (STATE.route.view === 'detalle') renderDetalle(STATE.route.materiaId);
