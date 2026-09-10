@@ -1134,6 +1134,32 @@ marca (mismo isotipo que `build-app.mjs`) y la escribe en `out/index.html`.
 `npm run build` corre los dos builds (`build:app` y `build:landing`) en
 secuencia.
 
+### Legal (Privacidad y términos) y og:image
+
+Una pasada de auditoría de diseño encontró dos huecos reales, no de estilo:
+la landing pedía cuenta (email/contraseña, Google, datos de perfil) sin un
+solo link a privacidad o términos en el footer, y no tenía `og:image` para
+que el link se vea bien al compartirlo.
+
+- **`src/legal.html`** es una página nueva, autocontenida igual que
+  `landing.html` (mismo patrón de tokens `--lg-*`, mismo script de tema
+  inline, mismo skip-link) con dos secciones, Privacidad y Términos, escritas
+  a partir de lo que la app realmente hace (Supabase + Row Level Security,
+  qué datos pide, exportar/borrar desde la barra superior, sin ads ni
+  tracking) — no es un texto legal genérico pegado de otro lado.
+  `build/build-legal.mjs` la envuelve igual que `build-landing.mjs` y la
+  escribe en `out/legal.html`; se sumó a `npm run build` y al footer de la
+  landing (`legal.html#privacidad`, `legal.html#terminos`).
+- **`og-image.png`** (1200×630, en la raíz del repo junto a `icon-*.png` y
+  `badge.png`) reusa el isotipo y el azul de marca exactos, generado con
+  Canvas 2D (no hay herramienta de diseño de por medio) para no depender de
+  una imagen provista. `build/build-static.mjs` ya lo copia a `out/` junto
+  con el resto de los assets sueltos; `build-landing.mjs` agrega
+  `og:image`/`og:title`/`og:description` y las `twitter:*` equivalentes.
+  `og:image` queda con ruta relativa a propósito — el proyecto todavía no
+  tiene dominio propio (ver "Qué falta para producción real" más abajo);
+  cuando lo tenga, esa única línea pasa a URL absoluta.
+
 ### Lo que no se tocó
 
 - La foto de la tarjeta "Agenda y calendario juntos" sigue siendo el

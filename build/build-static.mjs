@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const OUT = path.join(ROOT, 'out');
 
-const FILES = ['sw.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'badge.png'];
+const FILES = ['sw.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'badge.png', 'og-image.png'];
 
 async function main() {
   await mkdir(OUT, { recursive: true });

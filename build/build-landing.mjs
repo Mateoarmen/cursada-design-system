@@ -39,6 +39,17 @@ async function main() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cursada — Tu semestre, bajo control</title>
 <meta name="description" content="Materias, notas, parciales y entregas en un solo lugar. Cursada te dice cuánto te falta para aprobar.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cursada — Tu semestre, bajo control">
+<meta property="og:description" content="Materias, notas, parciales y entregas en un solo lugar. Cursada te dice cuánto te falta para aprobar.">
+<!-- Ruta relativa a propósito: og:image debería ser absoluta, pero el
+     proyecto todavía no tiene dominio propio (ver README, "Qué falta para
+     producción real") — cuando lo tenga, cambiar esto a la URL completa. -->
+<meta property="og:image" content="og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cursada — Tu semestre, bajo control">
+<meta name="twitter:description" content="Materias, notas, parciales y entregas en un solo lugar. Cursada te dice cuánto te falta para aprobar.">
+<meta name="twitter:image" content="og-image.png">
 <meta name="theme-color" id="meta-theme-color" content="#FFFFFF">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${FAVICON_B64}">
 </head>

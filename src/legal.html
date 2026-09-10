@@ -1,0 +1,133 @@
+<script>
+// Misma resolución de tema que landing.html (ver ese archivo, línea ~1-19)
+// — se repite acá porque legal.html tampoco carga runtime.js.
+(function () {
+  try {
+    var pref = localStorage.getItem('cursada:theme');
+    var sistemaOscuro = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var efectivo = (pref === 'claro' || pref === 'oscuro') ? pref : (sistemaOscuro ? 'oscuro' : 'claro');
+    document.documentElement.setAttribute('data-theme', efectivo);
+    var metaThemeColor = document.getElementById('meta-theme-color');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', efectivo === 'oscuro' ? '#191C22' : '#FFFFFF');
+  } catch (e) {}
+})();
+</script>
+<a class="lg-skip" href="#contenido">Saltar al contenido</a>
+
+<div style="font-family:-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;color:var(--lg-ink);background:var(--lg-bg);min-height:100vh">
+
+  <header style="position:sticky;top:0;z-index:10;height:64px;background:var(--lg-surface);border-bottom:1px solid var(--lg-border);display:flex;align-items:center">
+    <div style="max-width:760px;width:100%;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between">
+      <a href="index.html" style="display:flex;align-items:center;gap:9px;color:var(--lg-ink);text-decoration:none">
+        <span class="lg-mark" style="width:24px;height:24px;border-radius:8px;background:linear-gradient(180deg,#2C7BFF,#0847B4);display:flex;align-items:center;justify-content:center"></span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-.02em">cursada</span>
+      </a>
+      <a href="index.html" style="font-size:13px;font-weight:600;color:var(--lg-accent);text-decoration:none">Volver al inicio</a>
+    </div>
+  </header>
+
+  <main id="contenido" style="max-width:760px;margin:0 auto;padding:48px 24px 96px">
+    <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--lg-ink3)">Legal</span>
+    <h1 style="font-size:34px;font-weight:700;letter-spacing:-.02em;margin:8px 0 4px">Privacidad y términos</h1>
+    <p style="font-size:14px;color:var(--lg-ink3);margin:0 0 40px">Última actualización: setiembre de 2026.</p>
+
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Cursada es un proyecto personal, gratuito y sin fines comerciales — nació para no perder
+      el hilo de un semestre, no para vender datos ni mostrarte publicidad. Esta página resume,
+      en criollo, qué información se guarda y bajo qué condiciones usás la app.
+    </p>
+
+    <h2 id="privacidad" style="font-size:22px;font-weight:600;letter-spacing:-.01em;margin:40px 0 14px">Privacidad</h2>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Qué datos se guardan</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Para crear tu cuenta: email y contraseña (o tu cuenta de Google, si elegís iniciar sesión así
+      — en ese caso Cursada nunca ve tu contraseña de Google). Opcionalmente, y sólo si los cargás vos:
+      nombre, apellido, edad, facultad, carrera, teléfono y una foto de perfil. Además, todo lo que
+      vas cargando para usar la app: tus materias, notas, evaluaciones, agenda y eventos personales.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Dónde vive esa información</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      En Supabase (base de datos Postgres, autenticación y almacenamiento de archivos), con
+      Row Level Security activada en cada tabla: tu cuenta sólo puede leer y escribir sus propias
+      filas, nunca las de otro usuario, a nivel de base de datos — no es sólo una regla de la interfaz.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Qué no se hace con tus datos</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      No hay anuncios ni redes de publicidad. No se venden ni se comparten tus datos académicos
+      o personales con terceros. No se usan cookies de rastreo — <code style="font-size:13px">localStorage</code>
+      guarda únicamente preferencias locales (tema claro/oscuro, avisos ya descartados); la sesión
+      la gestiona Supabase con su propio mecanismo.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Tus datos son tuyos</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Desde la barra superior de la app podés exportar toda tu información a un archivo JSON
+      cuando quieras, e importar un archivo exportado antes. También podés borrar todo tu
+      contenido académico (con confirmación previa) sin salir de la app. Para eliminar la cuenta
+      en sí — no sólo los datos cargados — escribinos a
+      <a href="mailto:mateo.armendariz03@gmail.com" style="color:var(--lg-accent)">mateo.armendariz03@gmail.com</a>;
+      hoy no hay un botón de autoservicio para eso.
+    </p>
+
+    <h2 id="terminos" style="font-size:22px;font-weight:600;letter-spacing:-.01em;margin:48px 0 14px">Términos de uso</h2>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Qué es Cursada</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Una herramienta personal de gestión académica: registrás tus materias y notas, y la app
+      calcula promedios, riesgo y cuánto te falta para aprobar. Es gratuita y pensada para uso
+      individual, no para instituciones ni como registro académico oficial.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Los cálculos son informativos</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Promedios, anillos de nota y "cuánto necesitás para aprobar" se calculan a partir de lo que
+      vos cargaste, con la escala y el margen de riesgo que vos configuraste — no reemplazan la
+      información oficial de tu facultad. Ante cualquier duda sobre una nota o una condición real
+      de aprobación, confirmá siempre con la fuente oficial.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Se ofrece "tal cual está"</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Al ser un proyecto personal sin garantías comerciales, la app se ofrece "tal cual está",
+      sin garantía de disponibilidad continua. Hacé copias de tus datos con la exportación a JSON
+      si te preocupa perder algo.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Cambios a esta página</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      Si esto cambia — por ejemplo, si en algún momento se suma un dominio propio o un nuevo
+      proveedor de login — esta página se actualiza para reflejarlo, con la fecha de arriba al día.
+    </p>
+
+    <h3 style="font-size:16px;font-weight:600;margin:24px 0 8px">Contacto</h3>
+    <p style="font-size:15px;line-height:1.7;color:var(--lg-ink2)">
+      ¿Preguntas, algo que corregir, o querés eliminar tu cuenta? Escribí a
+      <a href="mailto:mateo.armendariz03@gmail.com" style="color:var(--lg-accent)">mateo.armendariz03@gmail.com</a>.
+    </p>
+  </main>
+</div>
+
+<style>
+  :root{
+    --lg-bg:#EDEDF0; --lg-surface:#FFFFFF; --lg-border:rgba(18,22,28,.08);
+    --lg-ink:#12161C; --lg-ink2:#55565B; --lg-ink3:#6E6E73; --lg-accent:#0A63F0;
+  }
+  html[data-theme="oscuro"]{
+    color-scheme:dark;
+    --lg-bg:#0F1116; --lg-surface:#191C22; --lg-border:rgba(255,255,255,.1);
+    --lg-ink:#F5F5F7; --lg-ink2:rgba(235,235,245,.68); --lg-ink3:rgba(235,235,245,.5); --lg-accent:#2C7BFF;
+  }
+  html[data-theme="claro"]{color-scheme:light}
+  *{box-sizing:border-box}
+  body{margin:0}
+  a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--lg-accent);outline-offset:3px;border-radius:6px}
+  .lg-mark{position:relative}
+  .lg-mark::after{content:'';position:absolute;left:50%;top:50%;width:11px;height:11px;border-radius:50%;border:2.1px solid #fff;border-top-color:transparent;transform:translate(-50%,-50%) rotate(45deg)}
+  .lg-skip{position:absolute;left:-9999px;top:0;z-index:60;height:44px;display:flex;align-items:center;padding:0 18px;background:var(--lg-accent);color:#fff;font-size:14px;font-weight:600;border-radius:0 0 12px 0;text-decoration:none}
+  .lg-skip:focus{left:0}
+  code{background:var(--lg-border);padding:1px 5px;border-radius:4px}
+</style>

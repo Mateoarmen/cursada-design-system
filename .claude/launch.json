@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "cursada-test",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5173", "--directory", "out"],
-      "port": 5173
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "python3 -m http.server ${PORT:-5173} --directory out"],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }
