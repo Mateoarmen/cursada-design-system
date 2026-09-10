@@ -4028,6 +4028,23 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   function margenDe(e) {
     return MARGEN_RIESGO / 12 * e.total;
   }
+  // Catálogo (ORT), sistema "Examen con exoneración": el curso no tiene un
+  // mínimo de aprobación propio, distinto del examen final — `min_aprobar`
+  // viene en 0 porque, en los hechos, sólo existe el umbral de exoneración
+  // (llegar ahí evita el examen; no llegar no es "reprobar", es que
+  // todavía falta rendir). cat_esquema() copia ese 0 tal cual a esc.aprob
+  // (ver wizCrearMateriasAprobadas/wizReconciliarMateriasCreadas) — dato
+  // real, no un bug de carga (confirmado contra catalogo.esquemas), pero
+  // tomado literal en toneDe()/"Te faltan..."/el badge "aprueba con X" y en
+  // el auto-pasaje de una materia "Pendiente" a "Aprobada" (ver el hook en
+  // el submit de #form-evaluacion) hacía que CUALQUIER nota, incluso 0,
+  // se leyera como ya resuelta. Acá el umbral real para todo eso pasa a
+  // ser la exoneración — no se toca `exoneracion` (sigue contando aparte
+  // para "Encaminadas a exonerar"/el conteo de exoneradas de Progreso).
+  function escConAprobacionEfectiva(esc) {
+    if (!esc || esc.aprob > 0 || esc.exoneracion == null) return esc;
+    return Object.assign({}, esc, { aprob: esc.exoneracion });
+  }
   function toneDe(estado, esc, parciales) {
     if (estado === 'aprobada') return 'success';
     if (!parciales.length) return 'neutral';
@@ -4551,7 +4568,11 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     var componentesFijos = m.componentesFijos || [];
     var parciales = notasEvals.map(function (a) { return a.nota; })
       .concat(componentesFijos.filter(function (c) { return c.valor != null; }).map(function (c) { return c.valor; }));
-    var e = m.esc;
+    // escConAprobacionEfectiva: ver comentario junto a su definición — el
+    // resto de esta función y todo lo que lee `m.esc.aprob`/`m.aprobTxt`
+    // en pantallas ya usa esta versión, nunca el m.esc.aprob crudo (que
+    // sigue viviendo sin tocar en el registro guardado, `m`).
+    var e = escConAprobacionEfectiva(m.esc);
     var actual = parciales.length ? parciales.reduce(function (a, b) { return a + b; }, 0) / parciales.length : null;
     var tone = toneDe(m.estado, e, parciales);
     var acc = ACCENTS[m.colorId] || ACCENTS.gris;
@@ -4565,6 +4586,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     else if (tone === 'warning') riesgoTxt = 'Vas aprobando, pero raspando: tu promedio es ' + valU(actual, e) + ' y el mínimo es ' + valU(e.aprob, e) + '.';
     var out = {};
     Object.keys(m).forEach(function (k) { out[k] = m[k]; });
+    // Pisa el m.esc crudo copiado arriba: todo lo que lea m.esc.aprob desde
+    // acá en adelante (hay varios call sites directos, no sólo aprobTxt)
+    // tiene que ver el umbral efectivo, no el 0 crudo del catálogo.
+    out.esc = e;
     out.actual = actual;
     out.tone = tone;
     out.toneColor = TONE[tone];
@@ -4572,9 +4597,11 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     out.soft = acc.soft;
     out.notaTxt = val(actual, e);
     out.aprobTxt = valU(e.aprob, e);
-    // Bloque 2: sólo si la materia define exoneración — null significa que
-    // no aplica, no se muestra ningún texto en su lugar (ver plan).
-    out.exonTxt = e.exoneracion != null ? valU(e.exoneracion, e) : null;
+    // Bloque 2: sólo si la materia define exoneración Y ese umbral es
+    // distinto del de aprobación — null significa que no aplica (o que
+    // escConAprobacionEfectiva ya lo usó como aprob, mismo número, mostrar
+    // los dos sería puro ruido: "aprueba con 70,0 · exonera con 70,0").
+    out.exonTxt = (e.exoneracion != null && e.exoneracion !== e.aprob) ? valU(e.exoneracion, e) : null;
     out.escalaTxt = escLabel(e);
     out.totalTxt = val(e.total, e) + uni(e);
     out.horario = formatHorario(m.bloques);
@@ -7607,7 +7634,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       if (record.kind === 'evaluacion' && record.nota != null) {
         var materiaPendiente = materiaRawById(record.materiaId);
         if (materiaPendiente && materiaPendiente.estado === 'pendiente') {
-          if (record.nota >= materiaPendiente.esc.aprob) {
+          // materiaRawById() da el registro crudo, no el de computeMateria
+          // — mismo ajuste que ahí (ver escConAprobacionEfectiva) para que
+          // una materia "Examen con exoneración" (esc.aprob:0 real en el
+          // catálogo) no se marque Aprobada con cualquier nota.
+          var escPendiente = escConAprobacionEfectiva(materiaPendiente.esc);
+          if (record.nota >= escPendiente.aprob) {
             var okAprobada = await saveMateriasRaw(loadMateriasRaw().map(function (x) {
               return x.id === materiaPendiente.id ? Object.assign({}, x, { estado: 'aprobada' }) : x;
             }));
