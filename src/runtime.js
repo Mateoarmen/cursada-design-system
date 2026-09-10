@@ -1841,6 +1841,15 @@
     if (horas >= 1) return 'en ' + horas + ' h ' + minutos + ' m';
     return 'en ' + minutos + ' m';
   }
+  // Antes el countdown era siempre azul (var(--c-accent)), sin importar si
+  // faltaban 12 horas o 3 semanas — otra fuente de "todo compite igual"
+  // (ver badge de estado más arriba). Ahora el color es la única señal de
+  // urgencia de la fila: rojo si venció, naranja si es hoy/mañana, gris
+  // apagado (el color por defecto de .prox-countdown) para el resto — se
+  // reutiliza en Inicio y Agenda, un solo criterio.
+  function esCountdownUrgente(fecha) {
+    return diffDias(parseISODate(fecha), today()) <= 1;
+  }
   // Un solo setInterval para todos los countdowns visibles a la vez (Inicio
   // y Agenda pueden tener el suyo en pantalla en momentos distintos, nunca
   // los dos juntos porque son vistas separadas) — recorre el DOM en vez de
@@ -1848,9 +1857,11 @@
   function tickCountdowns() {
     var ahora = new Date();
     document.querySelectorAll('[data-countdown-fecha]').forEach(function (nodo) {
-      var txt = formatCountdown(nodo.getAttribute('data-countdown-fecha'), nodo.getAttribute('data-countdown-hora') || '', ahora);
+      var fecha = nodo.getAttribute('data-countdown-fecha');
+      var txt = formatCountdown(fecha, nodo.getAttribute('data-countdown-hora') || '', ahora);
       nodo.textContent = txt;
       nodo.classList.toggle('vencido', txt === 'vencido');
+      nodo.classList.toggle('urgente', txt !== 'vencido' && esCountdownUrgente(fecha));
     });
   }
   var COUNTDOWN_INICIADO = false;
@@ -1870,6 +1881,7 @@
     var txt = formatCountdown(fecha, hora || '', new Date());
     nodo.textContent = txt;
     nodo.classList.toggle('vencido', txt === 'vencido');
+    nodo.classList.toggle('urgente', txt !== 'vencido' && esCountdownUrgente(fecha));
   }
 
   // ================================================================
@@ -2571,8 +2583,24 @@
       renderTagChipInto(qf(node, 'tag'), item.tagId);
       qf(node, 'fecha').textContent = formatFechaAgenda(item.fecha, item.hora);
       setCountdownEnNodo(qf(node, 'countdown'), item.fecha, item.todoElDia ? '' : item.hora, item.hecho);
-      var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
-      var b = qf(node, 'badge'); b.setAttribute('style', badgeStyle(info.tone)); b.textContent = info.label;
+      // El badge de estado para un ítem sin hacer (Hoy/Mañana/Esta semana/
+      // Pendiente) es el mismo dato que el countdown de al lado, sólo que en
+      // texto redondeado a semana en vez de preciso — mostrar los dos era
+      // ruido puro (feedback: "demasiada información compitiendo"), no
+      // información nueva. El countdown ahora carga solo la urgencia (color,
+      // ver setCountdownEnNodo/styles.css) y el badge queda sólo para lo que
+      // SÍ es información propia: "Rendido"/"Entregado" cuando ya está hecho,
+      // y "Todo el día"/"Personal" para eventos personales (no tienen
+      // countdown de por sí relevante del mismo modo).
+      var b = qf(node, 'badge');
+      if (item.kind === 'materia' && !item.hecho) {
+        b.classList.add('hidden');
+      } else {
+        b.classList.remove('hidden');
+        var info = item.kind === 'materia' ? agendaBadgeInfo(item, t) : { tone: 'neutral', label: item.todoElDia ? 'Todo el día' : 'Personal' };
+        b.setAttribute('style', badgeStyle(info.tone));
+        b.textContent = info.label;
+      }
       // El tick ya corta la propagación en su propio click (wireTickButton)
       // — no hace falta comparar ev.target acá.
       makeRowClickable(node, function () {

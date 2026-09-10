@@ -4197,3 +4197,53 @@ y eventos personales quedan con el tratamiento neutro de siempre, sin
 tocarlos. Verificado en `Cursada.test.html` con una mezcla real de
 tareas/evaluaciones/eventos personales, filtros "Evaluaciones"/"Tareas",
 mobile (375px), desktop y los dos temas.
+
+### Segunda pasada: "demasiada información compitiendo, poca diferenciación"
+
+El feedback sobre la pasada anterior: agregar una etiqueta con fondo al
+tipo no arregló nada, sumó otro elemento gritando al montón que ya
+tenía chip de materia + chip de etiqueta + badge de estado + countdown,
+todos con su propio color. El problema no era "falta más énfasis en la
+evaluación", era que con tantas cosas igual de fuertes ninguna se
+distinguía — la solución es sacar ruido, no agregar señal.
+
+Encontrado auditando la fila con esa lupa: **el badge de estado
+(Hoy/Mañana/Esta semana/Pendiente) y el countdown de al lado decían
+literalmente lo mismo** — uno como bucket redondeado a semana, el otro
+preciso ("en 1 d") — para cualquier ítem sin hacer. Dos elementos
+compitiendo por espacio y atención sin aportar ningún dato nuevo entre
+sí. Y el countdown en sí siempre iba en azul, sin importar si faltaban
+12 horas o 3 semanas — otro color que no decía nada real sobre
+urgencia.
+
+**Fix, todo en la misma dirección (menos elementos, cada uno con un rol
+claro)**:
+- El badge de estado ahora sólo se pinta cuando aporta algo que el
+  countdown no dice: `hecho` (Rendido/Entregado) o evento personal
+  (Todo el día/Personal). Para cualquier ítem de materia sin hacer,
+  directamente no se renderiza — `buildAgendaRowsList()`.
+- El countdown pasa a ser la única señal de urgencia de la fila, y su
+  color ahora la refleja: gris apagado por defecto, naranja si es
+  hoy/mañana (`.urgente`, `esCountdownUrgente()`), rojo si venció —
+  antes todo el rango vencido→3 semanas era el mismo azul.
+- El chip de etiqueta (el segundo, después del de materia) baja el
+  volumen a contorno + texto apagado — competía en el mismo peso visual
+  que el chip de materia, que es el dato estructural real.
+- La marca de evaluación deja de ser una etiqueta con fondo (loud) y
+  pasa a ser un tinte muy sutil en TODA la fila (`rgba` al 5-9% del
+  mismo warning de siempre) — se lee de un vistazo sin agregar un
+  elemento más a la lista de cosas con color, más el tipo en texto
+  color+negrita sin fondo propio.
+
+Un detalle de implementación: la fila de swipe en mobile
+(`.swipe-row > .agenda-row`) ya traía `background:var(--c-surface)`
+opaco (necesario para tapar la acción verde durante el gesto) con la
+misma especificidad CSS que `.agenda-row.is-evaluacion` — sin ganarle
+en especificidad, el tinte quedaba definido pero invisible (pisado por
+el blanco opaco). Se repite el selector con el padre `.swipe-row` para
+ganar por especificidad, no por orden en el archivo (frágil).
+
+Verificado en `Cursada.test.html`: los filtros "Evaluaciones"/"Tareas"
+de Agenda, mobile (375px) y desktop, los dos temas, y confirmando por
+`getComputedStyle` que el tinte de fondo se aplica de verdad (no sólo
+que la regla exista en el CSS).
