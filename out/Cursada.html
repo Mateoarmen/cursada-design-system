@@ -422,13 +422,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 .cta-glow{
   display:inline-block;
-  padding:3px;
-  border-radius:calc(var(--cta-glow-r, var(--r-control)) + 3px);
+  padding:1.5px;
+  border-radius:calc(var(--cta-glow-r, var(--r-control)) + 1.5px);
   background:conic-gradient(from var(--cta-glow-angle),#CFE3FF,var(--c-accent),var(--c-accent-to),#CFE3FF);
-  /* halo ambiente además del marco — a 3px el anillo solo ya se pierde
+  /* halo ambiente además del marco — el anillo de 1.5px solo se pierde
      contra el propio degradé azul del botón; el halo es lo que lo hace
      leerse como "CTA destacada" incluso a primer golpe de vista. */
-  box-shadow:0 4px 18px rgba(10,99,240,.35);
+  box-shadow:0 3px 14px rgba(10,99,240,.28);
   animation:cta-glow-spin 5.5s linear infinite;
 }
 @keyframes cta-glow-spin{ to{ --cta-glow-angle:360deg } }
