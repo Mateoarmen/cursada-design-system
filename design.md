@@ -130,6 +130,23 @@ Hallmark en `tokens.css`: `--space-3xs` … `--space-3xl`.
   (`--r-control:10px`) — no se vuelve pill. Los controles del producto no
   cambian de forma, solo de paleta/tipografía subyacente.
 
+## CTA destacada (marco con gradiente giratorio)
+
+Clase `.cta-glow` en `styles.css` — un marco animado (dúo de marca +
+celeste claro, gira vía `@property` sobre un `conic-gradient`) que envuelve
+un `.btn-primary` sin tocar su forma. Agregada a pedido explícito del
+usuario, probada primero como prototipo aislado antes de tocar el producto.
+
+Regla de uso, no decorativa: **sólo en los CTA de "primera acción"** —
+`#btn-ob-empezar` (onboarding) y `#btn-empty-primera` (estado vacío de
+Materias). Son los dos únicos botones del producto que un usuario ve una
+sola vez y que no compiten con ningún otro control en pantalla. No se usa
+en botones de acción repetida (Guardar, + Nuevo, Continuar, etc.) — ahí el
+movimiento constante sería ruido y rompería "éxito silencioso, no toasts
+celebratorios" de Microinteractions. Si se agrega un tercer lugar, tiene
+que cumplir el mismo criterio (única vez, sin competencia visual), no
+"se ve bien acá también".
+
 ## Qué preserva cada superficie
 
 - El acento azul de marca y su gradiente (`--color-accent` → `--color-accent-to`).

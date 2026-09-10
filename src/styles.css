@@ -389,6 +389,37 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .btn-sm{height:30px;padding:0 12px;font-size:12px}
 .icon-btn{height:34px;width:34px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2)}
 .icon-btn .ico{width:17px;height:17px}
+
+/* ---------- CTA destacada: marco con gradiente giratorio ----------
+   Reservado a los dos CTA de "primera acción" de todo el producto —
+   onboarding (.ob-cta) y el estado vacío de Materias (.empty-actions) —
+   nunca en botones de uso repetido (Guardar, + Nuevo, etc.), ahí sería
+   ruido en vez de énfasis. Técnica de wrapper de dos capas: .cta-glow es
+   el marco (gradiente + padding = grosor del borde), el .btn-primary de
+   adentro no cambia — así el gradiente se ve sólo como borde, nunca como
+   rectángulo relleno. El giro anima el ángulo del conic-gradient vía
+   @property, no una rotación de la caja, para que el botón de adentro no
+   gire con él. Paleta: mismo dúo de marca que el propio .btn-primary
+   (accent → accent-to) más un celeste claro de relleno — así el brillo
+   se lee como metal, no como parpadeo entre dos colores. */
+@property --cta-glow-angle{
+  syntax:'<angle>';
+  inherits:false;
+  initial-value:0deg;
+}
+.cta-glow{
+  display:inline-block;
+  padding:3px;
+  border-radius:calc(var(--cta-glow-r, var(--r-control)) + 3px);
+  background:conic-gradient(from var(--cta-glow-angle),#CFE3FF,var(--c-accent),var(--c-accent-to),#CFE3FF);
+  /* halo ambiente además del marco — a 3px el anillo solo ya se pierde
+     contra el propio degradé azul del botón; el halo es lo que lo hace
+     leerse como "CTA destacada" incluso a primer golpe de vista. */
+  box-shadow:0 4px 18px rgba(10,99,240,.35);
+  animation:cta-glow-spin 5.5s linear infinite;
+}
+@keyframes cta-glow-spin{ to{ --cta-glow-angle:360deg } }
+@media(prefers-reduced-motion:reduce){ .cta-glow{ animation:none } }
 .icon-btn-bell{position:relative}
 .icon-btn-bell .bell-dot{display:none;position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
 .icon-btn-bell.has-unread .bell-dot{display:block}
