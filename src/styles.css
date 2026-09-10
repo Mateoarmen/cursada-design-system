@@ -1149,6 +1149,19 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    falta scrollear (encontrado probando en mobile, no por lectura de CSS). */
 .progreso-chart-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .progreso-chart-wrap svg{display:block}
+/* .progreso-chart-outer: envoltorio NO scrolleable de #progreso-chart, sólo
+   para anclar el degradé de "hay más" al borde del panel — puesto adentro
+   del propio elemento con overflow-x:auto se hubiera ido de vista junto con
+   el contenido al scrollear (no hay forma de "clavarlo" al borde visible
+   desde ahí). .has-overflow lo agrega renderProgreso() sólo cuando el
+   gráfico de verdad no entra entero: antes la línea/los puntos cortaban de
+   golpe contra el borde sin ningún aviso — parecía un gráfico roto, no uno
+   scrolleable (bug reportado: "se ve todo cortado"). */
+.progreso-chart-outer{position:relative}
+.progreso-chart-outer.has-overflow::after{
+  content:"";position:absolute;top:0;right:0;bottom:0;width:28px;pointer-events:none;
+  background:linear-gradient(to right, transparent, var(--c-surface));
+}
 /* <4 semestres con datos: comparación en barras en vez del SVG de línea de
    arriba (mismo .nota-row que "Progreso hacia el título" más abajo). */
 .progreso-barras{display:flex;flex-direction:column;gap:16px;padding:4px 0 2px}

@@ -52,6 +52,13 @@
       // Bloque 4: semestre histórico simulando lo que arma el onboarding
       // para materias aprobadas "antes de usar la app" — nunca activo, no
       // aparece en el selector/gestor (ver semestresPropiosOrdenados).
+      // sem-historico-1/2, con nota cargada: junto con sem-0/sem-1/
+      // sem-historico-3 suman 5 semestres con promedio — dispara el
+      // gráfico SVG de línea de buildProgresoChartSvg() (>=4 puntos), no
+      // sólo el fallback en barras. Sin esto el fixture nunca ejercitaba
+      // ese código (bug reportado: "se ve todo cortado").
+      { id: 'sem-historico-1', user_id: 'test-user-id-000', nombre: 'Semestre 1 (antes de Cursada)', activo: false, orden: -999, historico: true, created_at: '2026-01-01T00:00:00Z' },
+      { id: 'sem-historico-2', user_id: 'test-user-id-000', nombre: 'Semestre 2 (antes de Cursada)', activo: false, orden: -998, historico: true, created_at: '2026-01-01T00:00:00Z' },
       { id: 'sem-historico-3', user_id: 'test-user-id-000', nombre: 'Semestre 3 (antes de Cursada)', activo: false, orden: -997, historico: true, created_at: '2026-01-01T00:00:00Z' },
       // Semestre histórico sin ninguna materia con nota todavía — prueba el
       // caso "sin promedio" de renderProgresoSemestresLista.
@@ -76,6 +83,8 @@
       // Bloque 4: materias del semestre histórico — sin nota cargada (el
       // caso típico recién salido del onboarding) y con nota (para probar
       // el conteo de "exoneradas" y que sí aporte promedio al gráfico).
+      { id: 'mat-hist-4', user_id: 'test-user-id-000', semestre_id: 'sem-historico-1', nombre: 'Algoritmos I', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
+      { id: 'mat-hist-5', user_id: 'test-user-id-000', semestre_id: 'sem-historico-2', nombre: 'Redes', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' },
       { id: 'mat-hist-1', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Cálculo I', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6, exoneracion: 10 }, estado: 'aprobada' },
       { id: 'mat-hist-2', user_id: 'test-user-id-000', semestre_id: 'sem-historico-3', nombre: 'Química General', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6, exoneracion: 10 }, estado: 'aprobada' },
       { id: 'mat-hist-3', user_id: 'test-user-id-000', semestre_id: 'sem-historico-5', nombre: 'Física II', doc: '', color_id: 'gris', salon: '', bloques: [], esc: { tipo: 'nota', total: 12, aprob: 6 }, estado: 'aprobada' }
@@ -101,7 +110,9 @@
       { id: 'ag-old-2', user_id: 'test-user-id-000', materia_id: 'mat-old-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Historia', fecha: '2026-06-20', hora: '10:00', hecho: true, nota: 9, nota_maxima: 12, notas: '' },
       // mat-hist-1 (Cálculo I) a propósito sin ítem de agenda — simula una
       // materia aprobada en el onboarding sin nota cargada todavía.
-      { id: 'ag-hist-2', user_id: 'test-user-id-000', materia_id: 'mat-hist-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Química', fecha: '2025-12-10', hora: '10:00', hecho: true, nota: 11, nota_maxima: 12, notas: '' }
+      { id: 'ag-hist-2', user_id: 'test-user-id-000', materia_id: 'mat-hist-2', kind: 'evaluacion', tipo: 'Final', titulo: 'Final Química', fecha: '2025-12-10', hora: '10:00', hecho: true, nota: 11, nota_maxima: 12, notas: '' },
+      { id: 'ag-hist-4', user_id: 'test-user-id-000', materia_id: 'mat-hist-4', kind: 'evaluacion', tipo: 'Final', titulo: 'Nota final', fecha: '2025-06-10', hora: '', hecho: true, nota: 8, nota_maxima: 12, notas: '' },
+      { id: 'ag-hist-5', user_id: 'test-user-id-000', materia_id: 'mat-hist-5', kind: 'evaluacion', tipo: 'Final', titulo: 'Nota final', fecha: '2025-08-10', hora: '', hecho: true, nota: 10, nota_maxima: 12, notas: '' }
     ],
     personal: [
       { id: 'p-1', user_id: 'test-user-id-000', titulo: 'Gimnasio', fecha: todayPlus(0), hora: '19:00', todo_el_dia: false, tag_id: 'tag-2' },

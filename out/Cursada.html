@@ -1162,6 +1162,19 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    falta scrollear (encontrado probando en mobile, no por lectura de CSS). */
 .progreso-chart-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .progreso-chart-wrap svg{display:block}
+/* .progreso-chart-outer: envoltorio NO scrolleable de #progreso-chart, sólo
+   para anclar el degradé de "hay más" al borde del panel — puesto adentro
+   del propio elemento con overflow-x:auto se hubiera ido de vista junto con
+   el contenido al scrollear (no hay forma de "clavarlo" al borde visible
+   desde ahí). .has-overflow lo agrega renderProgreso() sólo cuando el
+   gráfico de verdad no entra entero: antes la línea/los puntos cortaban de
+   golpe contra el borde sin ningún aviso — parecía un gráfico roto, no uno
+   scrolleable (bug reportado: "se ve todo cortado"). */
+.progreso-chart-outer{position:relative}
+.progreso-chart-outer.has-overflow::after{
+  content:"";position:absolute;top:0;right:0;bottom:0;width:28px;pointer-events:none;
+  background:linear-gradient(to right, transparent, var(--c-surface));
+}
 /* <4 semestres con datos: comparación en barras en vez del SVG de línea de
    arriba (mismo .nota-row que "Progreso hacia el título" más abajo). */
 .progreso-barras{display:flex;flex-direction:column;gap:16px;padding:4px 0 2px}
@@ -2638,7 +2651,9 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
           </div>
           <div class="card panel">
             <div class="panel-head"><h2 class="panel-title">Semestres anteriores</h2></div>
-            <div class="progreso-chart-wrap" id="progreso-chart"></div>
+            <div class="progreso-chart-outer" id="progreso-chart-outer">
+              <div class="progreso-chart-wrap" id="progreso-chart"></div>
+            </div>
             <span class="hidden" id="progreso-chart-empty" style="font-size:13px;color:var(--c-ink3)">Todavía no hay semestres anteriores con promedio para graficar.</span>
             <!-- Bloque 4: aprobadas/exoneradas por semestre — incluye semestres
                  sin promedio todavía (p. ej. materias aprobadas en el onboarding
@@ -3948,8 +3963,16 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // <svg> inline sin falta de un helper de DOM con namespace) — el único
   // texto libre del usuario que entra ahí (nombre de semestre) pasa por
   // escapeHtml() primero.
-  function buildProgresoChartSvg(puntos) {
-    var w = Math.max(320, puntos.length * 110);
+  function buildProgresoChartSvg(puntos, availableW) {
+    // Antes el ancho era sólo `Math.max(320, puntos.length*110)`, sin mirar
+    // el contenedor real: con pocos puntos (ej. 4) el gráfico quedaba angosto
+    // y pegado a la izquierda de una card mucho más ancha, en vez de estirarse
+    // para usar el espacio disponible. `availableW` (el clientWidth real del
+    // wrap, medido en renderProgreso) es ahora el piso — el gráfico llena el
+    // contenedor cuando entra cómodo, y sólo crece más allá (con scroll
+    // horizontal, ver .progreso-chart-wrap) cuando de verdad hacen falta más
+    // de ~110px por punto para que texto/puntos no se pisen.
+    var w = Math.max(availableW || 320, puntos.length * 110);
     var h = 200;
     // padL/padR más anchos que lo que pide el trazo en sí: el label de
     // nombre de semestre (text-anchor="middle") en el primer/último punto se
@@ -5317,6 +5340,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     var puntos = computeProgresoPorSemestre();
     var puntosConPromedio = puntos.filter(function (p) { return p.promedio != null; });
     var chartWrap = document.getElementById('progreso-chart');
+    var chartOuter = document.getElementById('progreso-chart-outer');
     var chartEmpty = document.getElementById('progreso-chart-empty');
     if (!puntosConPromedio.length) {
       clear(chartWrap);
@@ -5325,14 +5349,34 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     } else {
       chartWrap.classList.remove('hidden');
       chartEmpty.classList.add('hidden');
-      if (puntosConPromedio.length >= 4) {
-        chartWrap.innerHTML = buildProgresoChartSvg(puntosConPromedio);
+      // El SVG de línea necesita ~110px por punto para que ni los puntos ni
+      // sus dos líneas de texto ("N/N aprob." + "72%") se pisen — con 5+
+      // semestres históricos (común: el onboarding puede armar hasta 8) eso
+      // no entra en los ~310px de una columna mobile, y el resultado se
+      // scrollea horizontalmente sin ningún indicio visual de que hay más
+      // para el costado: se ve cortado/roto, no "scrolleable" (bug
+      // reportado, reproducido con 5 semestres con nota en el fixture de
+      // test-harness). En mobile van directo a las barras — mismo dato,
+      // apiladas verticalmente, nunca se cortan sin importar cuántos
+      // semestres haya. En desktop se mantiene el gráfico (si entran los
+      // puntos cómodos no hace falta scrollear un carrito nunca).
+      if (puntosConPromedio.length >= 4 && !esMobile()) {
+        chartWrap.innerHTML = buildProgresoChartSvg(puntosConPromedio, chartWrap.clientWidth);
         chartWrap.querySelectorAll('.progreso-chart-point').forEach(function (g) {
           var id = g.getAttribute('data-semestre-id');
           g.addEventListener('click', function () { openSemestreMateriasModal(id); });
           g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openSemestreMateriasModal(id); } });
         });
-      } else renderProgresoBarras(chartWrap, puntosConPromedio);
+        // Con muchos semestres el gráfico igual puede no entrar entero ni en
+        // desktop — el degradé del borde derecho (.progreso-chart-outer.
+        // has-overflow) avisa que hay más para el costado, en vez de dejar
+        // que la línea corte de golpe contra el borde sin ningún aviso.
+        var tieneOverflow = chartWrap.scrollWidth > chartWrap.clientWidth + 1;
+        chartOuter.classList.toggle('has-overflow', tieneOverflow);
+      } else {
+        chartOuter.classList.remove('has-overflow');
+        renderProgresoBarras(chartWrap, puntosConPromedio);
+      }
     }
     renderProgresoSemestresLista(puntos);
 
