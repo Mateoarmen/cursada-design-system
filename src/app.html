@@ -276,16 +276,20 @@
             <span class="panel-hint" id="progreso-semestre-delta"></span>
           </div>
           <div id="progreso-semestre-empty" class="hidden">
-            <div class="progreso-semestre-empty-inner">
-              <span class="t">Todavía no cargaste ninguna nota este semestre</span>
-              <span class="s">Cuando cargues la primera vas a ver tu promedio, cuánto llevás calificado y cómo viene cada materia.</span>
-              <div class="progreso-semestre-empty-materias hidden" id="progreso-semestre-empty-materias"></div>
-              <!-- .btn liso, no .btn-primary+cta-glow (feedback: competía con el
-                   primario de "Lo próximo" arriba, la card de Inicio con el CTA
-                   que sí es urgente) — acá es una acción disponible, no LA única
-                   acción de la pantalla. -->
-              <button type="button" class="btn" id="btn-progreso-semestre-cargar">Cargar primera nota</button>
+            <div class="progreso-semestre-top">
+              <div class="progreso-semestre-promedio">
+                <span class="progreso-semestre-promedio-val progreso-semestre-promedio-val-ghost">—</span>
+                <span class="progreso-semestre-promedio-lbl">todavía sin promedio</span>
+              </div>
+              <div class="progreso-semestre-ring" id="progreso-semestre-empty-ring"></div>
             </div>
+            <p class="progreso-semestre-empty-copy">Cuando cargues la primera nota vas a ver tu promedio acá y cómo viene cada materia.</p>
+            <div class="progreso-semestre-materias progreso-semestre-materias-ghost hidden" id="progreso-semestre-empty-materias"></div>
+            <!-- .btn liso, no .btn-primary+cta-glow (feedback: competía con el
+                 primario de "Lo próximo" arriba, la card de Inicio con el CTA
+                 que sí es urgente) — acá es una acción disponible, no LA única
+                 acción de la pantalla. -->
+            <button type="button" class="btn" id="btn-progreso-semestre-cargar">Cargar primera nota</button>
           </div>
           <div id="progreso-semestre-content">
             <div class="progreso-semestre-top">

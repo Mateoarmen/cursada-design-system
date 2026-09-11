@@ -1213,15 +1213,32 @@
     document.getElementById('progreso-semestre-empty').classList.toggle('hidden', !sinNotas);
     document.getElementById('progreso-semestre-content').classList.toggle('hidden', sinNotas);
     if (sinNotas) {
-      // Sin notas todavía, la card no se queda con sólo el CTA — al menos
-      // se ve qué materias tiene cargadas el semestre activo (p.materias ya
-      // viene calculado arriba para el caso con notas, se reusa acá tal cual).
-      var chips = document.getElementById('progreso-semestre-empty-materias');
-      clear(chips);
-      chips.classList.toggle('hidden', !p.materias.length);
+      // Sin notas todavía, la card no cae a un cartel de texto suelto — se
+      // arma con el mismo anillo y las mismas filas por materia que la
+      // versión con datos (ver más abajo), sólo que en gris "fantasma", así
+      // ya enseña dónde va a aparecer cada cosa (p.materias ya viene
+      // calculado arriba para el caso con notas, se reusa acá tal cual).
+      var ringGhost = document.getElementById('progreso-semestre-empty-ring');
+      ringGhost.setAttribute('style', ringStyle(0, 'var(--c-line)', 72, 1));
+      clear(ringGhost);
+      var innerGhost = el('div'); innerGhost.setAttribute('style', ringInnerStyle(72, 7));
+      var g1 = el('span', 'mono'); g1.style.cssText = 'font-size:16px;font-weight:700;color:var(--c-ink3)'; g1.textContent = '0/' + p.materias.length;
+      var g2 = el('span'); g2.style.cssText = 'font-size:9px;color:var(--c-ink3)'; g2.textContent = 'notas';
+      innerGhost.appendChild(g1); innerGhost.appendChild(g2);
+      ringGhost.appendChild(innerGhost);
+
+      var listGhost = document.getElementById('progreso-semestre-empty-materias');
+      clear(listGhost);
+      listGhost.classList.toggle('hidden', !p.materias.length);
       p.materias.forEach(function (m) {
-        var chip = el('span', 'chip'); chip.textContent = m.nombre;
-        chips.appendChild(chip);
+        var row = el('div', 'progreso-semestre-materia-row');
+        var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+        var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
+        var nombre = el('span'); nombre.textContent = m.nombre;
+        nombreWrap.appendChild(dot); nombreWrap.appendChild(nombre);
+        var valEl = el('span', 'mono'); valEl.style.color = 'var(--c-ink3)'; valEl.textContent = '— /' + val(m.esc.aprob, m.esc);
+        row.appendChild(nombreWrap); row.appendChild(valEl);
+        listGhost.appendChild(row);
       });
       return;
     }

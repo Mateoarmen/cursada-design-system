@@ -589,15 +589,16 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-materia-row:hover{background:var(--c-surfaceAlt)}
 .progreso-semestre-materia-nombre{display:flex;align-items:center;gap:9px;min-width:0}
 .progreso-semestre-materia-nombre span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
-.progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
-.progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
-/* Mientras no hay ninguna nota cargada, la card no queda vacía salvo por el
-   CTA — al menos muestra qué materias ya tiene el semestre activo (ver
-   renderProgresoSemestre), reusando el look de chip-materia pero sin estado
-   interactivo (no filtran nada acá, sólo informan). */
-.progreso-semestre-empty-materias{display:flex;flex-wrap:wrap;gap:6px}
-.progreso-semestre-empty-materias .chip{background:var(--c-surfaceAlt);color:var(--c-ink2);height:26px;padding:0 11px;font-weight:500}
+/* Mientras no hay ninguna nota cargada, la card no cae a un cartel de texto
+   genérico — se arma con el mismo lenguaje visual que la versión con datos
+   (mismo .progreso-semestre-top con anillo, mismas filas por materia) pero
+   en gris "fantasma", así la card ya enseña dónde va a aparecer cada cosa
+   apenas cargues la primera nota en vez de reordenarse de golpe. */
+.progreso-semestre-promedio-val-ghost{color:var(--c-ink3)}
+.progreso-semestre-empty-copy{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px;margin:2px 0 14px}
+.progreso-semestre-materias-ghost .progreso-semestre-materia-row{cursor:default}
+.progreso-semestre-materias-ghost .progreso-semestre-materia-row:hover{background:none}
+#btn-progreso-semestre-cargar{margin-top:14px}
 /* "Materias pendientes" de Progreso — un grupo por semestre, filas con el
    mismo look que .progreso-semestre-materia-row (reusado tal cual, ver
    renderProgresoPendientes). El header no es un <h3> nuevo — mismo peso
