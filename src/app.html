@@ -270,38 +270,6 @@
             </div>
           </div>
         </div>
-        <div class="card panel progreso-semestre-card" id="progreso-semestre-card">
-          <div class="panel-head">
-            <h2 class="panel-title">Progreso del semestre</h2>
-            <span class="panel-hint" id="progreso-semestre-delta"></span>
-          </div>
-          <div id="progreso-semestre-empty" class="hidden">
-            <div class="progreso-semestre-top">
-              <div class="progreso-semestre-promedio">
-                <span class="progreso-semestre-promedio-val progreso-semestre-promedio-val-ghost">—</span>
-                <span class="progreso-semestre-promedio-lbl">todavía sin promedio</span>
-              </div>
-              <div class="progreso-semestre-ring" id="progreso-semestre-empty-ring"></div>
-            </div>
-            <p class="progreso-semestre-empty-copy">Cuando cargues la primera nota vas a ver tu promedio acá y cómo viene cada materia.</p>
-            <div class="progreso-semestre-materias progreso-semestre-materias-ghost hidden" id="progreso-semestre-empty-materias"></div>
-            <!-- .btn liso, no .btn-primary+cta-glow (feedback: competía con el
-                 primario de "Lo próximo" arriba, la card de Inicio con el CTA
-                 que sí es urgente) — acá es una acción disponible, no LA única
-                 acción de la pantalla. -->
-            <button type="button" class="btn" id="btn-progreso-semestre-cargar">Cargar primera nota</button>
-          </div>
-          <div id="progreso-semestre-content">
-            <div class="progreso-semestre-top">
-              <div class="progreso-semestre-promedio">
-                <span class="progreso-semestre-promedio-val" id="progreso-semestre-promedio"></span>
-                <span class="progreso-semestre-promedio-lbl">promedio del semestre</span>
-              </div>
-              <div class="progreso-semestre-ring" id="progreso-semestre-ring"></div>
-            </div>
-            <div class="progreso-semestre-materias" id="progreso-semestre-materias"></div>
-          </div>
-        </div>
         <div class="kpi-row" id="kpi-row"></div>
         <div class="inicio-cols">
           <div class="card panel" style="flex:1.55;min-width:340px">
@@ -336,6 +304,41 @@
                 <button class="acceso-btn" data-nav="horario"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>Ver horario</button>
               </div>
             </div>
+          </div>
+        </div>
+        <!-- Movida al final de Inicio (antes iba arriba, antes de "Próximos 7
+             días") — a simple vista lo que importa primero es "Lo próximo" y
+             las entregas cercanas, no el desglose de notas del semestre. -->
+        <div class="card panel progreso-semestre-card" id="progreso-semestre-card">
+          <div class="panel-head">
+            <h2 class="panel-title">Progreso del semestre</h2>
+            <span class="panel-hint" id="progreso-semestre-delta"></span>
+          </div>
+          <div id="progreso-semestre-empty" class="hidden">
+            <div class="progreso-semestre-top">
+              <div class="progreso-semestre-promedio">
+                <span class="progreso-semestre-promedio-val progreso-semestre-promedio-val-ghost">—</span>
+                <span class="progreso-semestre-promedio-lbl">todavía sin promedio</span>
+              </div>
+              <div class="progreso-semestre-ring" id="progreso-semestre-empty-ring"></div>
+            </div>
+            <p class="progreso-semestre-empty-copy">Cuando cargues la primera nota vas a ver tu promedio acá y cómo viene cada materia.</p>
+            <div class="progreso-semestre-materias progreso-semestre-materias-ghost hidden" id="progreso-semestre-empty-materias"></div>
+            <!-- .btn liso, no .btn-primary+cta-glow (feedback: competía con el
+                 primario de "Lo próximo" arriba, la card de Inicio con el CTA
+                 que sí es urgente) — acá es una acción disponible, no LA única
+                 acción de la pantalla. -->
+            <button type="button" class="btn" id="btn-progreso-semestre-cargar">Cargar primera nota</button>
+          </div>
+          <div id="progreso-semestre-content">
+            <div class="progreso-semestre-top">
+              <div class="progreso-semestre-promedio">
+                <span class="progreso-semestre-promedio-val" id="progreso-semestre-promedio"></span>
+                <span class="progreso-semestre-promedio-lbl">promedio del semestre</span>
+              </div>
+              <div class="progreso-semestre-ring" id="progreso-semestre-ring"></div>
+            </div>
+            <div class="progreso-semestre-materias" id="progreso-semestre-materias"></div>
           </div>
         </div>
       </div>

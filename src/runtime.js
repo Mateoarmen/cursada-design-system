@@ -1398,16 +1398,18 @@
   // Reubica #inicio-hero según el ancho (bloque C4: "Lo próximo" pasa a
   // verse también en desktop) — en vez de reglas CSS que lo muevan de
   // contenedor (no se puede: son padres distintos), se mueve el nodo en el
-  // DOM. En mobile va antes de #progreso-semestre-card ("Lo próximo" tiene
-  // que ganarle en orden — es lo urgente, el promedio del semestre puede
-  // esperar); en desktop entra como la primera card de la columna derecha de
-  // #inicio-cols, mismo ancho que Materias en riesgo/Progreso/Accesos.
-  // Idempotente: llamarla de nuevo sin haber cambiado de ancho no mueve nada.
+  // DOM. En mobile va antes de #kpi-row ("Lo próximo" tiene que ganarle en
+  // orden a todo lo demás — es lo urgente; progreso-semestre-card ahora
+  // vive al final de Inicio, así que ya no sirve de ancla, ver comentario
+  // en su <div> sobre por qué se movió); en desktop entra como la primera
+  // card de la columna derecha de #inicio-cols, mismo ancho que Materias en
+  // riesgo/Progreso/Accesos. Idempotente: llamarla de nuevo sin haber
+  // cambiado de ancho no mueve nada.
   function posicionarInicioHero() {
     var hero = document.getElementById('inicio-hero');
     if (esMobile()) {
-      var progresoCard = document.getElementById('progreso-semestre-card');
-      if (hero.nextElementSibling !== progresoCard) progresoCard.parentNode.insertBefore(hero, progresoCard);
+      var kpiRow = document.getElementById('kpi-row');
+      if (hero.nextElementSibling !== kpiRow) kpiRow.parentNode.insertBefore(hero, kpiRow);
     } else {
       var colDerecha = document.getElementById('inicio-cols-right');
       if (colDerecha.firstElementChild !== hero) colDerecha.insertBefore(hero, colDerecha.firstElementChild);
