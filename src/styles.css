@@ -592,6 +592,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
 .progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
 .progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
+/* Mientras no hay ninguna nota cargada, la card no queda vacía salvo por el
+   CTA — al menos muestra qué materias ya tiene el semestre activo (ver
+   renderProgresoSemestre), reusando el look de chip-materia pero sin estado
+   interactivo (no filtran nada acá, sólo informan). */
+.progreso-semestre-empty-materias{display:flex;flex-wrap:wrap;gap:6px}
+.progreso-semestre-empty-materias .chip{background:var(--c-surfaceAlt);color:var(--c-ink2);height:26px;padding:0 11px;font-weight:500}
 /* "Materias pendientes" de Progreso — un grupo por semestre, filas con el
    mismo look que .progreso-semestre-materia-row (reusado tal cual, ver
    renderProgresoPendientes). El header no es un <h3> nuevo — mismo peso
@@ -888,28 +894,18 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 /* Tarea vs. evaluación (feedback: "diferenciar de manera sutil pero
    notoria", después "demasiada información compitiendo, poca
-   diferenciación" — la primera pasada sumaba una etiqueta con fondo más
-   al montón en vez de aclararlo). Ahora la señal principal es la fila
-   entera: un tinte de fondo apenas perceptible (mismo warning que ya
-   usan badges de "por vencer", no un color nuevo) que se lee de un
-   vistazo sin competir con los chips — el tipo (Parcial/Final/...) suma
-   color+peso pero sin fondo propio, y el riel se engrosa apenas. Menos
-   elementos "gritando" a la vez, no más. Tarea/eventos personales
-   quedan con el tratamiento neutro de siempre. */
-/* .swipe-row > .agenda-row (más abajo, gesto de swipe en mobile) le pone
-   background:var(--c-surface) opaco para tapar la acción verde de fondo
-   durante el gesto — misma especificidad (2 clases) que una regla
-   .agenda-row.is-evaluacion suelta, y gana por venir después en el
-   archivo. Se repite el selector con el padre .swipe-row acá para ganar
-   por especificidad en vez de por orden (frágil: cualquier reorden del
-   archivo lo hubiera vuelto a romper). */
-.agenda-row.is-evaluacion,.swipe-row > .agenda-row.is-evaluacion{background:rgba(255,149,0,.05)}
+   diferenciación", y después "no me gusta el color, muy poco sobrio" — las
+   dos primeras pasadas usaban un tinte + texto en naranja de warning, que
+   terminaba leyéndose como una alerta en vez de una simple diferencia de
+   peso). Ahora la diferencia es sólo tipográfica/estructural, sin color
+   nuevo: título en negrita, el riel izquierdo (ya con el color propio de
+   la materia, ver barColorStyle en runtime.js) se engrosa apenas, y el
+   nombre de la materia pasa de --c-ink2 a --c-ink (un tono más oscuro,
+   no otro color). Tarea/eventos personales quedan con el tratamiento
+   neutro de siempre. */
 .agenda-row.is-evaluacion .bar4{width:6px}
 .agenda-row.is-evaluacion .agenda-title{font-weight:700}
-.agenda-row.is-evaluacion .agenda-meta .m{color:#B25C00;font-weight:700}
-html[data-theme="oscuro"] .agenda-row.is-evaluacion,
-html[data-theme="oscuro"] .swipe-row > .agenda-row.is-evaluacion{background:rgba(255,159,10,.09)}
-html[data-theme="oscuro"] .agenda-row.is-evaluacion .agenda-meta .m{color:#FFB454}
+.agenda-row.is-evaluacion .agenda-meta .m{color:var(--c-ink);font-weight:700}
 .agenda-fecha-col{display:flex;flex-direction:column;gap:2px;width:170px;text-align:right;flex:none}
 .agenda-fecha{font-size:14px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
 .agenda-fecha-col .prox-countdown{align-self:flex-end}
@@ -1318,6 +1314,19 @@ html[data-theme="oscuro"] .agenda-row.is-evaluacion .agenda-meta .m{color:#FFB45
 .wiz-item-titulo{font-size:14px;font-weight:600;letter-spacing:-.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wiz-item-meta{font-size:12px;color:var(--c-ink3)}
 .wiz-item-motivo{font-size:11px;color:var(--c-ink3);font-style:italic}
+
+/* Desglose de materias de un grupo elegido (Paso 4, camino "rápido"): un
+   riel a la izquierda + .is-sub más chica/sobria que .wiz-item-row normal
+   para que se lea como el detalle de la tarjeta de grupo de arriba, no como
+   otra decisión al mismo nivel — con 2+ grupos tildados, cada uno tiene su
+   propio contenedor en vez de mezclar todas las materias en una lista. */
+.wiz-suboferta-group{display:flex;flex-direction:column;gap:6px;padding-left:14px;margin-left:6px;border-left:2px solid var(--c-line-faint)}
+.wiz-suboferta-label{font-size:11px;font-weight:700;color:var(--c-ink3);letter-spacing:.04em;text-transform:uppercase;margin:2px 0 -2px}
+.wiz-item-row.is-sub{padding:10px 14px;background:transparent;border:1px solid var(--c-line-faint)}
+.wiz-item-row.is-sub .wiz-item-check{width:16px;height:16px}
+.wiz-item-row.is-sub .wiz-item-titulo{font-size:13px;font-weight:500}
+.wiz-item-row.is-sub.is-on{background:var(--c-surfaceAlt);border-color:var(--c-accent)}
+.wiz-item-row.is-sub.is-on .wiz-item-check{border-color:var(--c-accent);background:var(--c-accent)}
 /* Fila del paso "progreso": .wiz-item-row como contenedor pasivo (no es un
    <button>, ver wiz-progreso-row en app.html) con dos botones propios —
    Aprobada / Debo rendir examen, mutuamente excluyentes por JS. */

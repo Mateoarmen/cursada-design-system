@@ -605,6 +605,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-semestre-empty-inner{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:6px 0 10px}
 .progreso-semestre-empty-inner .t{font-size:15px;font-weight:600}
 .progreso-semestre-empty-inner .s{font-size:13px;color:var(--c-ink3);line-height:1.5;max-width:440px}
+/* Mientras no hay ninguna nota cargada, la card no queda vacía salvo por el
+   CTA — al menos muestra qué materias ya tiene el semestre activo (ver
+   renderProgresoSemestre), reusando el look de chip-materia pero sin estado
+   interactivo (no filtran nada acá, sólo informan). */
+.progreso-semestre-empty-materias{display:flex;flex-wrap:wrap;gap:6px}
+.progreso-semestre-empty-materias .chip{background:var(--c-surfaceAlt);color:var(--c-ink2);height:26px;padding:0 11px;font-weight:500}
 /* "Materias pendientes" de Progreso — un grupo por semestre, filas con el
    mismo look que .progreso-semestre-materia-row (reusado tal cual, ver
    renderProgresoPendientes). El header no es un <h3> nuevo — mismo peso
@@ -901,28 +907,18 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 }
 /* Tarea vs. evaluación (feedback: "diferenciar de manera sutil pero
    notoria", después "demasiada información compitiendo, poca
-   diferenciación" — la primera pasada sumaba una etiqueta con fondo más
-   al montón en vez de aclararlo). Ahora la señal principal es la fila
-   entera: un tinte de fondo apenas perceptible (mismo warning que ya
-   usan badges de "por vencer", no un color nuevo) que se lee de un
-   vistazo sin competir con los chips — el tipo (Parcial/Final/...) suma
-   color+peso pero sin fondo propio, y el riel se engrosa apenas. Menos
-   elementos "gritando" a la vez, no más. Tarea/eventos personales
-   quedan con el tratamiento neutro de siempre. */
-/* .swipe-row > .agenda-row (más abajo, gesto de swipe en mobile) le pone
-   background:var(--c-surface) opaco para tapar la acción verde de fondo
-   durante el gesto — misma especificidad (2 clases) que una regla
-   .agenda-row.is-evaluacion suelta, y gana por venir después en el
-   archivo. Se repite el selector con el padre .swipe-row acá para ganar
-   por especificidad en vez de por orden (frágil: cualquier reorden del
-   archivo lo hubiera vuelto a romper). */
-.agenda-row.is-evaluacion,.swipe-row > .agenda-row.is-evaluacion{background:rgba(255,149,0,.05)}
+   diferenciación", y después "no me gusta el color, muy poco sobrio" — las
+   dos primeras pasadas usaban un tinte + texto en naranja de warning, que
+   terminaba leyéndose como una alerta en vez de una simple diferencia de
+   peso). Ahora la diferencia es sólo tipográfica/estructural, sin color
+   nuevo: título en negrita, el riel izquierdo (ya con el color propio de
+   la materia, ver barColorStyle en runtime.js) se engrosa apenas, y el
+   nombre de la materia pasa de --c-ink2 a --c-ink (un tono más oscuro,
+   no otro color). Tarea/eventos personales quedan con el tratamiento
+   neutro de siempre. */
 .agenda-row.is-evaluacion .bar4{width:6px}
 .agenda-row.is-evaluacion .agenda-title{font-weight:700}
-.agenda-row.is-evaluacion .agenda-meta .m{color:#B25C00;font-weight:700}
-html[data-theme="oscuro"] .agenda-row.is-evaluacion,
-html[data-theme="oscuro"] .swipe-row > .agenda-row.is-evaluacion{background:rgba(255,159,10,.09)}
-html[data-theme="oscuro"] .agenda-row.is-evaluacion .agenda-meta .m{color:#FFB454}
+.agenda-row.is-evaluacion .agenda-meta .m{color:var(--c-ink);font-weight:700}
 .agenda-fecha-col{display:flex;flex-direction:column;gap:2px;width:170px;text-align:right;flex:none}
 .agenda-fecha{font-size:14px;color:var(--c-ink2);font-variant-numeric:tabular-nums}
 .agenda-fecha-col .prox-countdown{align-self:flex-end}
@@ -1331,6 +1327,19 @@ html[data-theme="oscuro"] .agenda-row.is-evaluacion .agenda-meta .m{color:#FFB45
 .wiz-item-titulo{font-size:14px;font-weight:600;letter-spacing:-.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wiz-item-meta{font-size:12px;color:var(--c-ink3)}
 .wiz-item-motivo{font-size:11px;color:var(--c-ink3);font-style:italic}
+
+/* Desglose de materias de un grupo elegido (Paso 4, camino "rápido"): un
+   riel a la izquierda + .is-sub más chica/sobria que .wiz-item-row normal
+   para que se lea como el detalle de la tarjeta de grupo de arriba, no como
+   otra decisión al mismo nivel — con 2+ grupos tildados, cada uno tiene su
+   propio contenedor en vez de mezclar todas las materias en una lista. */
+.wiz-suboferta-group{display:flex;flex-direction:column;gap:6px;padding-left:14px;margin-left:6px;border-left:2px solid var(--c-line-faint)}
+.wiz-suboferta-label{font-size:11px;font-weight:700;color:var(--c-ink3);letter-spacing:.04em;text-transform:uppercase;margin:2px 0 -2px}
+.wiz-item-row.is-sub{padding:10px 14px;background:transparent;border:1px solid var(--c-line-faint)}
+.wiz-item-row.is-sub .wiz-item-check{width:16px;height:16px}
+.wiz-item-row.is-sub .wiz-item-titulo{font-size:13px;font-weight:500}
+.wiz-item-row.is-sub.is-on{background:var(--c-surfaceAlt);border-color:var(--c-accent)}
+.wiz-item-row.is-sub.is-on .wiz-item-check{border-color:var(--c-accent);background:var(--c-accent)}
 /* Fila del paso "progreso": .wiz-item-row como contenedor pasivo (no es un
    <button>, ver wiz-progreso-row en app.html) con dos botones propios —
    Aprobada / Debo rendir examen, mutuamente excluyentes por JS. */
@@ -2357,29 +2366,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <button type="button" class="btn" id="btn-push-banner-ios-entendido">Entendido</button>
           </div>
         </div>
-        <div class="card panel progreso-semestre-card" id="progreso-semestre-card">
-          <div class="panel-head">
-            <h2 class="panel-title">Progreso del semestre</h2>
-            <span class="panel-hint" id="progreso-semestre-delta"></span>
-          </div>
-          <div id="progreso-semestre-empty" class="hidden">
-            <div class="progreso-semestre-empty-inner">
-              <span class="t">Todavía no cargaste ninguna nota este semestre</span>
-              <span class="s">Cuando cargues la primera vas a ver tu promedio, cuánto llevás calificado y cómo viene cada materia.</span>
-              <div class="cta-glow"><button type="button" class="btn btn-primary" id="btn-progreso-semestre-cargar">Cargar primera nota</button></div>
-            </div>
-          </div>
-          <div id="progreso-semestre-content">
-            <div class="progreso-semestre-top">
-              <div class="progreso-semestre-promedio">
-                <span class="progreso-semestre-promedio-val" id="progreso-semestre-promedio"></span>
-                <span class="progreso-semestre-promedio-lbl">promedio del semestre</span>
-              </div>
-              <div class="progreso-semestre-ring" id="progreso-semestre-ring"></div>
-            </div>
-            <div class="progreso-semestre-materias" id="progreso-semestre-materias"></div>
-          </div>
-        </div>
         <div class="inicio-hero" id="inicio-hero">
           <div class="inicio-hero-inner">
             <div class="inicio-hero-head">
@@ -2399,6 +2385,34 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
               <button type="button" class="btn btn-primary" id="inicio-hero-primary"></button>
               <button type="button" class="btn btn-ghost hidden" id="inicio-hero-secondary">Ver en agenda</button>
             </div>
+          </div>
+        </div>
+        <div class="card panel progreso-semestre-card" id="progreso-semestre-card">
+          <div class="panel-head">
+            <h2 class="panel-title">Progreso del semestre</h2>
+            <span class="panel-hint" id="progreso-semestre-delta"></span>
+          </div>
+          <div id="progreso-semestre-empty" class="hidden">
+            <div class="progreso-semestre-empty-inner">
+              <span class="t">Todavía no cargaste ninguna nota este semestre</span>
+              <span class="s">Cuando cargues la primera vas a ver tu promedio, cuánto llevás calificado y cómo viene cada materia.</span>
+              <div class="progreso-semestre-empty-materias hidden" id="progreso-semestre-empty-materias"></div>
+              <!-- .btn liso, no .btn-primary+cta-glow (feedback: competía con el
+                   primario de "Lo próximo" arriba, la card de Inicio con el CTA
+                   que sí es urgente) — acá es una acción disponible, no LA única
+                   acción de la pantalla. -->
+              <button type="button" class="btn" id="btn-progreso-semestre-cargar">Cargar primera nota</button>
+            </div>
+          </div>
+          <div id="progreso-semestre-content">
+            <div class="progreso-semestre-top">
+              <div class="progreso-semestre-promedio">
+                <span class="progreso-semestre-promedio-val" id="progreso-semestre-promedio"></span>
+                <span class="progreso-semestre-promedio-lbl">promedio del semestre</span>
+              </div>
+              <div class="progreso-semestre-ring" id="progreso-semestre-ring"></div>
+            </div>
+            <div class="progreso-semestre-materias" id="progreso-semestre-materias"></div>
           </div>
         </div>
         <div class="kpi-row" id="kpi-row"></div>
@@ -5070,7 +5084,19 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     var sinNotas = p.evaluacionesCalificadas === 0;
     document.getElementById('progreso-semestre-empty').classList.toggle('hidden', !sinNotas);
     document.getElementById('progreso-semestre-content').classList.toggle('hidden', sinNotas);
-    if (sinNotas) return;
+    if (sinNotas) {
+      // Sin notas todavía, la card no se queda con sólo el CTA — al menos
+      // se ve qué materias tiene cargadas el semestre activo (p.materias ya
+      // viene calculado arriba para el caso con notas, se reusa acá tal cual).
+      var chips = document.getElementById('progreso-semestre-empty-materias');
+      clear(chips);
+      chips.classList.toggle('hidden', !p.materias.length);
+      p.materias.forEach(function (m) {
+        var chip = el('span', 'chip'); chip.textContent = m.nombre;
+        chips.appendChild(chip);
+      });
+      return;
+    }
 
     document.getElementById('progreso-semestre-promedio').textContent = p.promedio != null ? p.promedio + '%' : '—';
     var ring = document.getElementById('progreso-semestre-ring');
@@ -5215,15 +5241,16 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // Reubica #inicio-hero según el ancho (bloque C4: "Lo próximo" pasa a
   // verse también en desktop) — en vez de reglas CSS que lo muevan de
   // contenedor (no se puede: son padres distintos), se mueve el nodo en el
-  // DOM. En mobile va antes de #kpi-row (primer elemento grande de la
-  // vista); en desktop entra como la primera card de la columna derecha de
+  // DOM. En mobile va antes de #progreso-semestre-card ("Lo próximo" tiene
+  // que ganarle en orden — es lo urgente, el promedio del semestre puede
+  // esperar); en desktop entra como la primera card de la columna derecha de
   // #inicio-cols, mismo ancho que Materias en riesgo/Progreso/Accesos.
   // Idempotente: llamarla de nuevo sin haber cambiado de ancho no mueve nada.
   function posicionarInicioHero() {
     var hero = document.getElementById('inicio-hero');
     if (esMobile()) {
-      var kpiRow = document.getElementById('kpi-row');
-      if (hero.nextElementSibling !== kpiRow) kpiRow.parentNode.insertBefore(hero, kpiRow);
+      var progresoCard = document.getElementById('progreso-semestre-card');
+      if (hero.nextElementSibling !== progresoCard) progresoCard.parentNode.insertBefore(hero, progresoCard);
     } else {
       var colDerecha = document.getElementById('inicio-cols-right');
       if (colDerecha.firstElementChild !== hero) colDerecha.insertBefore(hero, colDerecha.firstElementChild);
@@ -8457,15 +8484,29 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
           if (!excluidas[m.dictado_id]) dictadoActivoPorMateria[m.materia_id] = m.dictado_id;
         });
       });
+      // Con 2+ grupos tildados, sus materias antes caían todas juntas en una
+      // sola lista plana — imposible distinguir a qué grupo pertenecía cada
+      // una sin leer el meta de cada fila. Ahora cada grupo tiene su propio
+      // contenedor (wiz-suboferta-group, con riel a la izquierda + etiqueta)
+      // y las filas usan .is-sub para pesar visualmente menos que la tarjeta
+      // de grupo de arriba — es un desglose del paquete, no otra decisión al
+      // mismo nivel.
+      var variosElegidos = Object.keys(elegidos).length > 1;
       Object.keys(elegidos).forEach(function (gid) {
         var g = elegidos[gid];
-        if (!Array.isArray(g.materias)) return;
+        if (!Array.isArray(g.materias) || !g.materias.length) return;
+        var grupoWrap = el('div', 'wiz-suboferta-group');
+        if (variosElegidos) {
+          var label = el('span', 'wiz-suboferta-label');
+          label.textContent = g.codigo;
+          grupoWrap.appendChild(label);
+        }
         g.materias.forEach(function (m) {
           var node = tpl('wiz-item-row');
-          node.classList.add('is-check');
+          node.classList.add('is-check', 'is-sub');
           node.classList.toggle('is-on', !excluidas[m.dictado_id]);
           qf(node, 'titulo').textContent = m.nombre;
-          var metaPartes = multiple ? [g.codigo, m.salon, formatHorario(m.bloques)] : [m.salon, formatHorario(m.bloques)];
+          var metaPartes = [m.salon, formatHorario(m.bloques)];
           qf(node, 'meta').textContent = metaPartes.filter(Boolean).join(' · ');
           node.addEventListener('click', async function () {
             if (excluidas[m.dictado_id]) {
@@ -8479,8 +8520,9 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
             }
             await wizRenderOferta();
           });
-          content.appendChild(node);
+          grupoWrap.appendChild(node);
         });
+        content.appendChild(grupoWrap);
       });
     }
     var linkManual = el('button', 'add-link'); linkManual.type = 'button';
@@ -9933,10 +9975,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // esto sólo le precarga un valor elegido de una lista en vez de tipeado a
   // mano; no toca `carrera_id` (eso lo asigna el wizard de catálogo más
   // adelante, con su propio paso dedicado — ver WIZ_PASOS). Mientras no hay
-  // catálogo, o mientras no se eligió nada todavía, el select y el campo de
-  // texto conviven visibles (se puede elegir de la lista o escribir directo);
-  // sólo se oculta el texto cuando el select tiene una carrera real elegida
-  // (ahí el input ya quedó sincronizado con ese valor, nunca vacío).
+  // catálogo para la universidad elegida, el campo sigue siendo texto libre
+  // de siempre. Si SÍ hay catálogo, el input de texto libre se oculta apenas
+  // el <select> se puebla — se vuelve a mostrar únicamente si el usuario
+  // elige "No está en la lista" (antes quedaba visible también con el
+  // placeholder "Elegí tu carrera" sin elegir nada, y la gente terminaba
+  // tipeando ahí directo en vez de usar el desplegable).
   // Bloque 7: un solo control de "Carrera" — antes el <select> del catálogo
   // y el <input> de texto libre vivían en .field separados, cada uno con su
   // propio label (el del input cambiaba a "¿No está en la lista?"), y se
@@ -9952,21 +9996,27 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     input.classList.remove('hidden');
     input.value = carreraActual || '';
     function sincronizarVisibilidad() {
-      var esCatalogo = sel.value && sel.value !== 'otra';
-      input.classList.toggle('hidden', esCatalogo);
-      if (esCatalogo) input.value = sel.value;
+      var hayCatalogo = sel.options.length > 0;
+      var esOtra = sel.value === 'otra';
+      input.classList.toggle('hidden', hayCatalogo && !esOtra);
+      if (hayCatalogo && !esOtra && sel.value) input.value = sel.value;
     }
     cargarCarrerasDeUniversidad(universityId).then(function (carreras) {
       if (!carreras.length) return; // sin catálogo para esta institución: sigue siendo texto libre
       var optVacia = el('option'); optVacia.value = ''; optVacia.textContent = 'Elegí tu carrera'; sel.appendChild(optVacia);
       carreras.forEach(function (c) {
         // Mismo criterio que el wizard (wizCargarCarreras): si hay dos
-        // carreras con el mismo nombre (planes distintos) hay que poder
-        // distinguirlas en la lista, aunque acá el valor guardado sea sólo
-        // el nombre — no hace falta el id porque este campo no elige un plan.
+        // carreras con el mismo nombre, hay que distinguirlas en la lista —
+        // plan_version (plan nuevo/viejo) es la etiqueta correcta, no la
+        // facultad (las dos suelen compartir la misma facultad, así que
+        // eso solo no alcanza para diferenciarlas). No hace falta el id
+        // porque este campo no elige un plan, sólo precarga el nombre.
         var dup = carreras.filter(function (x) { return x.nombre === c.nombre; }).length > 1;
+        var plan = c.plan_version || c.planVersion || c.plan || '';
         var o = el('option'); o.value = c.nombre;
-        o.textContent = dup && c.facultad ? c.nombre + ' — ' + c.facultad : c.nombre;
+        var etiqueta = c.nombre;
+        if (dup) etiqueta += ' — ' + (plan || c.facultad || 'plan no informado');
+        o.textContent = etiqueta;
         sel.appendChild(o);
       });
       var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'No está en la lista'; sel.appendChild(optOtra);

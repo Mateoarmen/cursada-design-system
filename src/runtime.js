@@ -1212,7 +1212,19 @@
     var sinNotas = p.evaluacionesCalificadas === 0;
     document.getElementById('progreso-semestre-empty').classList.toggle('hidden', !sinNotas);
     document.getElementById('progreso-semestre-content').classList.toggle('hidden', sinNotas);
-    if (sinNotas) return;
+    if (sinNotas) {
+      // Sin notas todavía, la card no se queda con sólo el CTA — al menos
+      // se ve qué materias tiene cargadas el semestre activo (p.materias ya
+      // viene calculado arriba para el caso con notas, se reusa acá tal cual).
+      var chips = document.getElementById('progreso-semestre-empty-materias');
+      clear(chips);
+      chips.classList.toggle('hidden', !p.materias.length);
+      p.materias.forEach(function (m) {
+        var chip = el('span', 'chip'); chip.textContent = m.nombre;
+        chips.appendChild(chip);
+      });
+      return;
+    }
 
     document.getElementById('progreso-semestre-promedio').textContent = p.promedio != null ? p.promedio + '%' : '—';
     var ring = document.getElementById('progreso-semestre-ring');
@@ -1357,15 +1369,16 @@
   // Reubica #inicio-hero según el ancho (bloque C4: "Lo próximo" pasa a
   // verse también en desktop) — en vez de reglas CSS que lo muevan de
   // contenedor (no se puede: son padres distintos), se mueve el nodo en el
-  // DOM. En mobile va antes de #kpi-row (primer elemento grande de la
-  // vista); en desktop entra como la primera card de la columna derecha de
+  // DOM. En mobile va antes de #progreso-semestre-card ("Lo próximo" tiene
+  // que ganarle en orden — es lo urgente, el promedio del semestre puede
+  // esperar); en desktop entra como la primera card de la columna derecha de
   // #inicio-cols, mismo ancho que Materias en riesgo/Progreso/Accesos.
   // Idempotente: llamarla de nuevo sin haber cambiado de ancho no mueve nada.
   function posicionarInicioHero() {
     var hero = document.getElementById('inicio-hero');
     if (esMobile()) {
-      var kpiRow = document.getElementById('kpi-row');
-      if (hero.nextElementSibling !== kpiRow) kpiRow.parentNode.insertBefore(hero, kpiRow);
+      var progresoCard = document.getElementById('progreso-semestre-card');
+      if (hero.nextElementSibling !== progresoCard) progresoCard.parentNode.insertBefore(hero, progresoCard);
     } else {
       var colDerecha = document.getElementById('inicio-cols-right');
       if (colDerecha.firstElementChild !== hero) colDerecha.insertBefore(hero, colDerecha.firstElementChild);
@@ -4599,15 +4612,29 @@
           if (!excluidas[m.dictado_id]) dictadoActivoPorMateria[m.materia_id] = m.dictado_id;
         });
       });
+      // Con 2+ grupos tildados, sus materias antes caían todas juntas en una
+      // sola lista plana — imposible distinguir a qué grupo pertenecía cada
+      // una sin leer el meta de cada fila. Ahora cada grupo tiene su propio
+      // contenedor (wiz-suboferta-group, con riel a la izquierda + etiqueta)
+      // y las filas usan .is-sub para pesar visualmente menos que la tarjeta
+      // de grupo de arriba — es un desglose del paquete, no otra decisión al
+      // mismo nivel.
+      var variosElegidos = Object.keys(elegidos).length > 1;
       Object.keys(elegidos).forEach(function (gid) {
         var g = elegidos[gid];
-        if (!Array.isArray(g.materias)) return;
+        if (!Array.isArray(g.materias) || !g.materias.length) return;
+        var grupoWrap = el('div', 'wiz-suboferta-group');
+        if (variosElegidos) {
+          var label = el('span', 'wiz-suboferta-label');
+          label.textContent = g.codigo;
+          grupoWrap.appendChild(label);
+        }
         g.materias.forEach(function (m) {
           var node = tpl('wiz-item-row');
-          node.classList.add('is-check');
+          node.classList.add('is-check', 'is-sub');
           node.classList.toggle('is-on', !excluidas[m.dictado_id]);
           qf(node, 'titulo').textContent = m.nombre;
-          var metaPartes = multiple ? [g.codigo, m.salon, formatHorario(m.bloques)] : [m.salon, formatHorario(m.bloques)];
+          var metaPartes = [m.salon, formatHorario(m.bloques)];
           qf(node, 'meta').textContent = metaPartes.filter(Boolean).join(' · ');
           node.addEventListener('click', async function () {
             if (excluidas[m.dictado_id]) {
@@ -4621,8 +4648,9 @@
             }
             await wizRenderOferta();
           });
-          content.appendChild(node);
+          grupoWrap.appendChild(node);
         });
+        content.appendChild(grupoWrap);
       });
     }
     var linkManual = el('button', 'add-link'); linkManual.type = 'button';
@@ -6075,10 +6103,12 @@
   // esto sólo le precarga un valor elegido de una lista en vez de tipeado a
   // mano; no toca `carrera_id` (eso lo asigna el wizard de catálogo más
   // adelante, con su propio paso dedicado — ver WIZ_PASOS). Mientras no hay
-  // catálogo, o mientras no se eligió nada todavía, el select y el campo de
-  // texto conviven visibles (se puede elegir de la lista o escribir directo);
-  // sólo se oculta el texto cuando el select tiene una carrera real elegida
-  // (ahí el input ya quedó sincronizado con ese valor, nunca vacío).
+  // catálogo para la universidad elegida, el campo sigue siendo texto libre
+  // de siempre. Si SÍ hay catálogo, el input de texto libre se oculta apenas
+  // el <select> se puebla — se vuelve a mostrar únicamente si el usuario
+  // elige "No está en la lista" (antes quedaba visible también con el
+  // placeholder "Elegí tu carrera" sin elegir nada, y la gente terminaba
+  // tipeando ahí directo en vez de usar el desplegable).
   // Bloque 7: un solo control de "Carrera" — antes el <select> del catálogo
   // y el <input> de texto libre vivían en .field separados, cada uno con su
   // propio label (el del input cambiaba a "¿No está en la lista?"), y se
@@ -6094,21 +6124,27 @@
     input.classList.remove('hidden');
     input.value = carreraActual || '';
     function sincronizarVisibilidad() {
-      var esCatalogo = sel.value && sel.value !== 'otra';
-      input.classList.toggle('hidden', esCatalogo);
-      if (esCatalogo) input.value = sel.value;
+      var hayCatalogo = sel.options.length > 0;
+      var esOtra = sel.value === 'otra';
+      input.classList.toggle('hidden', hayCatalogo && !esOtra);
+      if (hayCatalogo && !esOtra && sel.value) input.value = sel.value;
     }
     cargarCarrerasDeUniversidad(universityId).then(function (carreras) {
       if (!carreras.length) return; // sin catálogo para esta institución: sigue siendo texto libre
       var optVacia = el('option'); optVacia.value = ''; optVacia.textContent = 'Elegí tu carrera'; sel.appendChild(optVacia);
       carreras.forEach(function (c) {
         // Mismo criterio que el wizard (wizCargarCarreras): si hay dos
-        // carreras con el mismo nombre (planes distintos) hay que poder
-        // distinguirlas en la lista, aunque acá el valor guardado sea sólo
-        // el nombre — no hace falta el id porque este campo no elige un plan.
+        // carreras con el mismo nombre, hay que distinguirlas en la lista —
+        // plan_version (plan nuevo/viejo) es la etiqueta correcta, no la
+        // facultad (las dos suelen compartir la misma facultad, así que
+        // eso solo no alcanza para diferenciarlas). No hace falta el id
+        // porque este campo no elige un plan, sólo precarga el nombre.
         var dup = carreras.filter(function (x) { return x.nombre === c.nombre; }).length > 1;
+        var plan = c.plan_version || c.planVersion || c.plan || '';
         var o = el('option'); o.value = c.nombre;
-        o.textContent = dup && c.facultad ? c.nombre + ' — ' + c.facultad : c.nombre;
+        var etiqueta = c.nombre;
+        if (dup) etiqueta += ' — ' + (plan || c.facultad || 'plan no informado');
+        o.textContent = etiqueta;
         sel.appendChild(o);
       });
       var optOtra = el('option'); optOtra.value = 'otra'; optOtra.textContent = 'No está en la lista'; sel.appendChild(optOtra);
