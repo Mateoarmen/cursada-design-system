@@ -8408,13 +8408,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     });
     var semHistoricoPorNumero = {};
     for (var i = 0; i < semestresNecesarios.length; i++) {
-      var n = semestresNecesarios[i];
-      // Si el usuario ya marcó este número como "lo estoy cursando ahora"
-      // (Paso 3, WIZ.semestresElegidos), estas materias van directo al
-      // semestre actual en vez de a un histórico aparte — ver
-      // obtenerOCrearSemestrePeriodo, que además fusiona cualquier
-      // histórico previo con el mismo número dentro del actual.
-      semHistoricoPorNumero[n] = WIZ.semestresElegidos.indexOf(n) >= 0 ? WIZ.semestreId : await obtenerOCrearSemestreHistorico(n);
+      semHistoricoPorNumero[semestresNecesarios[i]] = await obtenerOCrearSemestreHistorico(semestresNecesarios[i]);
     }
     var colorKeys = Object.keys(ACCENTS).filter(function (k) { return k !== 'gris'; });
     var colorIdx = 0;
@@ -9126,7 +9120,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       if (!WIZ.semestresElegidos.length) { wizMostrarError('Elegí al menos un semestre.'); return; }
       setBtnBusy(btn, true, 'Preparando…');
       try {
-        WIZ.semestreId = await obtenerOCrearSemestrePeriodo(PERIODO_ACTUAL, WIZ.semestresElegidos);
+        WIZ.semestreId = await obtenerOCrearSemestrePeriodo(PERIODO_ACTUAL);
       } catch (e) {
         setBtnBusy(btn, false);
         wizMostrarError(e.message);
@@ -9510,8 +9504,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // Nombre sugerido para un semestre creado a partir de un período del
   // catálogo ('2026-2' -> "2026 · Segundo semestre") — mismo formato que
   // sugerirNombreSemestre(), pero derivado del período que el usuario eligió
-  // en el wizard de onboarding, no de la fecha real del dispositivo. Fallback
-  // de nombreSemestreActual() cuando no hay un único número de plan elegido.
+  // en el wizard de onboarding, no de la fecha real del dispositivo.
   function nombreDesdePeriodo(periodo) {
     var partes = (periodo || '').split('-');
     var anio = partes[0] || String(today().getFullYear());
@@ -9519,69 +9512,21 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     return anio + ' · ' + mitad;
   }
 
-  // Si el usuario eligió un único número de plan como "lo estoy cursando
-  // ahora" (Paso 3 del wizard, WIZ.semestresElegidos), ese número es más
-  // identificable que el período calendario — "Semestre 4" en vez de
-  // "2026 · Segundo semestre" (el " · actual" que se ve en Progreso/
-  // switcher NO va acá, lo agrega cada vista para el semestre activo, ver
-  // los 3 usos de " · actual" más abajo — ponerlo acá lo duplicaría). Con 0
-  // o 2+ elegidos no hay un único número que nombre el semestre, así que cae
-  // al período.
-  function nombreSemestreActual(periodo, semestresElegidos) {
-    if (semestresElegidos && semestresElegidos.length === 1) return 'Semestre ' + semestresElegidos[0];
-    return nombreDesdePeriodo(periodo);
-  }
-
-  // Bloque 4 fusiona con lo actual: las materias aprobadas/pendientes que
-  // wizCrearMateriasAprobadas() había agrupado en el semestre histórico
-  // "Semestre N (antes de Cursada)" en una corrida anterior del wizard son,
-  // en realidad, del semestre que el usuario ahora eligió como actual (mismo
-  // N) — se pasan al semestre actual y el histórico, si queda vacío, se
-  // borra. Sin esto, "materia aprobada de este semestre" quedaba separada de
-  // "actual" para siempre (ver comentario del usuario que originó esto).
-  async function fusionarHistoricoEnActual(n, semestreActualId) {
-    var nombreHistorico = 'Semestre ' + n + ' (antes de Cursada)';
-    var historico = loadSemestresRaw().filter(function (s) { return s.historico && s.nombre === nombreHistorico; })[0];
-    if (!historico || historico.id === semestreActualId) return;
-    var materias = loadMateriasRaw();
-    var afectadas = materias.some(function (m) { return m.semestreId === historico.id; });
-    if (afectadas) {
-      var actualizadas = materias.map(function (m) { return m.semestreId === historico.id ? Object.assign({}, m, { semestreId: semestreActualId }) : m; });
-      if (!(await saveMateriasRaw(actualizadas))) throw new Error('No se pudo fusionar el progreso anterior con el semestre actual.');
-    }
-    var arr = loadSemestresRaw().filter(function (s) { return s.id !== historico.id; });
-    if (!(await saveSemestresRaw(arr))) throw new Error('No se pudo fusionar el progreso anterior con el semestre actual.');
-  }
-
   // Reusa un semestre existente con este período (re-ejecutar el wizard de
   // onboarding no duplica) o crea uno nuevo y lo activa — mismo patrón de
   // activar/desactivar secuencial que crearSemestre() (ver saveSemestresRaw,
-  // la restricción de "un solo activo" vive en la base). semestresElegidos
-  // (Paso 3) decide el nombre (ver nombreSemestreActual) y qué históricos
-  // fusionar (ver fusionarHistoricoEnActual) — al reusar uno existente sólo
-  // se renombra si seguía con el nombre auto-generado por período, para no
-  // pisar un nombre que el usuario haya puesto a mano.
-  async function obtenerOCrearSemestrePeriodo(periodo, semestresElegidos) {
-    var nombreSugerido = nombreSemestreActual(periodo, semestresElegidos);
+  // la restricción de "un solo activo" vive en la base).
+  async function obtenerOCrearSemestrePeriodo(periodo) {
     var existente = loadSemestresRaw().filter(function (s) { return s.periodo === periodo; })[0];
-    var semestreId;
     if (existente) {
       if (!existente.activo && !(await setSemestreActivo(existente.id))) throw new Error('No se pudo activar el semestre.');
-      if (existente.nombre === nombreDesdePeriodo(periodo) && nombreSugerido !== existente.nombre) {
-        var arrRenombrado = loadSemestresRaw().map(function (s) { return s.id === existente.id ? Object.assign({}, s, { nombre: nombreSugerido }) : s; });
-        if (!(await saveSemestresRaw(arrRenombrado))) throw new Error('No se pudo renombrar el semestre.');
-      }
-      semestreId = existente.id;
-    } else {
-      var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: false }); });
-      semestreId = uid();
-      arr.push({ id: semestreId, nombre: nombreSugerido, activo: true, orden: proximoOrdenSemestre(), periodo: periodo });
-      if (!(await saveSemestresRaw(arr))) throw new Error('No se pudo crear el semestre.');
+      return existente.id;
     }
-    for (var i = 0; semestresElegidos && i < semestresElegidos.length; i++) {
-      await fusionarHistoricoEnActual(semestresElegidos[i], semestreId);
-    }
-    return semestreId;
+    var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: false }); });
+    var id = uid();
+    arr.push({ id: id, nombre: nombreDesdePeriodo(periodo), activo: true, orden: proximoOrdenSemestre(), periodo: periodo });
+    if (!(await saveSemestresRaw(arr))) throw new Error('No se pudo crear el semestre.');
+    return id;
   }
 
   // Bloque 4: semestre sintético que agrupa las materias aprobadas/pendientes
