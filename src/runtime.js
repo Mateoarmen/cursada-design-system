@@ -7136,7 +7136,12 @@
         var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
         setBtnBusy(btn, false);
         if (ok) {
-          syncToGoogleCalendar('create', 'agenda', nueva.id);
+          // Sin syncToGoogleCalendar acá a propósito: `fecha` es un
+          // placeholder (el día que cargaste la nota, no una fecha real de
+          // la materia aprobada en otro semestre) — sincronizarlo creaba un
+          // evento "Nota final" fantasma hoy en el Google Calendar del
+          // usuario por cada materia que backfillea (bug reportado por el
+          // usuario tras el onboarding).
           showToast('Nota cargada.');
           renderProgresoPendientesModal();
           renderAjustesAprobadas();
