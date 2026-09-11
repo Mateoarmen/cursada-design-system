@@ -1072,8 +1072,15 @@ html[data-theme="oscuro"] .agenda-row.is-evaluacion .agenda-meta .m{color:#FFB45
 /* "Completá tu perfil" obligatorio (cuentas de Google, ver runtime.js):
    se muestra ANTES de revelar #app, como una pantalla más — fondo sólido en
    vez de translúcido, mismo z-index que auth-screen/gate-screen, centrado
-   verticalmente en vez de anclado arriba (no hay nada largo que scrollear). */
-.modal-backdrop.is-gate{background:var(--c-bg);z-index:300;align-items:center}
+   verticalmente en vez de anclado arriba. overflow-y:auto (misma solución
+   que .auth-screen, ver ahí) porque en mobile el formulario completo
+   (avatar, nombre, apellido, fecha de nacimiento, país, teléfono,
+   universidad, carrera) es más alto que el viewport — sin esto, .modal-
+   backdrop hereda overflow:hidden del @media(max-width:760px) de abajo y
+   los campos de abajo del todo quedan recortados e inalcanzables (ni swipe
+   ni scroll los revela, porque el padre nunca deja que el hijo se desborde
+   scrolleable). */
+.modal-backdrop.is-gate{background:var(--c-bg);z-index:300;align-items:center;overflow-y:auto}
 .modal-backdrop.is-gate .modal{margin-top:0}
 /* El modal en sí es el que scrollea (no un hijo flex/grid intermedio): header y
    footer quedan "pegados" arriba/abajo con position:sticky. Evita el clásico
