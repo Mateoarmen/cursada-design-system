@@ -2366,6 +2366,15 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <button type="button" class="btn" id="btn-push-banner-ios-entendido">Entendido</button>
           </div>
         </div>
+        <div class="card push-banner hidden" id="inicio-notas-pendientes-banner">
+          <div class="push-banner-text">
+            <span class="t" id="inicio-notas-pendientes-titulo"></span>
+            <span class="s" id="inicio-notas-pendientes-desc"></span>
+          </div>
+          <div class="push-banner-actions">
+            <button type="button" class="btn btn-primary" id="btn-inicio-notas-pendientes">Cargar notas</button>
+          </div>
+        </div>
         <div class="inicio-hero" id="inicio-hero">
           <div class="inicio-hero-inner">
             <div class="inicio-hero-head">
@@ -5149,6 +5158,18 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     document.getElementById('inicio-note').innerHTML = 'Tenés <b style="color:var(--c-ink)">' + agenda.length + '</b> ' + (agenda.length === 1 ? 'entrega pendiente' : 'entregas pendientes');
 
     renderProgresoSemestre();
+
+    // Mismo aviso que Progreso/Ajustes (materiasAprobadasSinNota) pero acá
+    // en Inicio, a propósito: Ajustes queda escondido para quien no sabe
+    // que existe, así que el aviso de "hay que completar lo que dejó el
+    // wizard" tiene que aparecer también en la primera pantalla que ve.
+    var sinNotaInicio = materiasAprobadasSinNota().length;
+    var notasBanner = document.getElementById('inicio-notas-pendientes-banner');
+    notasBanner.classList.toggle('hidden', !sinNotaInicio);
+    if (sinNotaInicio) {
+      document.getElementById('inicio-notas-pendientes-titulo').textContent = sinNotaInicio === 1 ? 'Tenés 1 materia aprobada sin nota cargada' : 'Tenés ' + sinNotaInicio + ' materias aprobadas sin nota cargada';
+      document.getElementById('inicio-notas-pendientes-desc').textContent = sinNotaInicio === 1 ? 'No cuenta en tu promedio hasta que le cargues una nota.' : 'No cuentan en tu promedio hasta que les cargues una nota.';
+    }
 
     var kpiRow = document.getElementById('kpi-row');
     clear(kpiRow);
@@ -9549,6 +9570,10 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     document.getElementById('acceso-entrega').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('acceso-evento').addEventListener('click', function () { openPersonalModal({}); });
     document.getElementById('btn-progreso-semestre-cargar').addEventListener('click', function () { location.hash = '#agenda'; });
+    document.getElementById('btn-inicio-notas-pendientes').addEventListener('click', function () {
+      renderProgresoPendientesModal();
+      openModal('modal-progreso-pendientes');
+    });
     document.getElementById('btn-agenda-nuevo').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('agenda-search').addEventListener('input', function (e) { STATE.agendaQuery = e.target.value; renderAgenda(); });
     document.getElementById('btn-horario-editar').addEventListener('click', function () { openMateriaModal(null); });
@@ -10973,6 +10998,7 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
           renderProgresoPendientesModal();
           renderAjustesAprobadas();
           renderProgreso();
+          renderInicio();
         } else {
           avisarError();
         }

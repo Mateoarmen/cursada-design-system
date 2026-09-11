@@ -1261,6 +1261,18 @@
 
     renderProgresoSemestre();
 
+    // Mismo aviso que Progreso/Ajustes (materiasAprobadasSinNota) pero acá
+    // en Inicio, a propósito: Ajustes queda escondido para quien no sabe
+    // que existe, así que el aviso de "hay que completar lo que dejó el
+    // wizard" tiene que aparecer también en la primera pantalla que ve.
+    var sinNotaInicio = materiasAprobadasSinNota().length;
+    var notasBanner = document.getElementById('inicio-notas-pendientes-banner');
+    notasBanner.classList.toggle('hidden', !sinNotaInicio);
+    if (sinNotaInicio) {
+      document.getElementById('inicio-notas-pendientes-titulo').textContent = sinNotaInicio === 1 ? 'Tenés 1 materia aprobada sin nota cargada' : 'Tenés ' + sinNotaInicio + ' materias aprobadas sin nota cargada';
+      document.getElementById('inicio-notas-pendientes-desc').textContent = sinNotaInicio === 1 ? 'No cuenta en tu promedio hasta que le cargues una nota.' : 'No cuentan en tu promedio hasta que les cargues una nota.';
+    }
+
     var kpiRow = document.getElementById('kpi-row');
     clear(kpiRow);
     computeKpis().forEach(function (k) {
@@ -2359,8 +2371,11 @@
   async function eliminarEvaluacionId(id) {
     var item = agendaRawById(id);
     if (!confirm('¿Eliminar esta ' + (item && item.kind === 'tarea' ? 'tarea' : 'evaluación') + '?')) return;
+    // Antes de borrar de Supabase: sync-google-event necesita leer la fila
+    // (para el google_event_id) — llamado después, ya no la encontraría.
+    await syncToGoogleCalendar('delete', 'agenda', id);
     var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
-    if (!ok) avisarError(); else syncToGoogleCalendar('delete', 'agenda', id);
+    if (!ok) avisarError();
     renderRoute();
   }
 
@@ -3630,10 +3645,12 @@
       if (!confirm('¿Eliminar esta materia? También se van a borrar sus evaluaciones de la agenda.')) return;
       var id = STATE.editing.materiaId;
       var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return a.materiaId === id; }).map(function (a) { return a.id; });
+      // Antes de borrar de Supabase: sync-google-event lee la fila para
+      // conseguir el google_event_id — después de borrada ya no la encuentra.
+      for (var i = 0; i < idsAgendaBorrados.length; i++) await syncToGoogleCalendar('delete', 'agenda', idsAgendaBorrados[i]);
       var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return m.id !== id; }));
       var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.materiaId !== id; }));
       if (!okMat || !okAg) avisarError();
-      else idsAgendaBorrados.forEach(function (aid) { syncToGoogleCalendar('delete', 'agenda', aid); });
       snapshotModalForm('modal-materia');
       closeAllModals();
       location.hash = '#materias';
@@ -4036,8 +4053,9 @@
       if (!STATE.editing.evaluacionId) return;
       if (!confirm('¿Eliminar esta ' + (STATE.editing.kind === 'tarea' ? 'tarea' : 'evaluación') + '?')) return;
       var id = STATE.editing.evaluacionId;
+      await syncToGoogleCalendar('delete', 'agenda', id);
       var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
-      if (!ok) avisarError(); else syncToGoogleCalendar('delete', 'agenda', id);
+      if (!ok) avisarError();
       snapshotModalForm('modal-evaluacion');
       closeAllModals();
       renderRoute();
@@ -4151,8 +4169,9 @@
       if (!STATE.editing.personalId) return;
       if (!confirm('¿Eliminar este evento?')) return;
       var id = STATE.editing.personalId;
+      await syncToGoogleCalendar('delete', 'personal', id);
       var ok = await savePersonalRaw(loadPersonalRaw().filter(function (p) { return p.id !== id; }));
-      if (!ok) avisarError(); else syncToGoogleCalendar('delete', 'personal', id);
+      if (!ok) avisarError();
       snapshotModalForm('modal-personal');
       closeAllModals();
       renderRoute();
@@ -5517,11 +5536,13 @@
       if (masNuevo) restantes = restantes.map(function (x) { return Object.assign({}, x, { activo: x.id === masNuevo.id }); });
     }
     var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return materiaIds[a.materiaId]; }).map(function (a) { return a.id; });
+    // Antes de borrar de Supabase: sync-google-event lee la fila para
+    // conseguir el google_event_id — después de borrada ya no la encuentra.
+    for (var i = 0; i < idsAgendaBorrados.length; i++) await syncToGoogleCalendar('delete', 'agenda', idsAgendaBorrados[i]);
     var okSem = await saveSemestresRaw(restantes);
     var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return !materiaIds[m.id]; }));
     var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return !materiaIds[a.materiaId]; }));
     if (!okSem || !okMat || !okAg) avisarError();
-    else idsAgendaBorrados.forEach(function (aid) { syncToGoogleCalendar('delete', 'agenda', aid); });
     renderSemestresModal();
     renderRoute();
   }
@@ -5660,6 +5681,10 @@
     document.getElementById('acceso-entrega').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('acceso-evento').addEventListener('click', function () { openPersonalModal({}); });
     document.getElementById('btn-progreso-semestre-cargar').addEventListener('click', function () { location.hash = '#agenda'; });
+    document.getElementById('btn-inicio-notas-pendientes').addEventListener('click', function () {
+      renderProgresoPendientesModal();
+      openModal('modal-progreso-pendientes');
+    });
     document.getElementById('btn-agenda-nuevo').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('agenda-search').addEventListener('input', function (e) { STATE.agendaQuery = e.target.value; renderAgenda(); });
     document.getElementById('btn-horario-editar').addEventListener('click', function () { openMateriaModal(null); });
@@ -7084,6 +7109,7 @@
           renderProgresoPendientesModal();
           renderAjustesAprobadas();
           renderProgreso();
+          renderInicio();
         } else {
           avisarError();
         }
