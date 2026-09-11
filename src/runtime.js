@@ -5606,16 +5606,17 @@
     return anio + ' · ' + mitad;
   }
 
-  // Si el usuario eligió un único número de plan como "lo estoy cursando
-  // ahora" (Paso 3 del wizard, WIZ.semestresElegidos), ese número es más
-  // identificable que el período calendario — "Semestre 4" en vez de
-  // "2026 · Segundo semestre" (el " · actual" que se ve en Progreso/
-  // switcher NO va acá, lo agrega cada vista para el semestre activo, ver
-  // los 3 usos de " · actual" más abajo — ponerlo acá lo duplicaría). Con 0
-  // o 2+ elegidos no hay un único número que nombre el semestre, así que cae
-  // al período.
+  // El/los número/s de plan que el usuario eligió como "lo estoy cursando
+  // ahora" (Paso 3 del wizard, WIZ.semestresElegidos) son más identificables
+  // que el período calendario — "Semestre 4" en vez de "2026 · Segundo
+  // semestre" (el " · actual" que se ve en Progreso/switcher NO va acá, lo
+  // agrega cada vista para el semestre activo, ver los 3 usos de " · actual"
+  // más abajo — ponerlo acá lo duplicaría). Con 2+ elegidos (p. ej. 3 y 4,
+  // alguna materia arrastrada) se usa el más bajo — homogéneo con cómo se
+  // van numerando los semestres propios de siempre, en vez de mezclar
+  // ambos números o quedar en el período. Sin ninguno elegido, al período.
   function nombreSemestreActual(periodo, semestresElegidos) {
-    if (semestresElegidos && semestresElegidos.length === 1) return 'Semestre ' + semestresElegidos[0];
+    if (semestresElegidos && semestresElegidos.length) return 'Semestre ' + Math.min.apply(null, semestresElegidos);
     return nombreDesdePeriodo(periodo);
   }
 
