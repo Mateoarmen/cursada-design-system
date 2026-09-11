@@ -6834,7 +6834,7 @@
   async function refrescarEstadoGoogleCalendar() {
     if (!CURRENT_USER) return;
     try {
-      var res = await sb().from('google_calendar_accounts').select('id').eq('user_id', CURRENT_USER.id).maybeSingle();
+      var res = await sb().from('google_calendar_accounts').select('user_id').eq('user_id', CURRENT_USER.id).maybeSingle();
       if (res.error) throw res.error;
       GOOGLE_CALENDAR_CONECTADO = !!res.data;
     } catch (e) {
