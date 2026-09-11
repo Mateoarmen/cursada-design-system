@@ -3283,6 +3283,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <div class="accesos-row">
               <button type="button" class="btn" id="btn-google-conectar">Conectar Google Calendar</button>
               <button type="button" class="btn hidden" id="btn-google-desconectar">Desconectar</button>
+              <button type="button" class="btn btn-sm hidden" id="btn-google-sync-todo">Sincronizar todo ahora</button>
             </div>
           </div>
         </div>
@@ -9011,6 +9012,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       await loadAllFromSupabase();
       await wizCrearMateriasAprobadas();
       await wizReconciliarMateriasCreadas();
+      // Estas RPCs escriben la agenda directo del lado del servidor, sin
+      // pasar por saveAgendaRaw — si ya tenías Google Calendar conectado
+      // (re-aplicando el wizard, otro semestre), esas evaluaciones nunca
+      // dispararían syncToGoogleCalendar() por su cuenta. No bloqueante:
+      // no tiene sentido demorar la revelación de la app por esto.
+      sincronizarTodoAGoogleCalendar();
       document.getElementById('wizard-onboarding').classList.add('hidden');
       hideOnboarding();
       renderRoute();
@@ -10712,10 +10719,12 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     var estado = document.getElementById('ajustes-google-estado');
     var btnConectar = document.getElementById('btn-google-conectar');
     var btnDesconectar = document.getElementById('btn-google-desconectar');
-    if (!estado || !btnConectar || !btnDesconectar) return;
+    var btnSyncTodo = document.getElementById('btn-google-sync-todo');
+    if (!estado || !btnConectar || !btnDesconectar || !btnSyncTodo) return;
     estado.textContent = GOOGLE_CALENDAR_CONECTADO ? 'Conectado — tus evaluaciones, tareas y eventos personales se sincronizan automáticamente.' : 'No conectado.';
     btnConectar.classList.toggle('hidden', GOOGLE_CALENDAR_CONECTADO);
     btnDesconectar.classList.toggle('hidden', !GOOGLE_CALENDAR_CONECTADO);
+    btnSyncTodo.classList.toggle('hidden', !GOOGLE_CALENDAR_CONECTADO);
   }
   // Sólo SELECT (respeta RLS) — la fila en sí la crea/borra la Edge
   // Function/desconectarGoogleCalendar(), nunca este cliente.
@@ -10754,17 +10763,32 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   function bindAjustesGoogle() {
     document.getElementById('btn-google-conectar').addEventListener('click', conectarGoogleCalendar);
     document.getElementById('btn-google-desconectar').addEventListener('click', desconectarGoogleCalendar);
+    document.getElementById('btn-google-sync-todo').addEventListener('click', async function () {
+      var btn = document.getElementById('btn-google-sync-todo');
+      setBtnBusy(btn, true, 'Sincronizando…');
+      var total = await sincronizarTodoAGoogleCalendar();
+      setBtnBusy(btn, false);
+      showToast(total ? 'Sincronizado — ' + total + (total === 1 ? ' evento.' : ' eventos.') : 'No había nada para sincronizar.');
+    });
   }
   // Vuelta de google-oauth-start con `?google=conectado|error` en la URL
   // (la pone la Edge Function al redirigir de vuelta) — mismo criterio que
   // mostrarErrorOAuthSiHay() para el `#error=` de Supabase Auth: se lee una
   // sola vez al entrar y se limpia el query string para que un refresh no
   // vuelva a mostrar el aviso.
-  function mostrarResultadoGoogleCalendarSiHay() {
+  async function mostrarResultadoGoogleCalendarSiHay() {
     var params = new URLSearchParams(location.search);
     var resultado = params.get('google');
     if (!resultado) return;
-    if (resultado === 'conectado') showToast('Google Calendar conectado.');
+    if (resultado === 'conectado') {
+      showToast('Google Calendar conectado.');
+      // Al conectar por primera vez, la cuenta puede ya tener evaluaciones/
+      // tareas/eventos cargados de antes (wizard de onboarding, uso previo
+      // sin Google conectado) — refrescarEstadoGoogleCalendar() primero para
+      // que GOOGLE_CALENDAR_CONECTADO ya esté en true al llamar al backfill.
+      await refrescarEstadoGoogleCalendar();
+      await sincronizarTodoAGoogleCalendar();
+    }
     else if (resultado === 'error') avisarError('No se pudo conectar con Google Calendar. Probá de nuevo desde Ajustes.');
     params.delete('google');
     var qs = params.toString();
@@ -10791,6 +10815,25 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     } catch (e) {
       console.warn('Cursada: error sincronizando con Google Calendar', e);
     }
+  }
+  // Backfill manual/automático de todo lo que ya existía antes de conectar
+  // (o que se creó del lado del servidor sin pasar por syncToGoogleCalendar
+  // — el wizard de onboarding aplica materias/agenda vía RPC directo, ver
+  // wizConfirmar()). Siempre manda action:'update', nunca 'create': el
+  // Edge Function ya resuelve solo el caso "sin google_event_id todavía"
+  // creando el evento (ver sync-google-event), así que 'update' es
+  // idempotente acá — reintentarlo (este botón, o un wizConfirmar()
+  // posterior) nunca duplica eventos en Google, a diferencia de 'create'.
+  // Secuencial (no Promise.all) para no ráfaguear la cuota de la API de
+  // Google Calendar con decenas de POSTs simultáneos.
+  async function sincronizarTodoAGoogleCalendar() {
+    if (!GOOGLE_CALENDAR_CONECTADO) return 0;
+    var agenda = loadAgendaRaw();
+    var personal = loadPersonalRaw();
+    var i;
+    for (i = 0; i < agenda.length; i++) await syncToGoogleCalendar('update', 'agenda', agenda[i].id);
+    for (i = 0; i < personal.length; i++) await syncToGoogleCalendar('update', 'personal', personal[i].id);
+    return agenda.length + personal.length;
   }
 
   // ================================================================
