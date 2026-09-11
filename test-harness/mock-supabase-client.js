@@ -46,6 +46,11 @@
       { id: 'tag-1', user_id: 'test-user-id-000', name: 'Difícil', kind: 'academico', color: 'coral', created_at: '2026-08-01T00:00:00Z' },
       { id: 'tag-2', user_id: 'test-user-id-000', name: 'Familia', kind: 'personal', color: 'turquesa', created_at: '2026-08-01T00:00:00Z' }
     ],
+    // Vacía por default (no conectado) — la integración de Google Calendar
+    // se prueba visualmente forzando GOOGLE_CALENDAR_CONECTADO=true desde la
+    // consola en vez de sembrar una fila acá, para no disparar fetch() reales
+    // contra la Edge Function de producción durante las pruebas.
+    google_calendar_accounts: [],
     semestres: [
       { id: 'sem-1', user_id: 'test-user-id-000', nombre: '2do cuatrimestre 2026', activo: true, created_at: '2026-08-01T00:00:00Z' },
       { id: 'sem-0', user_id: 'test-user-id-000', nombre: '1er cuatrimestre 2026', activo: false, created_at: '2026-02-01T00:00:00Z' },

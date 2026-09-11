@@ -2360,7 +2360,7 @@
     var item = agendaRawById(id);
     if (!confirm('¿Eliminar esta ' + (item && item.kind === 'tarea' ? 'tarea' : 'evaluación') + '?')) return;
     var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
-    if (!ok) avisarError();
+    if (!ok) avisarError(); else syncToGoogleCalendar('delete', 'agenda', id);
     renderRoute();
   }
 
@@ -3629,9 +3629,11 @@
       if (!STATE.editing.materiaId) return;
       if (!confirm('¿Eliminar esta materia? También se van a borrar sus evaluaciones de la agenda.')) return;
       var id = STATE.editing.materiaId;
+      var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return a.materiaId === id; }).map(function (a) { return a.id; });
       var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return m.id !== id; }));
       var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.materiaId !== id; }));
       if (!okMat || !okAg) avisarError();
+      else idsAgendaBorrados.forEach(function (aid) { syncToGoogleCalendar('delete', 'agenda', aid); });
       snapshotModalForm('modal-materia');
       closeAllModals();
       location.hash = '#materias';
@@ -4007,6 +4009,7 @@
         notas: form.notas.value.trim(),
         tagId: STATE.editing.tagId
       };
+      var accionGoogle = STATE.editing.evaluacionId ? 'update' : 'create';
       var arr = loadAgendaRaw();
       if (STATE.editing.evaluacionId) arr = arr.map(function (a) { return a.id === record.id ? record : a; });
       else arr.push(record);
@@ -4015,6 +4018,7 @@
       var ok = await saveAgendaRaw(arr);
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      syncToGoogleCalendar(accionGoogle, 'agenda', record.id);
       // "Debo rendir examen" (materia.estado:'pendiente'): hasta acá la nota
       // y el estado vivían totalmente desconectados (ver README, "Cargar
       // progreso anterior en el onboarding") — la única forma de resolver
@@ -4033,7 +4037,7 @@
       if (!confirm('¿Eliminar esta ' + (STATE.editing.kind === 'tarea' ? 'tarea' : 'evaluación') + '?')) return;
       var id = STATE.editing.evaluacionId;
       var ok = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.id !== id; }));
-      if (!ok) avisarError();
+      if (!ok) avisarError(); else syncToGoogleCalendar('delete', 'agenda', id);
       snapshotModalForm('modal-evaluacion');
       closeAllModals();
       renderRoute();
@@ -4083,6 +4087,7 @@
       var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      syncToGoogleCalendar('create', 'agenda', nueva.id);
       await resolverPendienteSiCorresponde(materiaId, n);
       closeAllModals();
       renderRoute();
@@ -4128,6 +4133,7 @@
         todoElDia: !!STATE.editing.todoElDia,
         tagId: STATE.editing.tagId
       };
+      var accionGoogle = STATE.editing.personalId ? 'update' : 'create';
       var arr = loadPersonalRaw();
       if (STATE.editing.personalId) arr = arr.map(function (p) { return p.id === record.id ? record : p; });
       else arr.push(record);
@@ -4136,6 +4142,7 @@
       var ok = await savePersonalRaw(arr);
       setBtnBusy(btn, false);
       if (!ok) { avisarError(); return; }
+      syncToGoogleCalendar(accionGoogle, 'personal', record.id);
       snapshotModalForm('modal-personal');
       closeAllModals();
       renderRoute();
@@ -4145,7 +4152,7 @@
       if (!confirm('¿Eliminar este evento?')) return;
       var id = STATE.editing.personalId;
       var ok = await savePersonalRaw(loadPersonalRaw().filter(function (p) { return p.id !== id; }));
-      if (!ok) avisarError();
+      if (!ok) avisarError(); else syncToGoogleCalendar('delete', 'personal', id);
       snapshotModalForm('modal-personal');
       closeAllModals();
       renderRoute();
@@ -5503,10 +5510,12 @@
       var masNuevo = candidatos.slice(-1)[0];
       if (masNuevo) restantes = restantes.map(function (x) { return Object.assign({}, x, { activo: x.id === masNuevo.id }); });
     }
+    var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return materiaIds[a.materiaId]; }).map(function (a) { return a.id; });
     var okSem = await saveSemestresRaw(restantes);
     var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return !materiaIds[m.id]; }));
     var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return !materiaIds[a.materiaId]; }));
     if (!okSem || !okMat || !okAg) avisarError();
+    else idsAgendaBorrados.forEach(function (aid) { syncToGoogleCalendar('delete', 'agenda', aid); });
     renderSemestresModal();
     renderRoute();
   }
@@ -6797,6 +6806,106 @@
   }
 
   // ================================================================
+  // GOOGLE CALENDAR
+  // ================================================================
+  // Integración vía 3 Edge Functions ya desplegadas (backend fuera de
+  // alcance acá, ver README del proyecto): google-oauth-start (redirect a
+  // Google), google-oauth-callback (la maneja Google solo, nunca se llama
+  // desde acá) y sync-google-event (crear/actualizar/borrar el evento
+  // espejo en el Google Calendar del usuario). El estado de conexión se
+  // cachea en GOOGLE_CALENDAR_CONECTADO — syncToGoogleCalendar() lo
+  // consulta en memoria en vez de pegarle a `google_calendar_accounts` en
+  // cada alta/baja/modificación de agenda o personal.
+  var GOOGLE_OAUTH_START_URL = 'https://kbihslsbzyhyiroyzxxq.supabase.co/functions/v1/google-oauth-start';
+  var GOOGLE_SYNC_URL = 'https://kbihslsbzyhyiroyzxxq.supabase.co/functions/v1/sync-google-event';
+  var GOOGLE_CALENDAR_CONECTADO = false;
+
+  function renderAjustesGoogle() {
+    var estado = document.getElementById('ajustes-google-estado');
+    var btnConectar = document.getElementById('btn-google-conectar');
+    var btnDesconectar = document.getElementById('btn-google-desconectar');
+    if (!estado || !btnConectar || !btnDesconectar) return;
+    estado.textContent = GOOGLE_CALENDAR_CONECTADO ? 'Conectado — tus evaluaciones, tareas y eventos personales se sincronizan automáticamente.' : 'No conectado.';
+    btnConectar.classList.toggle('hidden', GOOGLE_CALENDAR_CONECTADO);
+    btnDesconectar.classList.toggle('hidden', !GOOGLE_CALENDAR_CONECTADO);
+  }
+  // Sólo SELECT (respeta RLS) — la fila en sí la crea/borra la Edge
+  // Function/desconectarGoogleCalendar(), nunca este cliente.
+  async function refrescarEstadoGoogleCalendar() {
+    if (!CURRENT_USER) return;
+    try {
+      var res = await sb().from('google_calendar_accounts').select('id').eq('user_id', CURRENT_USER.id).maybeSingle();
+      if (res.error) throw res.error;
+      GOOGLE_CALENDAR_CONECTADO = !!res.data;
+    } catch (e) {
+      console.warn('Cursada: error consultando el estado de Google Calendar', e);
+    }
+    renderAjustesGoogle();
+  }
+  function conectarGoogleCalendar() {
+    if (!CURRENT_USER) return;
+    location.href = GOOGLE_OAUTH_START_URL + '?user_id=' + encodeURIComponent(CURRENT_USER.id);
+  }
+  async function desconectarGoogleCalendar() {
+    if (!CURRENT_USER) return;
+    if (!confirm('¿Desconectar Google Calendar? Dejarán de sincronizarse tus evaluaciones, tareas y eventos personales.')) return;
+    var btn = document.getElementById('btn-google-desconectar');
+    setBtnBusy(btn, true, 'Desconectando…');
+    try {
+      var res = await sb().from('google_calendar_accounts').delete().eq('user_id', CURRENT_USER.id);
+      if (res.error) throw res.error;
+      GOOGLE_CALENDAR_CONECTADO = false;
+      renderAjustesGoogle();
+      showToast('Google Calendar desconectado.');
+    } catch (e) {
+      console.warn('Cursada: error desconectando Google Calendar', e);
+      if (esErrorSesionVencida(e)) mostrarSesionVencida(); else avisarError('No se pudo desconectar Google Calendar. Intentá de nuevo.');
+    }
+    setBtnBusy(btn, false);
+  }
+  function bindAjustesGoogle() {
+    document.getElementById('btn-google-conectar').addEventListener('click', conectarGoogleCalendar);
+    document.getElementById('btn-google-desconectar').addEventListener('click', desconectarGoogleCalendar);
+  }
+  // Vuelta de google-oauth-start con `?google=conectado|error` en la URL
+  // (la pone la Edge Function al redirigir de vuelta) — mismo criterio que
+  // mostrarErrorOAuthSiHay() para el `#error=` de Supabase Auth: se lee una
+  // sola vez al entrar y se limpia el query string para que un refresh no
+  // vuelva a mostrar el aviso.
+  function mostrarResultadoGoogleCalendarSiHay() {
+    var params = new URLSearchParams(location.search);
+    var resultado = params.get('google');
+    if (!resultado) return;
+    if (resultado === 'conectado') showToast('Google Calendar conectado.');
+    else if (resultado === 'error') avisarError('No se pudo conectar con Google Calendar. Probá de nuevo desde Ajustes.');
+    params.delete('google');
+    var qs = params.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+  }
+  // Único punto de llamada a sync-google-event — falla en silencio a
+  // propósito (sólo console.warn) para que un Google caído o con el token
+  // vencido nunca rompa el alta/edición/borrado real en Cursada, que ya
+  // quedó guardado en Supabase antes de llegar acá. No se llama si el
+  // usuario no tiene Google Calendar conectado (evita pegarle a la Edge
+  // Function en cada guardado de quien nunca lo conectó).
+  async function syncToGoogleCalendar(action, table, recordId) {
+    if (!GOOGLE_CALENDAR_CONECTADO || !CURRENT_USER) return;
+    try {
+      var sesion = await sb().auth.getSession();
+      var token = sesion.data && sesion.data.session && sesion.data.session.access_token;
+      if (!token) return;
+      var res = await fetch(GOOGLE_SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ action: action, table: table, recordId: recordId })
+      });
+      if (!res.ok) console.warn('Cursada: sync-google-event respondió ' + res.status + ' (' + action + '/' + table + '/' + recordId + ')');
+    } catch (e) {
+      console.warn('Cursada: error sincronizando con Google Calendar', e);
+    }
+  }
+
+  // ================================================================
   // AJUSTES
   // ================================================================
   // Fase 6: se saca la edición del margen de riesgo — confundía y no
@@ -6815,6 +6924,8 @@
     renderAjustesTags();
     renderAjustesAprobadas();
     renderAjustesNotificaciones();
+    renderAjustesGoogle();
+    refrescarEstadoGoogleCalendar(); // por si se conectó/desconectó desde otra pestaña
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
@@ -6926,6 +7037,7 @@
         var ok = await saveAgendaRaw(loadAgendaRaw().concat([nueva]));
         setBtnBusy(btn, false);
         if (ok) {
+          syncToGoogleCalendar('create', 'agenda', nueva.id);
           showToast('Nota cargada.');
           renderProgresoPendientesModal();
           renderAjustesAprobadas();
@@ -7276,6 +7388,8 @@
     // No bloqueante a propósito (ver cargarNotificaciones) — no tiene que
     // demorar la revelación de #app.
     cargarNotificaciones();
+    refrescarEstadoGoogleCalendar();
+    mostrarResultadoGoogleCalendarSiHay();
     if (JUST_SIGNED_UP) { JUST_SIGNED_UP = false; showToast('¡Cuenta creada! Bienvenido/a.'); }
     // Con el perfil de Google ya resuelto (si correspondía), quedan estos
     // avisos posibles al entrar a la app — nunca más de uno a la vez (si
@@ -7292,6 +7406,7 @@
     CURRENT_USER = null; CURRENT_PROFILE = null;
     CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
     CACHE.notificaciones = []; CACHE.notifPrefs = []; CACHE.pushDevices = [];
+    GOOGLE_CALENDAR_CONECTADO = false;
     renderNotifBadge();
     showFormPanel();
     setAuthMode('signin');
@@ -7328,6 +7443,7 @@
     bindNotifBell();
     bindPushBanner();
     bindAjustesNotificaciones();
+    bindAjustesGoogle();
     // El registro del Service Worker no depende de haber iniciado sesión
     // (scope sobre /, sirve tanto a la landing como a la app) — se hace acá,
     // apenas carga el documento. La SUSCRIPCIÓN a push sí requiere sesión y
