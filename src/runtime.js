@@ -5921,10 +5921,23 @@
     });
     document.getElementById('btn-borrar-todo').addEventListener('click', async function () {
       if (!confirm('¿Borrar todas tus materias, entregas, eventos personales y semestres? Esta acción no se puede deshacer.')) return;
+      var btn = document.getElementById('btn-borrar-todo');
+      setBtnBusy(btn, true, 'Borrando…');
+      // Mismo motivo que en eliminarMateria/eliminarSemestre: sync-google-event
+      // lee la fila de agenda/personal para conseguir su google_event_id —
+      // tiene que correr antes de que saveAgendaRaw/savePersonalRaw las borren
+      // de Supabase, si no siempre responde "Registro no encontrado" y el
+      // evento queda huérfano en Google Calendar.
+      var idsAgenda = loadAgendaRaw().map(function (a) { return a.id; });
+      var idsPersonal = loadPersonalRaw().map(function (p) { return p.id; });
+      var i;
+      for (i = 0; i < idsAgenda.length; i++) await syncToGoogleCalendar('delete', 'agenda', idsAgenda[i]);
+      for (i = 0; i < idsPersonal.length; i++) await syncToGoogleCalendar('delete', 'personal', idsPersonal[i]);
       var okMat = await saveMateriasRaw([]);
       var okAg = await saveAgendaRaw([]);
       var okPer = await savePersonalRaw([]);
       var okSem = await saveSemestresRaw([]);
+      setBtnBusy(btn, false);
       if (!okMat || !okAg || !okPer || !okSem) avisarError();
       location.hash = '#materias';
       renderRoute();
