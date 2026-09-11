@@ -5613,13 +5613,12 @@
   // que el período calendario — "Semestre 4" en vez de "2026 · Segundo
   // semestre" (el " · actual" que se ve en Progreso/switcher NO va acá, lo
   // agrega cada vista para el semestre activo, ver los 3 usos de " · actual"
-  // más abajo — ponerlo acá lo duplicaría). Con 2+ elegidos (p. ej. 2 y 3,
-  // alguna materia arrastrada de un semestre anterior) se usa el más
-  // nuevo/alto ("Semestre 3") — es el semestre en el que el usuario está
-  // parado hoy, el anterior es sólo lo que arrastró. Sin ninguno elegido, al
-  // período.
+  // más abajo — ponerlo acá lo duplicaría). Con 2+ elegidos (p. ej. 3 y 4,
+  // alguna materia arrastrada) se usa el más bajo — homogéneo con cómo se
+  // van numerando los semestres propios de siempre, en vez de mezclar
+  // ambos números o quedar en el período. Sin ninguno elegido, al período.
   function nombreSemestreActual(periodo, semestresElegidos) {
-    if (semestresElegidos && semestresElegidos.length) return 'Semestre ' + Math.max.apply(null, semestresElegidos);
+    if (semestresElegidos && semestresElegidos.length) return 'Semestre ' + Math.min.apply(null, semestresElegidos);
     return nombreDesdePeriodo(periodo);
   }
 
