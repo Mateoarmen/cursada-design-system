@@ -8406,15 +8406,21 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       var n = fuentePorId[id].semestre_sugerido;
       if (n && semestresNecesarios.indexOf(n) < 0) semestresNecesarios.push(n);
     });
+    var nSemestreActual = numeroSemestreActualElegido(WIZ.semestresElegidos);
     var semHistoricoPorNumero = {};
     for (var i = 0; i < semestresNecesarios.length; i++) {
       var n = semestresNecesarios[i];
-      // Si el usuario ya marcó este número como "lo estoy cursando ahora"
-      // (Paso 3, WIZ.semestresElegidos), estas materias van directo al
-      // semestre actual en vez de a un histórico aparte — ver
-      // obtenerOCrearSemestrePeriodo, que además fusiona cualquier
-      // histórico previo con el mismo número dentro del actual.
-      semHistoricoPorNumero[n] = WIZ.semestresElegidos.indexOf(n) >= 0 ? WIZ.semestreId : await obtenerOCrearSemestreHistorico(n);
+      // Sólo el número que nombra al actual (el más alto de los elegidos en
+      // Paso 3, ver numeroSemestreActualElegido) va directo al semestre
+      // actual — ver obtenerOCrearSemestrePeriodo, que además fusiona
+      // cualquier histórico previo con ese mismo número dentro del actual.
+      // Un número MÁS BAJO también elegido en Paso 3 (materia arrastrada de
+      // un semestre anterior, con horario real vía aplicar_dictados) sigue
+      // yendo a su propio histórico acá — mezclarlo en el actual inflaba la
+      // lista de "materias de este semestre" con aprobadas/pendientes de
+      // otro semestre que no tienen nada que ver con lo que se está
+      // cursando ahora (bug reportado: "muestra demasiadas materias").
+      semHistoricoPorNumero[n] = n === nSemestreActual ? WIZ.semestreId : await obtenerOCrearSemestreHistorico(n);
     }
     var colorKeys = Object.keys(ACCENTS).filter(function (k) { return k !== 'gris'; });
     var colorIdx = 0;
@@ -9519,19 +9525,29 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     return anio + ' · ' + mitad;
   }
 
-  // El/los número/s de plan que el usuario eligió como "lo estoy cursando
-  // ahora" (Paso 3 del wizard, WIZ.semestresElegidos) son más identificables
-  // que el período calendario — "Semestre 4" en vez de "2026 · Segundo
-  // semestre" (el " · actual" que se ve en Progreso/switcher NO va acá, lo
-  // agrega cada vista para el semestre activo, ver los 3 usos de " · actual"
-  // más abajo — ponerlo acá lo duplicaría). Con 2+ elegidos (p. ej. 2 y 3,
-  // alguna materia arrastrada de un semestre anterior) se usa el más
-  // nuevo/alto ("Semestre 3") — es el semestre en el que el usuario está
-  // parado hoy, el anterior es sólo lo que arrastró. Sin ninguno elegido, al
-  // período.
+  // De los número/s de plan que el usuario eligió como "lo estoy cursando
+  // ahora" (Paso 3 del wizard, WIZ.semestresElegidos), el más alto es el
+  // semestre en el que está parado hoy — con 2+ elegidos (p. ej. 2 y 3,
+  // porque arrastra una materia de un semestre anterior) los más bajos son
+  // sólo lo que arrastra, no el semestre en sí. Usado tanto para nombrar el
+  // actual (ver nombreSemestreActual) como para decidir qué histórico
+  // fusionar/qué progreso anterior va directo a él (ver
+  // fusionarHistoricoEnActual y wizCrearMateriasAprobadas) — los OTROS
+  // números elegidos (el 2, en el ejemplo) siguen yendo a su propio
+  // histórico, aunque la materia que se está cursando de ese semestre ya
+  // tenga horario real en el actual vía aplicar_dictados.
+  function numeroSemestreActualElegido(semestresElegidos) {
+    return semestresElegidos && semestresElegidos.length ? Math.max.apply(null, semestresElegidos) : null;
+  }
+
+  // "Semestre 4" en vez de "2026 · Segundo semestre" — el " · actual" que se
+  // ve en Progreso/switcher NO va acá, lo agrega cada vista para el
+  // semestre activo, ver los 3 usos de " · actual" más abajo — ponerlo acá
+  // lo duplicaría. Sin ningún elegido (0 semestres o wizard hecho a mano),
+  // cae al período.
   function nombreSemestreActual(periodo, semestresElegidos) {
-    if (semestresElegidos && semestresElegidos.length) return 'Semestre ' + Math.max.apply(null, semestresElegidos);
-    return nombreDesdePeriodo(periodo);
+    var n = numeroSemestreActualElegido(semestresElegidos);
+    return n != null ? 'Semestre ' + n : nombreDesdePeriodo(periodo);
   }
 
   // Bloque 4 fusiona con lo actual: las materias aprobadas/pendientes que
@@ -9580,9 +9596,8 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       arr.push({ id: semestreId, nombre: nombreSugerido, activo: true, orden: proximoOrdenSemestre(), periodo: periodo });
       if (!(await saveSemestresRaw(arr))) throw new Error('No se pudo crear el semestre.');
     }
-    for (var i = 0; semestresElegidos && i < semestresElegidos.length; i++) {
-      await fusionarHistoricoEnActual(semestresElegidos[i], semestreId);
-    }
+    var nActual = numeroSemestreActualElegido(semestresElegidos);
+    if (nActual != null) await fusionarHistoricoEnActual(nActual, semestreId);
     return semestreId;
   }
 
