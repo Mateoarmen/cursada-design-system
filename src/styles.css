@@ -419,7 +419,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   animation:cta-glow-spin 5.5s linear infinite;
 }
 @keyframes cta-glow-spin{ to{ --cta-glow-angle:360deg } }
-@media(prefers-reduced-motion:reduce){ .cta-glow{ animation:none } }
+@media(prefers-reduced-motion:reduce){ .cta-glow, .inicio-hero{ animation:none } }
 .icon-btn-bell{position:relative}
 .icon-btn-bell .bell-dot{display:none;position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--c-danger);border:1.5px solid var(--c-surfaceAlt)}
 .icon-btn-bell.has-unread .bell-dot{display:block}
@@ -606,17 +606,22 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .progreso-pendientes-grupo + .progreso-pendientes-grupo{margin-top:18px}
 .progreso-pendientes-grupo-header{font-size:12.5px;font-weight:600;color:var(--c-ink3);text-transform:uppercase;letter-spacing:.02em;padding:0 4px 6px}
 /* Card "Lo próximo": el ítem más cercano de proximos-list, destacado.
-   Borde en degradé vía el truco de padding+gradiente en el wrapper de
-   afuera (radio +2px) con el relleno sólido adentro (radio real) — ver
-   Cursada Mobile Pro.dc.html, sección Inicio. Oculto/mostrado por JS con
-   .style.display (mismo patrón que #riesgo-panel en renderInicio): sin
-   próximos, no hay hero que mostrar. Vale para los dos anchos (bloque C4):
-   en mobile es el primer elemento de #inicio (ver posicionarInicioHero en
-   runtime.js), en desktop se reubica dentro de la columna derecha de
-   #inicio-cols, con el mismo ancho que sus demás cards. */
+   Borde animado vía el mismo truco de wrapper de dos capas que .cta-glow
+   (padding+conic-gradient afuera, radio +2px; relleno sólido adentro,
+   radio real) — reutiliza su @property --cta-glow-angle y su keyframe
+   cta-glow-spin en vez de duplicarlos, así el giro de ambos queda
+   sincronizado y es un solo lenguaje de "esto es lo urgente" en toda la
+   pantalla. Ver Cursada Mobile Pro.dc.html, sección Inicio. Oculto/
+   mostrado por JS con .style.display (mismo patrón que #riesgo-panel en
+   renderInicio): sin próximos, no hay hero que mostrar. Vale para los dos
+   anchos (bloque C4): en mobile es el primer elemento de #inicio (ver
+   posicionarInicioHero en runtime.js), en desktop se reubica dentro de la
+   columna derecha de #inicio-cols, con el mismo ancho que sus demás
+   cards. */
 .inicio-hero{
   display:flex;padding:1.5px;border-radius:calc(var(--r-card) + 2px);
-  background:linear-gradient(150deg,var(--c-accent),rgba(10,99,240,.15) 60%,rgba(255,255,255,.08));
+  background:conic-gradient(from var(--cta-glow-angle),#CFE3FF,var(--c-accent),var(--c-accent-to),#CFE3FF);
+  animation:cta-glow-spin 5.5s linear infinite;
 }
 .inicio-hero-inner{
   flex:1;min-width:0;border-radius:calc(var(--r-card) + .5px);background:var(--c-surface);
