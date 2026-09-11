@@ -5804,11 +5804,12 @@
       e.target.value = '';
     });
     document.getElementById('btn-borrar-todo').addEventListener('click', async function () {
-      if (!confirm('¿Borrar todas tus materias, entregas y eventos personales? Esta acción no se puede deshacer.')) return;
+      if (!confirm('¿Borrar todas tus materias, entregas, eventos personales y semestres? Esta acción no se puede deshacer.')) return;
       var okMat = await saveMateriasRaw([]);
       var okAg = await saveAgendaRaw([]);
       var okPer = await savePersonalRaw([]);
-      if (!okMat || !okAg || !okPer) avisarError();
+      var okSem = await saveSemestresRaw([]);
+      if (!okMat || !okAg || !okPer || !okSem) avisarError();
       location.hash = '#materias';
       renderRoute();
     });
