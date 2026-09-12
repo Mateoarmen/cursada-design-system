@@ -1302,15 +1302,18 @@
       // sigue comunicándose, solo que en el texto sub de abajo.
       icon.appendChild(tpl(KPI_ICON[k.label]));
       qf(node, 'label').textContent = k.label;
-      // Bloque 5: estado vacío con acción para "Promedio general" sin
-      // notas cargadas — mismo botón que abre "Nueva evaluación", nada de
-      // valor/sub de relleno.
+      // Bloque 5 (+ wizard de cargar nota): estado vacío con acción para
+      // "Promedio general" sin notas cargadas — antes abría el picker de
+      // "Nueva evaluación" (Tarea/Evaluación desde cero), que no es lo que
+      // promete el botón; ahora abre el wizard materia → evaluación
+      // pendiente → nota (ver openCargarNotaModal), y ese wizard mismo cae
+      // al picker de Evaluación si no hay ninguna pendiente para calificar.
       if (k.empty) {
         node.classList.add('kpi-card-empty');
         var btn = el('button', 'btn btn-sm');
         btn.type = 'button';
         btn.textContent = k.ctaTexto;
-        btn.addEventListener('click', function () { openEvaluacionModal({}); });
+        btn.addEventListener('click', function () { openCargarNotaModal(); });
         node.appendChild(btn);
         kpiRow.appendChild(node);
         return;
@@ -4134,6 +4137,145 @@
     });
   });
 
+  // ---- Modal cargar nota (wizard: materia → evaluación pendiente → nota) ----
+  // Hasta acá "cargar la nota de una evaluación ya agendada" sólo se podía
+  // hacer entrando a Detalle y tocando la fila puntual, o abriendo el form
+  // completo de Evaluación con "Asignar nota"/modoNota (que ya arranca con
+  // la materia y el kind fijos, ver openEvaluacionModal arriba). Este
+  // wizard es la versión "no me acuerdo cuál era": elegís la materia,
+  // después cuál de sus evaluaciones sin nota es, y por último la nota —
+  // pensado sobre todo para "Cargar primera nota" en el Progreso vacío
+  // (antes ese botón sólo hacía location.hash = '#agenda' sin abrir nada,
+  // ver el bindeo de #btn-progreso-semestre-cargar más abajo). Mismo
+  // patrón de wizard que openMateriaModal/materiaAplicarPaso (steps-track +
+  // Atrás/Continuar), pero siempre 3 pasos fijos — acá no hay un modo
+  // "edición junta" como en materia, esto siempre arranca de cero.
+  var CARGARNOTA_PASOS = [
+    { sub: 'Elegí la materia de la que querés cargar una nota.' },
+    { sub: 'Elegí cuál evaluación pendiente es.' },
+    { sub: 'Cuánto te sacaste — se guarda en esa evaluación.' }
+  ];
+  // "Pendiente de nota" = evaluación (nunca una tarea) sin nota cargada
+  // todavía — mismo criterio que m.notasEvals/m.evaluaciones en computeMateria.
+  function materiasConPendientes() {
+    return computeMaterias().filter(function (m) { return m.evaluaciones.some(function (a) { return a.nota == null; }); });
+  }
+  function openCargarNotaModal() {
+    var materias = materiasConPendientes();
+    // Sin ninguna evaluación pendiente de calificar (incluye "todavía no
+    // cargó ninguna evaluación"): no hay nada entre qué elegir, así que en
+    // vez de un wizard vacío se va directo a crear una evaluación nueva —
+    // mismo espíritu que el guard de openEvaluacionModal con cero materias.
+    if (!materias.length) { openEvaluacionModal({ kind: 'evaluacion' }); return; }
+    STATE.editing = { cnStep: 0, cnMateriaId: materias[0].id, cnEvaluacionId: null };
+    renderCargarNotaMaterias();
+    cargarNotaAplicarPaso();
+    openModal('modal-cargar-nota');
+  }
+  function renderCargarNotaMaterias() {
+    var wrap = document.getElementById('modal-cargarnota-materias');
+    clear(wrap);
+    materiasConPendientes().forEach(function (m) {
+      var node = tpl('chip-materia');
+      var on = STATE.editing.cnMateriaId === m.id;
+      var chip = qf(node, 'chip');
+      chip.textContent = truncate(m.nombre, 24);
+      chip.classList.toggle('is-on', on);
+      chip.style.background = on ? m.soft : '';
+      chip.style.color = on ? m.strong : '';
+      chip.style.borderColor = on ? m.strong : '';
+      chip.addEventListener('click', function () {
+        if (STATE.editing.cnMateriaId === m.id) return;
+        STATE.editing.cnMateriaId = m.id;
+        STATE.editing.cnEvaluacionId = null;
+        renderCargarNotaMaterias();
+      });
+      wrap.appendChild(node);
+    });
+  }
+  // Por defecto selecciona la primera pendiente (igual que el materiaStep 0
+  // ya arranca con una materia elegida) — así "Continuar" nunca queda
+  // esperando una selección que nadie hizo todavía, sólo se cambia si el
+  // usuario toca otra fila.
+  function renderCargarNotaEvaluaciones() {
+    var m = computeMateriaById(STATE.editing.cnMateriaId);
+    var pendientes = m ? m.evaluaciones.filter(function (a) { return a.nota == null; }) : [];
+    if (!STATE.editing.cnEvaluacionId && pendientes.length) STATE.editing.cnEvaluacionId = pendientes[0].id;
+    var wrap = document.getElementById('modal-cargarnota-evals');
+    clear(wrap);
+    pendientes.forEach(function (a) {
+      var node = tpl('wiz-item-row');
+      node.classList.add('is-radio');
+      node.classList.toggle('is-on', STATE.editing.cnEvaluacionId === a.id);
+      qf(node, 'titulo').textContent = a.titulo;
+      qf(node, 'meta').textContent = [a.tipo, formatFechaAgenda(a.fecha, a.hora)].filter(Boolean).join(' · ');
+      node.addEventListener('click', function () {
+        STATE.editing.cnEvaluacionId = a.id;
+        renderCargarNotaEvaluaciones();
+      });
+      wrap.appendChild(node);
+    });
+  }
+  function renderCargarNotaNota() {
+    var m = computeMateriaById(STATE.editing.cnMateriaId);
+    var a = STATE.editing.cnEvaluacionId ? agendaRawById(STATE.editing.cnEvaluacionId) : null;
+    if (!m || !a) return;
+    var total = a.notaMaxima != null ? a.notaMaxima : m.esc.total;
+    document.getElementById('cargarnota-nota-label').textContent = 'Nota — ' + a.titulo + ' (' + (m.esc.tipo === 'nota' ? '0–12' : (m.esc.tipo === 'pct' ? '%' : 'sobre ' + val(total, m.esc))) + ')';
+    var input = document.getElementById('cargarnota-nota');
+    input.value = '';
+    input.min = '0'; input.max = String(total); input.step = m.esc.tipo === 'nota' ? '0.1' : '1';
+  }
+  function cargarNotaAplicarPaso() {
+    var idx = STATE.editing.cnStep;
+    var last = CARGARNOTA_PASOS.length - 1;
+    document.querySelectorAll('.cn-step').forEach(function (s) { s.classList.toggle('hidden', Number(s.getAttribute('data-cn-step')) !== idx); });
+    var track = document.getElementById('cargarnota-steps-track');
+    track.querySelectorAll('.dot').forEach(function (d, i) { d.classList.toggle('is-done', i < idx); d.classList.toggle('is-current', i === idx); });
+    document.getElementById('btn-cargarnota-atras').classList.toggle('hidden', idx === 0);
+    document.getElementById('modal-cargarnota-sub').textContent = CARGARNOTA_PASOS[idx].sub;
+    var hint = document.getElementById('modal-cargarnota-hint');
+    hint.classList.toggle('hidden', idx !== last);
+    hint.textContent = idx === last ? 'Si esta era la última que faltaba, tu promedio se actualiza solo.' : '';
+    document.getElementById('btn-cargarnota-continuar').textContent = idx === last ? 'Guardar nota' : 'Continuar';
+    if (idx === 1) renderCargarNotaEvaluaciones();
+    if (idx === 2) renderCargarNotaNota();
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('btn-cargarnota-atras').addEventListener('click', function () {
+      if (STATE.editing.cnStep > 0) { STATE.editing.cnStep--; cargarNotaAplicarPaso(); }
+    });
+    document.getElementById('btn-cargarnota-continuar').addEventListener('click', function () {
+      var last = CARGARNOTA_PASOS.length - 1;
+      if (STATE.editing.cnStep === last) { document.getElementById('form-cargar-nota').requestSubmit(); return; }
+      STATE.editing.cnStep++;
+      cargarNotaAplicarPaso();
+    });
+    document.getElementById('form-cargar-nota').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var m = computeMateriaById(STATE.editing.cnMateriaId);
+      var item = STATE.editing.cnEvaluacionId ? agendaRawById(STATE.editing.cnEvaluacionId) : null;
+      if (!m || !item) return;
+      var input = document.getElementById('cargarnota-nota');
+      var v = input.value.trim();
+      if (v === '' || isNaN(Number(v))) { input.focus(); return; }
+      // Mismo clamp de red-de-seguridad que abrirCargarNotaExamenModal/
+      // form-evaluacion (el input ya bloquea con max=, esto cubre autofill/devtools).
+      var total = item.notaMaxima != null ? item.notaMaxima : m.esc.total;
+      var n = Math.max(0, Math.min(Number(v), total));
+      var record = Object.assign({}, item, { nota: n, hecho: true });
+      var btn = document.getElementById('btn-cargarnota-continuar');
+      setBtnBusy(btn, true, 'Guardando…');
+      var ok = await saveAgendaRaw(loadAgendaRaw().map(function (a) { return a.id === record.id ? record : a; }));
+      setBtnBusy(btn, false);
+      if (!ok) { avisarError(); return; }
+      syncToGoogleCalendar('update', 'agenda', record.id);
+      await resolverPendienteSiCorresponde(record.materiaId, record.nota);
+      closeAllModals();
+      renderRoute();
+    });
+  });
+
   // ---- Modal personal ----
   function openPersonalModal(opts) {
     opts = opts || {};
@@ -5702,7 +5844,7 @@
     document.getElementById('acceso-materia').addEventListener('click', function () { openMateriaModal(null); });
     document.getElementById('acceso-entrega').addEventListener('click', function () { openEvaluacionModal({}); });
     document.getElementById('acceso-evento').addEventListener('click', function () { openPersonalModal({}); });
-    document.getElementById('btn-progreso-semestre-cargar').addEventListener('click', function () { location.hash = '#agenda'; });
+    document.getElementById('btn-progreso-semestre-cargar').addEventListener('click', function () { openCargarNotaModal(); });
     document.getElementById('btn-inicio-notas-pendientes').addEventListener('click', function () {
       renderProgresoPendientesModal();
       openModal('modal-progreso-pendientes');

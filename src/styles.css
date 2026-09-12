@@ -1101,6 +1101,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .modal-body{padding:20px 26px;display:flex;flex-direction:column;gap:16px}
 .modal-body.pad-lg{padding:24px 26px;gap:20px}
 .mat-step{display:flex;flex-direction:column;gap:16px}
+.cn-step{display:flex;flex-direction:column;gap:16px}
 .modal-head .wiz-steps-track{flex:1}
 .modal-foot{position:sticky;bottom:0;z-index:2;padding:18px 26px;background:var(--c-surface);border-top:1px solid var(--c-line-faint);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .field{display:flex;flex-direction:column;gap:7px;flex:1;min-width:0}

@@ -1288,6 +1288,54 @@
   </div>
 </div>
 
+<!-- ============ MODAL CARGAR NOTA (WIZARD) ============ -->
+<!-- Wizard de 3 pasos para cargar la nota de una evaluación ya agendada sin
+     tener que entrar a Detalle a buscar la fila puntual: materia → cuál de
+     sus evaluaciones pendientes es → nota obtenida. Mismo patrón de wizard
+     que #modal-materia (steps-track + Atrás/Continuar en runtime.js, ver
+     openCargarNotaModal()/cargarNotaAplicarPaso()), pero siempre 3 pasos
+     fijos — acá no existe un modo "edición junta" como en materia, esto
+     siempre parte de cero. -->
+<div class="modal-backdrop" id="modal-cargar-nota" role="dialog" aria-modal="true" aria-labelledby="modal-cargarnota-title">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="titles"><h2 class="t" id="modal-cargarnota-title">Cargar nota</h2><span class="s" id="modal-cargarnota-sub"></span></div>
+      <div class="wiz-steps-track" id="cargarnota-steps-track"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <form id="form-cargar-nota">
+      <div class="modal-body">
+        <div class="cn-step" data-cn-step="0">
+          <div class="field">
+            <label id="cargarnota-materia-label">Materia</label>
+            <div class="chips-materia" id="modal-cargarnota-materias" role="group" aria-labelledby="cargarnota-materia-label"></div>
+          </div>
+        </div>
+        <div class="cn-step hidden" data-cn-step="1">
+          <div class="field">
+            <label id="cargarnota-eval-label">Evaluación pendiente</label>
+            <div class="wiz-cards-list" id="modal-cargarnota-evals" role="radiogroup" aria-labelledby="cargarnota-eval-label"></div>
+          </div>
+        </div>
+        <div class="cn-step hidden" data-cn-step="2">
+          <div class="field">
+            <label for="cargarnota-nota" id="cargarnota-nota-label">Nota</label>
+            <input id="cargarnota-nota" type="number" step="0.1" min="0" inputmode="decimal" autocomplete="off" placeholder="Nota obtenida">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="mono" style="font-size:11px;color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-cargarnota-hint"></span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="btn btn-ghost hidden" id="btn-cargarnota-atras">Atrás</button>
+          <button type="button" class="btn" data-close-modal>Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-cargarnota-continuar">Continuar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ============ MODAL IMPORTAR DATOS LOCALES ============ -->
 <div class="modal-backdrop is-sheet" id="modal-importar-local" role="dialog" aria-modal="true" aria-labelledby="modal-importar-local-title">
   <div class="modal modal-xs">
