@@ -1295,9 +1295,12 @@
     computeKpis().forEach(function (k) {
       var node = tpl('kpi-card');
       var icon = qf(node, 'icon');
+      // Acento único (design.md: "el azul es el único acento en todo el
+      // producto") — el icon-tile ya no se tiñe por tono acá (antes usaba
+      // naranja/verde/gris como Ajustes tiñe por tono, pero eso metía tres
+      // colores compitiendo en la primera pantalla de la app). El estado
+      // sigue comunicándose, solo que en el texto sub de abajo.
       icon.appendChild(tpl(KPI_ICON[k.label]));
-      var kpiTone = k.tone || 'neutral';
-      icon.setAttribute('style', css({ background: rgba(TONE[kpiTone], TONE_BADGE_ALPHA[kpiTone]), color: TONE_BADGE_FG[kpiTone] }));
       qf(node, 'label').textContent = k.label;
       // Bloque 5: estado vacío con acción para "Promedio general" sin
       // notas cargadas — mismo botón que abre "Nueva evaluación", nada de
