@@ -1768,6 +1768,17 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .riesgo-row{gap:12px}
   .riesgo-body b{font-size:14.5px}
   .accesos-row{gap:8px}
+  /* "Accesos rápidos" como 4ta celda de la grilla 2x2 de #kpi-row (ver
+     posicionarAccesosRapidos() en runtime.js) — se achica al tamaño de una
+     kpi-card y sus 4 botones pasan a un grid 2x2 sólo ícono; el texto queda
+     como aria-label en el <button> (accesibilidad) y .acceso-label se
+     esconde nada más acá, no cuando el panel está en su lugar de desktop. */
+  #kpi-row > #accesos-panel{padding:14px 15px;gap:8px;justify-content:center}
+  #kpi-row > #accesos-panel .panel-title{font-size:12px;font-weight:400;color:var(--c-ink2)}
+  #kpi-row > #accesos-panel .accesos-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  #kpi-row > #accesos-panel .acceso-btn{height:auto;aspect-ratio:1;flex-direction:column;justify-content:center;padding:4px;gap:0}
+  #kpi-row > #accesos-panel .acceso-btn .ico{width:19px;height:19px}
+  #kpi-row > #accesos-panel .acceso-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 
   /* ---------- Materias ---------- */
   .materia-card{padding:16px;gap:13px;border-radius:18px}

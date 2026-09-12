@@ -1291,6 +1291,12 @@
     }
 
     var kpiRow = document.getElementById('kpi-row');
+    // Si "Accesos rápidos" está viviendo acá adentro (posicionarAccesosRapidos()
+    // lo movió en un render anterior, mobile), sacarlo ANTES de clear() — si
+    // no, clear() lo destruye junto con las kpi-card viejas y la próxima
+    // llamada a posicionarAccesosRapidos() encuentra getElementById(null).
+    var accesosPanelPrevio = document.getElementById('accesos-panel');
+    if (accesosPanelPrevio.parentNode === kpiRow) document.getElementById('inicio-cols-right').appendChild(accesosPanelPrevio);
     clear(kpiRow);
     computeKpis().forEach(function (k) {
       var node = tpl('kpi-card');
@@ -1372,6 +1378,7 @@
     });
 
     posicionarInicioHero();
+    posicionarAccesosRapidos();
     renderInicioHero(proximos[0], t7);
 
     var riesgo = computeMateriasDelActivo().filter(function (m) { return m.tone === 'danger' || m.tone === 'warning'; });
@@ -1419,6 +1426,24 @@
     } else {
       var colDerecha = document.getElementById('inicio-cols-right');
       if (colDerecha.firstElementChild !== hero) colDerecha.insertBefore(hero, colDerecha.firstElementChild);
+    }
+  }
+
+  // "Accesos rápidos" — en mobile pasa a ser la 4ta celda de la grilla 2x2
+  // de #kpi-row (las 3 kpi-card dejaban esa celda vacía, al lado de
+  // "Pendientes esta semana"; feedback: mover el panel ahí en vez de que
+  // aparezca recién después de "Materias en riesgo", mucho más abajo). En
+  // desktop vuelve a su lugar original al final de la columna derecha. Ver
+  // #kpi-row > #accesos-panel en styles.css para el estilo compacto que
+  // toma sólo en esa posición.
+  function posicionarAccesosRapidos() {
+    var panel = document.getElementById('accesos-panel');
+    if (esMobile()) {
+      var kpiRow = document.getElementById('kpi-row');
+      if (panel.parentNode !== kpiRow) kpiRow.appendChild(panel);
+    } else {
+      var colDerecha = document.getElementById('inicio-cols-right');
+      if (panel.parentNode !== colDerecha) colDerecha.appendChild(panel);
     }
   }
 
@@ -7720,11 +7745,12 @@
       onSignedOut();
     });
     window.addEventListener('hashchange', handleRoute);
-    // Reubica "Lo próximo" si se cruza el breakpoint de 760px sin navegar
-    // (redimensionar la ventana, girar el dispositivo) — ver
-    // posicionarInicioHero(). No hace falta re-renderizar todo Inicio.
+    // Reubica "Lo próximo" y "Accesos rápidos" si se cruza el breakpoint de
+    // 760px sin navegar (redimensionar la ventana, girar el dispositivo) —
+    // ver posicionarInicioHero()/posicionarAccesosRapidos(). No hace falta
+    // re-renderizar todo Inicio.
     window.addEventListener('resize', function () {
-      if (STATE.route.view === 'inicio' && document.getElementById('inicio-hero')) posicionarInicioHero();
+      if (STATE.route.view === 'inicio' && document.getElementById('inicio-hero')) { posicionarInicioHero(); posicionarAccesosRapidos(); }
     });
 
     sb().auth.onAuthStateChange(function (event, session) {
