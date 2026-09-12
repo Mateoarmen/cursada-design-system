@@ -37,25 +37,43 @@ async function insertar(row: {
   return data as string | null; // null = ya existía (ON CONFLICT DO NOTHING)
 }
 
-async function generarEntidadProxima(userId: string, eventType: 'evaluacion_proxima' | 'tarea_proxima' | 'evento_personal_proximo', prefsUsuario: any[], now: Date) {
-  const entityKind = eventType === 'evaluacion_proxima' ? 'evaluacion' : eventType === 'tarea_proxima' ? 'tarea' : 'evento_personal';
-  let items: { id: string; titulo: string; fecha: string; hora: string | null; materiaId: string | null }[] = [];
-  if (entityKind === 'evento_personal') {
-    const { data } = await supabase.from('personal').select('id,titulo,fecha,hora').eq('user_id', userId);
-    items = (data || []).map((p: any) => ({ id: p.id, titulo: p.titulo, fecha: p.fecha, hora: p.hora, materiaId: null }));
-  } else {
-    const { data } = await supabase.from('agenda').select('id,titulo,fecha,hora,materia_id,hecho').eq('user_id', userId).eq('kind', entityKind).eq('hecho', false);
-    items = (data || []).map((a: any) => ({ id: a.id, titulo: a.titulo, fecha: a.fecha, hora: a.hora, materiaId: a.materia_id }));
-  }
-  if (!items.length) return 0;
+type AgendaItem = { id: string; titulo: string; fecha: string; hora: string | null; materiaId: string | null; kind: string };
+type PersonalItem = { id: string; titulo: string; fecha: string; hora: string | null };
 
-  // Nombres de materia resueltos una sola vez por usuario, no por ítem.
-  const materiaIds = Array.from(new Set(items.map((i) => i.materiaId).filter(Boolean))) as string[];
-  const nombresPorId: Record<string, string> = {};
+// Datos de un usuario, leídos UNA sola vez por corrida (Bloque perf, ver
+// abajo) y reusados tanto por generarEntidadProxima() como por
+// generarResumen() — antes cada una volvía a golpear agenda/personal/
+// materias por separado (hasta 11 round-trips por usuario por hora), y con
+// 3+ usuarios la función superaba el límite de ejecución del runtime y el
+// invoke entero moría (EDGE_FUNCTION_ERROR, ~8-12s) antes de llegar a los
+// resúmenes, que corren últimos en el loop — por eso resumen_diario y
+// resumen_semanal nunca llegaban a insertar una fila pese a tener prefs
+// activas y items pendientes reales.
+type DatosUsuario = { agenda: AgendaItem[]; personal: PersonalItem[]; nombresMateria: Record<string, string> };
+
+async function cargarDatosUsuario(userId: string): Promise<DatosUsuario> {
+  const [{ data: agendaRaw }, { data: personalRaw }] = await Promise.all([
+    supabase.from('agenda').select('id,titulo,fecha,hora,materia_id,kind').eq('user_id', userId).eq('hecho', false),
+    supabase.from('personal').select('id,titulo,fecha,hora').eq('user_id', userId),
+  ]);
+  const agenda: AgendaItem[] = (agendaRaw || []).map((a: any) => ({ id: a.id, titulo: a.titulo, fecha: a.fecha, hora: a.hora, materiaId: a.materia_id, kind: a.kind }));
+  const personal: PersonalItem[] = (personalRaw || []).map((p: any) => ({ id: p.id, titulo: p.titulo, fecha: p.fecha, hora: p.hora }));
+
+  const materiaIds = Array.from(new Set(agenda.map((a) => a.materiaId).filter(Boolean))) as string[];
+  const nombresMateria: Record<string, string> = {};
   if (materiaIds.length) {
     const { data: materias } = await supabase.from('materias').select('id,nombre').in('id', materiaIds);
-    (materias || []).forEach((m: any) => { nombresPorId[m.id] = m.nombre; });
+    (materias || []).forEach((m: any) => { nombresMateria[m.id] = m.nombre; });
   }
+  return { agenda, personal, nombresMateria };
+}
+
+async function generarEntidadProxima(userId: string, eventType: 'evaluacion_proxima' | 'tarea_proxima' | 'evento_personal_proximo', prefsUsuario: any[], now: Date, datos: DatosUsuario) {
+  const entityKind = eventType === 'evaluacion_proxima' ? 'evaluacion' : eventType === 'tarea_proxima' ? 'tarea' : 'evento_personal';
+  const items = entityKind === 'evento_personal'
+    ? datos.personal.map((p) => ({ id: p.id, titulo: p.titulo, fecha: p.fecha, hora: p.hora, materiaId: null as string | null }))
+    : datos.agenda.filter((a) => a.kind === entityKind).map((a) => ({ id: a.id, titulo: a.titulo, fecha: a.fecha, hora: a.hora, materiaId: a.materiaId }));
+  if (!items.length) return 0;
 
   let count = 0;
   for (const channel of ['inapp', 'push']) {
@@ -69,7 +87,7 @@ async function generarEntidadProxima(userId: string, eventType: 'evaluacion_prox
     for (const item of items) {
       const aheadHoras = horasHasta(item.fecha, item.hora, now);
       if (aheadHoras == null || aheadHoras < 0 || aheadHoras > leadH) continue;
-      const materiaNombre = item.materiaId ? nombresPorId[item.materiaId] ?? null : null;
+      const materiaNombre = item.materiaId ? datos.nombresMateria[item.materiaId] ?? null : null;
       const { title, body } = contenidoEntidad({ entityType: entityKind as any, entityId: item.id, titulo: item.titulo, materiaNombre, fecha: item.fecha, hora: item.hora }, aheadHoras);
       const id = crypto.randomUUID();
       const inserted = await insertar({
@@ -83,7 +101,7 @@ async function generarEntidadProxima(userId: string, eventType: 'evaluacion_prox
   return count;
 }
 
-async function generarResumen(userId: string, eventType: 'resumen_diario' | 'resumen_semanal', prefsUsuario: any[], now: Date) {
+async function generarResumen(userId: string, eventType: 'resumen_diario' | 'resumen_semanal', prefsUsuario: any[], now: Date, datos: DatosUsuario, yaExisteHoy: Set<string>) {
   const ventanaHoras = eventType === 'resumen_diario' ? 24 : 24 * 7;
   let count = 0;
   for (const channel of ['inapp', 'push']) {
@@ -94,15 +112,12 @@ async function generarResumen(userId: string, eventType: 'resumen_diario' | 'res
     // Dedupe de los resúmenes: entity_id queda NULL (no hay una entidad
     // real puntual) y el índice único de notification_queue no detecta
     // conflictos con NULL (comportamiento estándar de Postgres) — se
-    // chequea acá a mano que no exista ya uno de hoy antes de insertar.
-    const desde = new Date(now.getTime() - 3 * 3600000).toISOString(); // margen: el cron corre en punto, no siempre exacto
-    const { data: yaExiste } = await supabase.from('notification_queue').select('id').eq('user_id', userId).eq('event_type', eventType).eq('channel', channel).gte('scheduled_for', desde).limit(1);
-    if (yaExiste && yaExiste.length) continue;
+    // chequea a mano (yaExisteHoy, precargado una vez por usuario) que no
+    // exista ya uno de hoy antes de insertar.
+    if (yaExisteHoy.has(eventType + '|' + channel)) continue;
 
-    const { data: evals } = await supabase.from('agenda').select('id,titulo,fecha,hora').eq('user_id', userId).eq('hecho', false);
-    const { data: personales } = await supabase.from('personal').select('id,titulo,fecha,hora').eq('user_id', userId);
     const limiteMs = now.getTime() + ventanaHoras * 3600000;
-    const proximos = [...(evals || []), ...(personales || [])].filter((it: any) => {
+    const proximos = [...datos.agenda, ...datos.personal].filter((it) => {
       const t = new Date(it.fecha + 'T' + (it.hora || '23:59') + ':00').getTime();
       return t >= now.getTime() && t <= limiteMs;
     });
@@ -130,13 +145,28 @@ Deno.serve(async (_req) => {
     porUsuario.get(p.user_id)!.push(p);
   }
 
+  // Ventana de dedupe de resúmenes para TODOS los usuarios en una sola
+  // consulta (antes: una consulta por usuario por tipo de resumen).
+  const desde = new Date(now.getTime() - 3 * 3600000).toISOString(); // margen: el cron corre en punto, no siempre exacto
+  const { data: resumenesRecientes } = await supabase
+    .from('notification_queue').select('user_id,event_type,channel')
+    .in('event_type', ['resumen_diario', 'resumen_semanal'])
+    .gte('scheduled_for', desde);
+  const yaExistePorUsuario = new Map<string, Set<string>>();
+  for (const r of resumenesRecientes || []) {
+    if (!yaExistePorUsuario.has(r.user_id)) yaExistePorUsuario.set(r.user_id, new Set());
+    yaExistePorUsuario.get(r.user_id)!.add(r.event_type + '|' + r.channel);
+  }
+
   let insertadas = 0;
   for (const [userId, userPrefs] of porUsuario) {
-    insertadas += await generarEntidadProxima(userId, 'evaluacion_proxima', userPrefs, now);
-    insertadas += await generarEntidadProxima(userId, 'tarea_proxima', userPrefs, now);
-    insertadas += await generarEntidadProxima(userId, 'evento_personal_proximo', userPrefs, now);
-    insertadas += await generarResumen(userId, 'resumen_diario', userPrefs, now);
-    insertadas += await generarResumen(userId, 'resumen_semanal', userPrefs, now);
+    const datos = await cargarDatosUsuario(userId);
+    const yaExisteHoy = yaExistePorUsuario.get(userId) || new Set<string>();
+    insertadas += await generarEntidadProxima(userId, 'evaluacion_proxima', userPrefs, now, datos);
+    insertadas += await generarEntidadProxima(userId, 'tarea_proxima', userPrefs, now, datos);
+    insertadas += await generarEntidadProxima(userId, 'evento_personal_proximo', userPrefs, now, datos);
+    insertadas += await generarResumen(userId, 'resumen_diario', userPrefs, now, datos, yaExisteHoy);
+    insertadas += await generarResumen(userId, 'resumen_semanal', userPrefs, now, datos, yaExisteHoy);
   }
 
   return new Response(JSON.stringify({ ok: true, usuarios: porUsuario.size, insertadas }), { headers: { 'Content-Type': 'application/json' } });
