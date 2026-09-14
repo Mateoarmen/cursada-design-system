@@ -3046,7 +3046,7 @@
     var horas = []; for (var h = 8; h < 22; h += .5) horas.push(h);
     var cols = dias.length;
     clear(grid);
-    grid.style.gridTemplateColumns = '58px repeat(' + cols + ',1fr)';
+    grid.style.gridTemplateColumns = '58px repeat(' + cols + ',minmax(0,1fr))';
     grid.style.gridTemplateRows = '30px repeat(' + horas.length + ',1fr)';
 
     var corner = el('div'); corner.style.cssText = 'grid-column:1;grid-row:1'; grid.appendChild(corner);
