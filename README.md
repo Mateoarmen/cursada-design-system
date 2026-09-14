@@ -4275,10 +4275,14 @@ para cualquier evaluación con `hecho:true`, tuviera nota cargada o no —
 vista. Ahora `hecho:true` + `nota:null` en una evaluación es su propio
 estado ("Esperando nota", tono warning) — sólo cuando además tiene nota
 pasa a "Rendido" (tono success). Nuevo botón secundario en el modo
-lectura, "Marcar entregado, esperando nota" (mismo `toggleAgendaHecho`
-que ya usaba "Marcar como entregado" del row-menu mobile), visible sólo
-mientras la evaluación sigue pendiente — una vez marcada entregada (con
-o sin nota) desaparece, no tiene sentido "entregar" dos veces.
+lectura, "Marcar como entregado" — mismo texto y mismo
+`toggleAgendaHecho` que ya usaba `row-menu-entregado` del long-press
+mobile (ver cursada-conventions, reusar antes de inventar texto nuevo;
+la primera versión tenía la etiqueta "Marcar entregado, esperando nota",
+que rompía el layout del footer al ser más larga que sus vecinos y
+quedar en un flex item que se achica — feedback en el momento). Visible
+sólo mientras la evaluación sigue pendiente — una vez marcada entregada
+(con o sin nota) desaparece, no tiene sentido "entregar" dos veces.
 
 No se tocó el picker "Cargar nota" del botón +Nuevo (`modoNota`, abre
 el form completo con foco en nota) ni el wizard de 3 pasos "Cargar

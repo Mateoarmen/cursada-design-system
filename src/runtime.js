@@ -4055,9 +4055,11 @@
         closeAllModals();
       }
     });
-    // "Marcar entregado, esperando nota": rendiste pero todavía no sabés
-    // cuánto te sacaste — deja la evaluación en el estado intermedio (ver
-    // agendaBadgeInfo) sin forzar a cargar una nota todavía.
+    // "Marcar como entregado" (misma etiqueta que ya usaba row-menu-entregado
+    // del long-press mobile — ver cursada-conventions, reusar antes de
+    // inventar texto nuevo): rendiste pero todavía no sabés cuánto te
+    // sacaste, deja la evaluación en el estado intermedio "Esperando nota"
+    // (ver agendaBadgeInfo) sin forzar a cargar una nota todavía.
     document.getElementById('btn-eval-view-entregado').addEventListener('click', async function () {
       var ev = agendaRawById(STATE.editing.evaluacionId);
       if (!ev) return;

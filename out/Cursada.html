@@ -3031,7 +3031,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <div style="display:flex;gap:10px;align-items:center">
         <button type="button" class="btn" data-close-modal>Cerrar</button>
         <button type="button" class="btn" id="btn-eval-view-editar">Editar</button>
-        <button type="button" class="btn btn-ghost hidden" id="btn-eval-view-entregado">Marcar entregado, esperando nota</button>
+        <button type="button" class="btn btn-ghost hidden" id="btn-eval-view-entregado">Marcar como entregado</button>
         <button type="button" class="btn btn-primary" id="btn-eval-view-completar"></button>
       </div>
     </div>
@@ -8057,9 +8057,11 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         closeAllModals();
       }
     });
-    // "Marcar entregado, esperando nota": rendiste pero todavía no sabés
-    // cuánto te sacaste — deja la evaluación en el estado intermedio (ver
-    // agendaBadgeInfo) sin forzar a cargar una nota todavía.
+    // "Marcar como entregado" (misma etiqueta que ya usaba row-menu-entregado
+    // del long-press mobile — ver cursada-conventions, reusar antes de
+    // inventar texto nuevo): rendiste pero todavía no sabés cuánto te
+    // sacaste, deja la evaluación en el estado intermedio "Esperando nota"
+    // (ver agendaBadgeInfo) sin forzar a cargar una nota todavía.
     document.getElementById('btn-eval-view-entregado').addEventListener('click', async function () {
       var ev = agendaRawById(STATE.editing.evaluacionId);
       if (!ev) return;
