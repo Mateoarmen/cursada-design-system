@@ -287,6 +287,20 @@
               </div>
               <div id="riesgo-list"></div>
             </div>
+            <!-- Evaluaciones marcadas "entregado" (btn-eval-view-entregado/
+                 row-menu-entregado) pero todavía sin nota cargada (ver
+                 agendaBadgeInfo, tono "Esperando nota") — antes había que
+                 entrar a Agenda y encontrar la fila puntual para cargarla.
+                 Cada fila abre directo el mini-modal "Asignar nota" (ver
+                 abrirAsignarNotaModal), sin pasar por el modo lectura de
+                 #modal-evaluacion. -->
+            <div class="card panel hidden" id="inicio-esperando-nota-card">
+              <div class="panel-head">
+                <h2 class="panel-title">Esperando nota</h2>
+                <span class="panel-hint" id="inicio-esperando-nota-count"></span>
+              </div>
+              <div id="inicio-esperando-nota-list"></div>
+            </div>
             <div class="card panel hidden" id="progreso-widget">
               <div class="panel-head">
                 <h2 class="panel-title">Progreso</h2>

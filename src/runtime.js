@@ -1268,6 +1268,45 @@
     });
   }
 
+  // Card "Esperando nota" de Inicio — evaluaciones del semestre activo con
+  // hecho:true y nota:null (mismo criterio que agendaBadgeInfo, ver
+  // btn-eval-view-entregado). Antes la única forma de encontrarlas era
+  // entrar a Agenda y reconocerlas por el badge; acá quedan agrupadas en un
+  // solo lugar, con la acción de cargar la nota a un click (abre
+  // abrirAsignarNotaModal directo, no pasa por el modo lectura del modal de
+  // evaluación). Mismo scope que "Materias en riesgo"/KPIs de Inicio
+  // (semestre activo, no histórico completo — ver cursada-conventions,
+  // sección Semestres). Orden ascendente por fecha: la que lleva más tiempo
+  // esperando la nota va primero.
+  function renderInicioEsperandoNota() {
+    var pendientes = agendaDeSemestre(activeSemestreId()).filter(function (a) {
+      return a.kind === 'evaluacion' && a.hecho && a.nota == null;
+    }).sort(function (a, b) { return parseISODate(a.fecha) - parseISODate(b.fecha); });
+    var card = document.getElementById('inicio-esperando-nota-card');
+    card.classList.toggle('hidden', !pendientes.length);
+    if (!pendientes.length) return;
+    document.getElementById('inicio-esperando-nota-count').textContent = pendientes.length + (pendientes.length === 1 ? ' evaluación' : ' evaluaciones');
+    var list = document.getElementById('inicio-esperando-nota-list');
+    clear(list);
+    pendientes.forEach(function (a) {
+      var m = computeMateriaById(a.materiaId);
+      var row = el('div', 'progreso-semestre-materia-row');
+      var nombreWrap = el('div', 'progreso-semestre-materia-nombre');
+      var dot = el('span', 'tone-dot'); dot.style.background = m ? m.strong : 'var(--c-ink3)';
+      var textWrap = el('div'); textWrap.style.cssText = 'display:flex;flex-direction:column;gap:2px;min-width:0';
+      var tituloEl = el('span'); tituloEl.style.fontWeight = '600'; tituloEl.textContent = a.titulo;
+      var metaEl = el('span'); metaEl.style.cssText = 'font-size:12px;color:var(--c-ink3)';
+      metaEl.textContent = (m ? m.nombre + ' · ' : '') + formatFechaAgenda(a.fecha, a.hora);
+      textWrap.appendChild(tituloEl); textWrap.appendChild(metaEl);
+      nombreWrap.appendChild(dot); nombreWrap.appendChild(textWrap);
+      var valEl = el('span'); valEl.style.cssText = 'color:var(--c-accent);font-size:12.5px;font-weight:600;white-space:nowrap;flex:none';
+      valEl.textContent = 'Asignar nota ›';
+      row.appendChild(nombreWrap); row.appendChild(valEl);
+      makeRowClickable(row, function () { abrirAsignarNotaModal(a.id); }, 'Asignar nota a ' + a.titulo);
+      list.appendChild(row);
+    });
+  }
+
   function renderInicio() {
     var t = today();
     var nombre = primerNombre(CURRENT_PROFILE && CURRENT_PROFILE.nombre);
@@ -1422,6 +1461,7 @@
       });
     }
 
+    renderInicioEsperandoNota();
     renderProgresoWidgetInicio();
   }
 

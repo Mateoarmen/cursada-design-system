@@ -4296,3 +4296,36 @@ esperando nota" (badge nuevo, el botón de marcar desaparece de ahí en
 más), cambiar la nota de una evaluación ya calificada ("Cambiar nota"
 precargado), mobile (375px, botones apilados) y desktop, sin errores de
 consola nuevos.
+
+## Card "Esperando nota" en Inicio
+
+Pedido de seguimiento al feature anterior: las evaluaciones en estado
+"Esperando nota" (hecho:true, nota:null — ver arriba) quedaban sólo
+visibles entrando a Agenda y reconociéndolas por el badge nuevo; no
+había forma de encontrarlas ni cargarles la nota desde Inicio.
+
+**`renderInicioEsperandoNota()`**: nueva card en la columna derecha de
+Inicio (`#inicio-cols-right`, entre "Materias en riesgo" y "Progreso" —
+mismo nivel de prioridad que "en riesgo", ambas son listas que piden
+una acción), oculta cuando no hay ninguna. Mismo scope que el resto de
+Inicio (`agendaDeSemestre(activeSemestreId())`, semestre activo — no
+histórico completo, ver cursada-conventions sección Semestres),
+ordenada por fecha ascendente (la que lleva más tiempo esperando la
+nota va primero). Cada fila reusa el layout de
+`.progreso-semestre-materia-row`/`.progreso-semestre-materia-nombre`
+que ya usaba "Materias pendientes" de Progreso (mismo look, sin CSS
+nuevo) con un segundo renglón chico para materia+fecha bajo el título.
+La acción "Asignar nota ›" llama directo a `abrirAsignarNotaModal(a.id)`
+— ni pasa por Agenda ni por el modo lectura de `#modal-evaluacion`, un
+solo click desde Inicio hasta el mini-modal de la nota.
+
+No incluye tareas (`kind:'tarea'`): el modelo de datos no les permite
+tener `nota`, así que "esperando nota" no aplica — se le aclaró al
+pedido original ("tareas, evaluaciones esperando nota") que sólo las
+evaluaciones entran en este estado.
+
+Verificado en `Cursada.test.html`: la card aparece/desaparece según
+haya o no evaluaciones esperando nota, el orden por fecha, asignar la
+nota desde la card actualiza Progreso/promedio en vivo y saca la fila
+de la lista (o toda la card si era la última), mobile (375px) y
+desktop, sin errores de consola nuevos.
