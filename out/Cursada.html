@@ -3031,6 +3031,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <div style="display:flex;gap:10px;align-items:center">
         <button type="button" class="btn" data-close-modal>Cerrar</button>
         <button type="button" class="btn" id="btn-eval-view-editar">Editar</button>
+        <button type="button" class="btn btn-ghost hidden" id="btn-eval-view-entregado">Marcar entregado, esperando nota</button>
         <button type="button" class="btn btn-primary" id="btn-eval-view-completar"></button>
       </div>
     </div>
@@ -3428,6 +3429,35 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
       <div class="modal-foot" style="justify-content:flex-end">
         <button type="button" class="btn" data-close-modal>Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btn-cargar-examen-guardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Mini-modal "Asignar nota" para una evaluación puntual ya agendada — a
+     diferencia de "Cargar nota" de arriba (crea una evaluación nueva tipo
+     Examen para una materia "debo rendir"), esto actualiza la nota de una
+     evaluación que ya existe. Se abre desde el botón "Asignar nota"/"Cambiar
+     nota" del modo lectura de #modal-evaluacion en vez de mandar al form
+     completo de "Editar evaluación" (ver abrirAsignarNotaModal en
+     runtime.js). -->
+<div class="modal-backdrop is-sheet" id="modal-asignar-nota" role="dialog" aria-modal="true" aria-labelledby="modal-asignar-nota-title">
+  <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
+    <div class="modal-head">
+      <div class="titles"><h2 class="t" id="modal-asignar-nota-title">Asignar nota</h2><span class="s" id="modal-asignar-nota-sub"></span></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <form id="form-asignar-nota">
+      <div class="modal-body pad-lg">
+        <div class="field">
+          <label for="asignar-nota-nota" id="asignar-nota-label">Nota</label>
+          <input id="asignar-nota-nota" type="number" step="0.1" min="0" inputmode="decimal" autocomplete="off" placeholder="Nota obtenida">
+        </div>
+      </div>
+      <div class="modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-asignar-nota-guardar">Guardar</button>
       </div>
     </form>
   </div>
@@ -5853,7 +5883,15 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   }
 
   function agendaBadgeInfo(item, t) {
-    if (item.hecho) return { tone: 'success', label: item.itemKind === 'evaluacion' || item.kind === 'evaluacion' ? 'Rendido' : 'Entregado' };
+    if (item.hecho) {
+      var esEval = item.itemKind === 'evaluacion' || item.kind === 'evaluacion';
+      // Una evaluación "hecha" sin nota todavía es un estado propio ("la
+      // rendí pero no sé cuánto me saqué") — antes se mostraba igual que
+      // "Rendido" ya calificado, lo que escondía que faltaba cargar la nota
+      // (ver btn-eval-view-entregado/abrirAsignarNotaModal).
+      if (esEval && item.nota == null) return { tone: 'warning', label: 'Esperando nota' };
+      return { tone: 'success', label: esEval ? 'Rendido' : 'Entregado' };
+    }
     var d = parseISODate(item.fecha);
     var diff = diffDias(d, t);
     if (diff < 0) return { tone: 'danger', label: 'Vencida hace ' + Math.abs(diff) + (Math.abs(diff) === 1 ? ' día' : ' días') };
@@ -7827,11 +7865,17 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     notasEl.textContent = ev.notas || '';
 
     // Acción rápida sin pasar por "Editar": una tarea se completa al
-    // toque; una evaluación abre el form ya enfocado en el campo de nota
-    // (mismo destino que "Cargar nota" del picker) — nunca el popover
-    // chico que era ilegible/inusable.
+    // toque; una evaluación abre el mini-modal de "Asignar nota" (ver
+    // abrirAsignarNotaModal) — antes mandaba al form completo de "Editar
+    // evaluación" sólo enfocado en el campo de nota, lo que se sentía como
+    // editar toda la evaluación para cargar un solo número.
     var btnCompletar = document.getElementById('btn-eval-view-completar');
-    btnCompletar.textContent = isEval ? 'Asignar nota' : (ev.hecho ? 'Marcar pendiente' : 'Marcar completada');
+    btnCompletar.textContent = isEval ? (ev.nota != null ? 'Cambiar nota' : 'Asignar nota') : (ev.hecho ? 'Marcar pendiente' : 'Marcar completada');
+    // "Marcar entregado, esperando nota": estado intermedio para cuando ya
+    // rendiste pero todavía no sabés la nota — sólo tiene sentido antes de
+    // que la evaluación quede hecha (una vez hecha, ya es "esperando nota"
+    // o "rendida", ver agendaBadgeInfo). No aplica a tareas.
+    document.getElementById('btn-eval-view-entregado').classList.toggle('hidden', !isEval || ev.hecho);
   }
 
   // Muestra/esconde los campos que sólo aplican a evaluación (tipo, nota
@@ -8000,20 +8044,27 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       renderModalEvalVisibility();
     });
     // Acción rápida del modo lectura (sin pasar por "Editar"): tarea se
-    // completa/despende al toque y cierra; evaluación abre el form ya
-    // enfocado en la nota — mismo destino que "Cargar nota" del picker.
+    // completa/despende al toque y cierra; evaluación abre el mini-modal de
+    // "Asignar nota" (ver abrirAsignarNotaModal) en vez del form completo de
+    // "Editar evaluación".
     document.getElementById('btn-eval-view-completar').addEventListener('click', async function () {
       var ev = agendaRawById(STATE.editing.evaluacionId);
       if (!ev) return;
       if (ev.kind === 'evaluacion') {
-        STATE.editing.modo = 'form';
-        renderModalEvalVisibility();
-        var notaInput = document.getElementById('eval-nota');
-        if (notaInput) { notaInput.focus(); notaInput.select(); }
+        abrirAsignarNotaModal(ev.id);
       } else {
         await toggleAgendaHecho(ev.id, !ev.hecho);
         closeAllModals();
       }
+    });
+    // "Marcar entregado, esperando nota": rendiste pero todavía no sabés
+    // cuánto te sacaste — deja la evaluación en el estado intermedio (ver
+    // agendaBadgeInfo) sin forzar a cargar una nota todavía.
+    document.getElementById('btn-eval-view-entregado').addEventListener('click', async function () {
+      var ev = agendaRawById(STATE.editing.evaluacionId);
+      if (!ev) return;
+      await toggleAgendaHecho(ev.id, true);
+      closeAllModals();
     });
     // Mismo patrón que #btn-perfil-logout/#btn-ajustes-logout (ver
     // cursada-conventions): dispara el click del botón real en vez de
@@ -8134,11 +8185,64 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     });
   });
 
+  // Mini-modal "Asignar nota" para una evaluación puntual ya agendada — el
+  // botón "Asignar nota"/"Cambiar nota" del modo lectura de #modal-evaluacion
+  // (ver renderModalEvalViewContent) antes reusaba el form completo de
+  // "Editar evaluación" enfocando el campo de nota, lo que se sentía como
+  // editar toda la evaluación para cargar un solo número. Mismo patrón que
+  // abrirCargarNotaExamenModal de arriba, pero actualiza una evaluación
+  // existente en vez de crear una nueva (y por eso precarga la nota actual
+  // si ya tenía una — "Cambiar nota").
+  var ASIGNAR_NOTA_EVALUACION_ID = null;
+  function abrirAsignarNotaModal(evaluacionId) {
+    var ev = agendaRawById(evaluacionId);
+    if (!ev) return;
+    var m = computeMateriaById(ev.materiaId);
+    var escRef = m ? m.esc : { tipo: 'puntos' };
+    var total = ev.notaMaxima != null ? ev.notaMaxima : (m ? m.esc.total : null);
+    ASIGNAR_NOTA_EVALUACION_ID = evaluacionId;
+    closeAllModals();
+    document.getElementById('modal-asignar-nota-title').textContent = 'Asignar nota — ' + ev.titulo;
+    document.getElementById('modal-asignar-nota-sub').textContent = m ? ('Se guarda en ' + m.nombre + '.') : '';
+    document.getElementById('asignar-nota-label').textContent = 'Nota' + (total != null ? (' (sobre ' + val(total, escRef) + ')') : '');
+    var input = document.getElementById('asignar-nota-nota');
+    input.value = ev.nota != null ? ev.nota : '';
+    input.min = '0';
+    if (total != null) input.max = String(total);
+    input.step = escRef.tipo === 'nota' ? '0.1' : '1';
+    openModal('modal-asignar-nota');
+    setTimeout(function () { input.focus(); input.select(); }, 0);
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('form-asignar-nota').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var item = agendaRawById(ASIGNAR_NOTA_EVALUACION_ID);
+      if (!item) return;
+      var input = document.getElementById('asignar-nota-nota');
+      var v = input.value.trim();
+      if (v === '' || isNaN(Number(v))) { input.focus(); return; }
+      var m = computeMateriaById(item.materiaId);
+      var total = item.notaMaxima != null ? item.notaMaxima : (m ? m.esc.total : null);
+      // Mismo clamp de red-de-seguridad que abrirCargarNotaExamenModal/
+      // form-evaluacion (el input ya bloquea con max=, esto cubre autofill/devtools).
+      var n = total != null ? Math.max(0, Math.min(Number(v), total)) : Math.max(0, Number(v));
+      var record = Object.assign({}, item, { nota: n, hecho: true });
+      var btn = document.getElementById('btn-asignar-nota-guardar');
+      setBtnBusy(btn, true, 'Guardando…');
+      var ok = await saveAgendaRaw(loadAgendaRaw().map(function (a) { return a.id === record.id ? record : a; }));
+      setBtnBusy(btn, false);
+      if (!ok) { avisarError(); return; }
+      syncToGoogleCalendar('update', 'agenda', record.id);
+      await resolverPendienteSiCorresponde(record.materiaId, record.nota);
+      closeAllModals();
+      renderRoute();
+    });
+  });
+
   // ---- Modal cargar nota (wizard: materia → evaluación pendiente → nota) ----
   // Hasta acá "cargar la nota de una evaluación ya agendada" sólo se podía
-  // hacer entrando a Detalle y tocando la fila puntual, o abriendo el form
-  // completo de Evaluación con "Asignar nota"/modoNota (que ya arranca con
-  // la materia y el kind fijos, ver openEvaluacionModal arriba). Este
+  // hacer entrando a Detalle y tocando la fila puntual, o abriendo el
+  // mini-modal "Asignar nota" de arriba (ver abrirAsignarNotaModal). Este
   // wizard es la versión "no me acuerdo cuál era": elegís la materia,
   // después cuál de sus evaluaciones sin nota es, y por último la nota —
   // pensado sobre todo para "Cargar primera nota" en el Progreso vacío

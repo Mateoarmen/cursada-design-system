@@ -4247,3 +4247,48 @@ Verificado en `Cursada.test.html`: los filtros "Evaluaciones"/"Tareas"
 de Agenda, mobile (375px) y desktop, los dos temas, y confirmando por
 `getComputedStyle` que el tinte de fondo se aplica de verdad (no sólo
 que la regla exista en el CSS).
+
+## "Asignar nota" con mini-modal propio + estado "esperando nota"
+
+Feedback: al tocar una evaluación y elegir "Asignar nota" en el modo
+lectura de `#modal-evaluacion`, la acción abría el form completo de
+"Editar evaluación" (título/fecha/materia/tipo/etiqueta, todos los
+campos) sólo con el foco puesto en el campo de nota — se sentía como
+"editar toda la evaluación" para cargar un solo número. Además faltaba
+una forma de marcar "ya la rendí pero todavía no sé la nota", sin tener
+que inventarse una nota provisoria.
+
+**Mini-modal "Asignar nota" (`abrirAsignarNotaModal`)**: mismo patrón
+que el ya existente `abrirCargarNotaExamenModal` ("Cargar nota" para
+materias "debo rendir examen") — un solo campo, sin wizard — pero
+actualiza una evaluación que ya existe en vez de crear una nueva. Si la
+evaluación ya tenía nota cargada, el campo arranca precargado y el
+botón que la abre pasa a decir "Cambiar nota" en vez de "Asignar nota"
+(mismo criterio que "Editar"/"Nueva" en otros modales: el texto del
+botón refleja si ya hay algo cargado). Guarda con el mismo
+`saveAgendaRaw`/`resolverPendienteSiCorresponde` que el resto de los
+flujos de nota — la nota vive en la evaluación, nunca aparte.
+
+**Estado "esperando nota"**: antes `agendaBadgeInfo` mostraba "Rendido"
+para cualquier evaluación con `hecho:true`, tuviera nota cargada o no —
+"ya la rendiste" y "ya sabés la nota" quedaban indistinguibles a simple
+vista. Ahora `hecho:true` + `nota:null` en una evaluación es su propio
+estado ("Esperando nota", tono warning) — sólo cuando además tiene nota
+pasa a "Rendido" (tono success). Nuevo botón secundario en el modo
+lectura, "Marcar entregado, esperando nota" (mismo `toggleAgendaHecho`
+que ya usaba "Marcar como entregado" del row-menu mobile), visible sólo
+mientras la evaluación sigue pendiente — una vez marcada entregada (con
+o sin nota) desaparece, no tiene sentido "entregar" dos veces.
+
+No se tocó el picker "Cargar nota" del botón +Nuevo (`modoNota`, abre
+el form completo con foco en nota) ni el wizard de 3 pasos "Cargar
+nota" (`modal-cargar-nota`, para "no me acuerdo cuál evaluación era") —
+ambos crean/eligen una evaluación desde cero, escenario distinto al de
+tocar una evaluación puntual que ya se está viendo.
+
+Verificado en `Cursada.test.html`: asignar nota nueva a una evaluación
+pendiente (pasa a "Rendido", desaparece de próximas), marcar "entregado,
+esperando nota" (badge nuevo, el botón de marcar desaparece de ahí en
+más), cambiar la nota de una evaluación ya calificada ("Cambiar nota"
+precargado), mobile (375px, botones apilados) y desktop, sin errores de
+consola nuevos.

@@ -886,6 +886,7 @@
       <div style="display:flex;gap:10px;align-items:center">
         <button type="button" class="btn" data-close-modal>Cerrar</button>
         <button type="button" class="btn" id="btn-eval-view-editar">Editar</button>
+        <button type="button" class="btn btn-ghost hidden" id="btn-eval-view-entregado">Marcar entregado, esperando nota</button>
         <button type="button" class="btn btn-primary" id="btn-eval-view-completar"></button>
       </div>
     </div>
@@ -1283,6 +1284,35 @@
       <div class="modal-foot" style="justify-content:flex-end">
         <button type="button" class="btn" data-close-modal>Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btn-cargar-examen-guardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Mini-modal "Asignar nota" para una evaluación puntual ya agendada — a
+     diferencia de "Cargar nota" de arriba (crea una evaluación nueva tipo
+     Examen para una materia "debo rendir"), esto actualiza la nota de una
+     evaluación que ya existe. Se abre desde el botón "Asignar nota"/"Cambiar
+     nota" del modo lectura de #modal-evaluacion en vez de mandar al form
+     completo de "Editar evaluación" (ver abrirAsignarNotaModal en
+     runtime.js). -->
+<div class="modal-backdrop is-sheet" id="modal-asignar-nota" role="dialog" aria-modal="true" aria-labelledby="modal-asignar-nota-title">
+  <div class="modal modal-xs">
+    <div class="sheet-grabber"></div>
+    <div class="modal-head">
+      <div class="titles"><h2 class="t" id="modal-asignar-nota-title">Asignar nota</h2><span class="s" id="modal-asignar-nota-sub"></span></div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <form id="form-asignar-nota">
+      <div class="modal-body pad-lg">
+        <div class="field">
+          <label for="asignar-nota-nota" id="asignar-nota-label">Nota</label>
+          <input id="asignar-nota-nota" type="number" step="0.1" min="0" inputmode="decimal" autocomplete="off" placeholder="Nota obtenida">
+        </div>
+      </div>
+      <div class="modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" data-close-modal>Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-asignar-nota-guardar">Guardar</button>
       </div>
     </form>
   </div>
