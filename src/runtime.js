@@ -1334,21 +1334,38 @@
     var proxList = document.getElementById('proximos-list');
     clear(proxList);
     var t7 = today();
-    var proximos = [];
-    agendaDeSemestre(activeSemestreId()).forEach(function (a) {
-      var d = parseISODate(a.fecha);
-      var diff = diffDias(d, t7);
-      if (diff >= 0 && diff <= 7) proximos.push({ tipo: 'materia', d: d, item: a });
-    });
-    if (STATE.mostrarPersonales) loadPersonalRaw().forEach(function (p) {
-      var d = parseISODate(p.fecha);
-      var diff = diffDias(d, t7);
-      if (diff >= 0 && diff <= 7) proximos.push({ tipo: 'personal', d: d, item: p });
-    });
-    proximos.sort(function (a, b) { return a.d - b.d; });
+    // "Lo próximo"/"Próximos 7 días" son para lo que todavía hay que hacer —
+    // una evaluación ya rendida (hecho:true, con nota o todavía "esperando
+    // nota", ver agendaBadgeInfo) no pertenece acá aunque su fecha caiga
+    // dentro de la ventana; para eso está Agenda con su propio filtro.
+    function proximosEnRango(maxDias) {
+      var out = [];
+      agendaDeSemestre(activeSemestreId()).forEach(function (a) {
+        if (a.hecho) return;
+        var d = parseISODate(a.fecha);
+        var diff = diffDias(d, t7);
+        if (diff >= 0 && diff <= maxDias) out.push({ tipo: 'materia', d: d, item: a });
+      });
+      if (STATE.mostrarPersonales) loadPersonalRaw().forEach(function (p) {
+        var d = parseISODate(p.fecha);
+        var diff = diffDias(d, t7);
+        if (diff >= 0 && diff <= maxDias) out.push({ tipo: 'personal', d: d, item: p });
+      });
+      out.sort(function (a, b) { return a.d - b.d; });
+      return out;
+    }
+    // Nada en los próximos 7 días: en vez de dejar la card vacía, se pasa a
+    // mostrar lo que quede del mes en curso — mismo criterio que "Lo
+    // próximo" (hero, usa proximos[0]) para no desaparecer sólo porque no
+    // hay nada en la semana.
+    var diasHastaFinMes = diffDias(new Date(t7.getFullYear(), t7.getMonth() + 1, 0), t7);
+    var proximos = proximosEnRango(7);
+    var usandoMes = !proximos.length;
+    if (usandoMes) proximos = proximosEnRango(Math.max(7, diasHastaFinMes));
+    document.getElementById('proximos-titulo').textContent = usandoMes ? 'Este mes' : 'Próximos 7 días';
     if (!proximos.length) {
       var empty = el('div'); empty.style.cssText = 'padding:24px 0;text-align:center;color:var(--c-ink3);font-size:13px';
-      empty.textContent = 'No tenés nada agendado para los próximos 7 días.';
+      empty.textContent = usandoMes ? 'No tenés nada agendado este mes.' : 'No tenés nada agendado para los próximos 7 días.';
       proxList.appendChild(empty);
     }
     proximos.forEach(function (p) {
