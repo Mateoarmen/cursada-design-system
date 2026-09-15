@@ -1396,19 +1396,24 @@
     // Nada en los próximos 7 días: en vez de dejar la card vacía, se pasa a
     // mostrar lo que quede del mes en curso — mismo criterio que "Lo
     // próximo" (hero, usa proximos[0]) para no desaparecer sólo porque no
-    // hay nada en la semana. Si tampoco hay nada en lo que queda del mes,
-    // se busca sin límite de fecha: mientras haya algo cargado a futuro
-    // (aunque caiga en otro mes), la card lo muestra en vez de quedar vacía.
+    // hay nada en la semana. Si tampoco hay nada en lo que queda del mes, se
+    // busca el próximo ítem sin límite de fecha y se acota la lista a SU mes
+    // (no a "todo lo que hay a futuro" — si no, el título dice un mes pero
+    // la lista mezcla varios meses siguientes).
     var diasHastaFinMes = diffDias(new Date(t7.getFullYear(), t7.getMonth() + 1, 0), t7);
     var proximos = proximosEnRango(7);
     var usandoMes = !proximos.length;
     if (usandoMes) proximos = proximosEnRango(Math.max(7, diasHastaFinMes));
     var usandoOtroMes = usandoMes && !proximos.length;
-    if (usandoOtroMes) proximos = proximosEnRango(Infinity);
     var tituloProximos = 'Próximos 7 días';
-    if (usandoOtroMes && proximos.length) {
-      var nombreMes = MESES_LARGOS[proximos[0].d.getMonth()];
-      tituloProximos = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+    if (usandoOtroMes) {
+      var siguiente = proximosEnRango(Infinity)[0];
+      if (siguiente) {
+        var finOtroMes = new Date(siguiente.d.getFullYear(), siguiente.d.getMonth() + 1, 0);
+        proximos = proximosEnRango(diffDias(finOtroMes, t7));
+        var nombreMes = MESES_LARGOS[siguiente.d.getMonth()];
+        tituloProximos = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+      }
     } else if (usandoMes) {
       tituloProximos = 'Este mes';
     }
