@@ -673,7 +673,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    misma altura que esta lista sin contenido real que la llene, dejando un
    bloque de fondo de página vacío debajo de "Accesos rápidos". Se acota acá
    en vez de reordenar el layout — mismo patrón que #sidenav-legend-list. */
-#proximos-list{max-height:560px;overflow-y:auto}
+#proximos-list{max-height:560px;overflow-y:auto;overflow-x:hidden}
 .prox-row{display:flex;align-items:center;gap:16px;padding:13px 6px;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:12px;transition:background 150ms var(--ease-out)}
 .prox-row:first-child{border-top:none}
 .prox-row[role="button"]:hover{background:var(--c-surfaceAlt)}
