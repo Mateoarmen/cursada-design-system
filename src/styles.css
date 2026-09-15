@@ -555,6 +555,11 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;
   cursor:pointer;transition:background 120ms ease,border-color 120ms ease;
 }
+/* El círculo visual se queda en 28px (a propósito, ver comentario de
+   arriba) pero el área real de toque crece a 44px con un ::before
+   invisible — mismo criterio que un <button> con padding, sin agrandar
+   nada que se vea ni empujar el layout de la fila. */
+.lp-toggle-btn::before{content:'';position:absolute;inset:-8px}
 .lp-toggle-btn.is-on{background:var(--c-success);border-color:var(--c-success)}
 .lp-toggle-btn:disabled{opacity:.5;cursor:default}
 .lp-toggle-btn:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
@@ -679,7 +684,12 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    texto no dijera ya. Ahora el color ES la urgencia: gris apagado por
    defecto (nada que atender todavía), naranja si es hoy/mañana
    (.urgente, ver esCountdownUrgente en runtime.js), rojo si venció. */
-.prox-countdown{font-size:11.5px;color:var(--c-ink3);font-weight:600}
+/* --c-ink3 (#86868B sobre blanco) da ~3.6:1 acá — bajo el 4.5:1 que pide
+   texto de 11.5px (no llega al umbral de "texto grande" que permitiría
+   3:1). --c-ink2 sí pasa (~5:1) y ya es el mismo tono que usa .agenda-fecha
+   al lado, así que no se nota como un gris distinto, sólo más legible. Los
+   estados .urgente/.vencido no cambian. */
+.prox-countdown{font-size:11.5px;color:var(--c-ink2);font-weight:600}
 .prox-countdown.urgente{color:var(--c-warning)}
 .prox-countdown.vencido{color:var(--c-danger)}
 .riesgo-row{display:flex;align-items:center;gap:15px;padding:14px 6px 0;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:12px;transition:background 150ms var(--ease-out)}
@@ -877,6 +887,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 /* Mismo motivo que .eval-row de arriba: la fila vive envuelta en .swipe-row,
    así que la selección de "primera fila" pasa por el wrapper. */
 .agenda-list > .swipe-row:first-child .agenda-row{border-top:none}
+/* Divisor de mes dentro de "Próximamente" (ver subagruparPorMes en
+   runtime.js) — mismo tono que .agenda-group-head .t pero sin usar --c-ink3
+   directo (mismo motivo que .prox-countdown más arriba: a este tamaño no
+   llega a 4.5:1). Vive suelto en el flujo del .card, no en su propia fila
+   con fondo, para no competir con el encabezado real del grupo. */
+.agenda-month-divider{padding:14px 20px 4px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--c-ink2)}
+.agenda-list > .agenda-month-divider:first-child{padding-top:4px}
+.agenda-list > .agenda-month-divider + .swipe-row .agenda-row{border-top:none}
 .agenda-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .agenda-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
 .agenda-title.done{color:var(--c-ink3);text-decoration:line-through}

@@ -2716,16 +2716,46 @@
     var n = el('span', 'n'); n.textContent = items.length + (items.length === 1 ? ' ítem' : ' ítems');
     var rule = el('div', 'rule');
     head.appendChild(tEl); head.appendChild(n); head.appendChild(rule);
-    wrap.appendChild(head); wrap.appendChild(buildAgendaRowsList(items, t, ocultarMateriaChip));
+    // "Próximamente" es el único balde sin techo de tiempo (Vencidas y Esta
+    // semana ya están acotadas) — con el semestre cargado entero puede ir de
+    // la semana que viene a dentro de tres meses, todo bajo el mismo
+    // encabezado. Subdividir por mes ahí adentro (sólo si de verdad hay más
+    // de un mes metido) da un punto de referencia para saltar directo a lo
+    // que importa en vez de leer las N filas una por una.
+    var subagruparPorMes = titulo === 'Próximamente';
+    wrap.appendChild(head); wrap.appendChild(buildAgendaRowsList(items, t, ocultarMateriaChip, subagruparPorMes));
     return wrap;
   }
   // Extraído de buildAgendaGroup (Fase 6) para reusarlo en la sección
   // "Completadas" colapsable — misma fila, sin repetir la lógica de tick/
   // swipe/click. ocultarMateriaChip: ver renderAgenda — sólo true cuando ya
   // hay un filtro de materia activo (todas las filas comparten materia).
-  function buildAgendaRowsList(items, t, ocultarMateriaChip) {
+  // subagruparPorMes: ver buildAgendaGroup — asume `items` ya vienen
+  // ordenados por fecha (sortFn en renderAgenda), si no los divisores de mes
+  // van a salir desordenados.
+  function buildAgendaRowsList(items, t, ocultarMateriaChip, subagruparPorMes) {
     var list = el('div', 'card agenda-list');
+    var mesesDistintos = 0, ultimoMesKey = null;
+    if (subagruparPorMes) {
+      items.forEach(function (item) {
+        var d = parseISODate(item.fecha);
+        var key = d.getFullYear() + '-' + d.getMonth();
+        if (key !== ultimoMesKey) { mesesDistintos++; ultimoMesKey = key; }
+      });
+      ultimoMesKey = null; // se vuelve a recorrer abajo para insertar los divisores
+    }
     items.forEach(function (item) {
+      if (subagruparPorMes && mesesDistintos > 1) {
+        var d = parseISODate(item.fecha);
+        var key = d.getFullYear() + '-' + d.getMonth();
+        if (key !== ultimoMesKey) {
+          ultimoMesKey = key;
+          var nombreMes = MESES_LARGOS[d.getMonth()];
+          var divider = el('div', 'agenda-month-divider');
+          divider.textContent = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1) + (d.getFullYear() !== t.getFullYear() ? ' ' + d.getFullYear() : '');
+          list.appendChild(divider);
+        }
+      }
       var node = tpl('agenda-row');
       // Bloque 6: ancla para el resaltado/scroll que dispara "Ver en
       // agenda" desde el widget "Lo próximo" de Inicio (ver renderAgenda).
