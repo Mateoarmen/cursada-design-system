@@ -9,7 +9,7 @@
   var PERIODO_ACTUAL = '2026-2';
   function isoPlusHoras(h) { return new Date(Date.now() + h * 3600000).toISOString(); }
   var TABLES = {
-    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5, push_prompt_snoozed_until: null, last_seen_at: null }],
+    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5, push_prompt_snoozed_until: null, last_seen_at: null, asistencia_ultima_fecha_completada: null }],
     // Notificaciones: 10 filas de preferencias (defaults reales, ver
     // migración notificaciones_schema), unas pocas de notification_queue
     // (channel inapp — leídas, no leídas, hoy/ayer/semana, una de tipo
@@ -145,6 +145,19 @@
       { id: 'p-busy-7', user_id: 'test-user-id-000', titulo: 'Cumpleaños de Nico', fecha: todayPlus(3), hora: null, todo_el_dia: true },
       { id: 'p-busy-8', user_id: 'test-user-id-000', titulo: 'Turno peluquería', fecha: todayPlus(3), hora: '17:00', todo_el_dia: false },
       { id: 'p-busy-9', user_id: 'test-user-id-000', titulo: 'Cena con amigos', fecha: todayPlus(3), hora: '20:30', todo_el_dia: false }
+    ],
+    // Asistencia: unos días recientes con estados mixtos para mat-2/mat-3
+    // (ambas 'cursando' en sem-1, el semestre activo) y un 'no_hubo_clase'
+    // para mat-4 — alcanza para ejercitar el % y el desglose por materia sin
+    // sembrar un semestre entero. asistencia_ultima_fecha_completada queda
+    // en null a propósito (ver profiles arriba) para que el modal diario
+    // dispare solo al cargar la app de prueba.
+    asistencias: [
+      { id: 'as-1', user_id: 'test-user-id-000', materia_id: 'mat-2', semestre_id: 'sem-1', fecha: todayPlus(-7), estado: 'asistio' },
+      { id: 'as-2', user_id: 'test-user-id-000', materia_id: 'mat-2', semestre_id: 'sem-1', fecha: todayPlus(-3), estado: 'no_asistio' },
+      { id: 'as-3', user_id: 'test-user-id-000', materia_id: 'mat-3', semestre_id: 'sem-1', fecha: todayPlus(-6), estado: 'asistio' },
+      { id: 'as-4', user_id: 'test-user-id-000', materia_id: 'mat-3', semestre_id: 'sem-1', fecha: todayPlus(-2), estado: 'asistio' },
+      { id: 'as-5', user_id: 'test-user-id-000', materia_id: 'mat-4', semestre_id: 'sem-1', fecha: todayPlus(-4), estado: 'no_hubo_clase' }
     ]
   };
   function todayPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
@@ -161,7 +174,7 @@
   // hay ninguna materia", así que el fixture con datos de siempre (usado
   // por el resto de los tests de este harness) nunca lo dispararía.
   if (/[?&]onboarding=1/.test(location.search)) {
-    TABLES.semestres = []; TABLES.materias = []; TABLES.agenda = []; TABLES.personal = [];
+    TABLES.semestres = []; TABLES.materias = []; TABLES.agenda = []; TABLES.personal = []; TABLES.asistencias = [];
     TABLES.profiles[0].carrera_id = null;
   }
 

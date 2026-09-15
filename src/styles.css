@@ -780,6 +780,13 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .nota-row .bar-wrap{width:110px;height:6px;border-radius:999px;background:var(--c-line-faint);overflow:hidden;flex:none}
 .nota-row .bar-fill{height:100%;border-radius:999px}
 .nota-row .v{font-size:14px;font-weight:600;width:70px;text-align:right;font-variant-numeric:tabular-nums}
+/* ---------- Asistencia: fila materia + control de 3 estados (modal diario,
+   historial retroactivo, bloque de Detalle) ---------- */
+.asistencia-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--c-line-faint)}
+.asistencia-row:last-child{border-bottom:none}
+.asistencia-row-info{display:flex;align-items:center;gap:10px;min-width:0}
+.asistencia-row-info .dot{flex:none}
+.asistencia-row-info .nombre{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .callout{display:flex;flex-direction:column;gap:5px;padding:16px 18px;border-radius:16px}
 .callout b{font-size:14px;font-weight:600;line-height:1.45}
 .callout span{font-size:14px;line-height:1.5;color:var(--c-ink2)}

@@ -357,7 +357,7 @@
   // Promise<boolean> y cada call site que la usa pasó a ser `async`/`await`.
   function sb() { return window.CURSADA_SUPABASE; }
 
-  var CACHE = { semestres: [], materias: [], agenda: [], personal: [], eventTags: [], notificaciones: [], notifPrefs: [], pushDevices: [] };
+  var CACHE = { semestres: [], materias: [], agenda: [], personal: [], eventTags: [], notificaciones: [], notifPrefs: [], pushDevices: [], asistencias: [] };
   var CURRENT_USER = null;    // objeto `user` de supabase-js: id, email, …
   var CURRENT_PROFILE = null; // fila de `profiles`: {id, nombre, foto_url}
 
@@ -407,6 +407,9 @@
   }
   function rowToTag(r) {
     return { id: r.id, nombre: r.name, kind: r.kind, colorId: r.color, esPredeterminada: !!r.is_default };
+  }
+  function rowToAsistencia(r) {
+    return { id: r.id, materiaId: r.materia_id, semestreId: r.semestre_id, fecha: r.fecha, estado: r.estado };
   }
   // notification_queue: sólo lectura desde el cliente salvo read_at/
   // dismissed_at (marcar leída/descartar) — el insert real lo hace la Edge
@@ -657,15 +660,17 @@
       sb().from('materias').select('*'),
       sb().from('agenda').select('*'),
       sb().from('personal').select('*'),
-      sb().from('event_tags').select('*')
+      sb().from('event_tags').select('*'),
+      sb().from('asistencias').select('*')
     ]);
     results.forEach(function (r) { if (r.error) throw r.error; });
-    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', birth_date: null, carrera: null, telefono_e164: null, telefono_pais: null, university_id: null, university_other: null, foto_url: null, materias_carrera: null, margen_riesgo: 1 };
+    CURRENT_PROFILE = results[0].data || { id: uidActual, nombre: '', apellido: '', birth_date: null, carrera: null, telefono_e164: null, telefono_pais: null, university_id: null, university_other: null, foto_url: null, materias_carrera: null, margen_riesgo: 1, asistencia_ultima_fecha_completada: null };
     CACHE.semestres = results[1].data.map(rowToSemestre);
     CACHE.materias = results[2].data.map(rowToMateria);
     CACHE.agenda = results[3].data.map(rowToAgenda);
     CACHE.personal = results[4].data.map(rowToPersonal);
     CACHE.eventTags = results[5].data.map(rowToTag);
+    CACHE.asistencias = results[6].data.map(rowToAsistencia);
   }
 
   // Separado de loadAllFromSupabase() a propósito: no es dato crítico para
@@ -726,7 +731,7 @@
     if (SESION_VENCIDA_MOSTRADA) return;
     SESION_VENCIDA_MOSTRADA = true;
     CURRENT_USER = null; CURRENT_PROFILE = null;
-    CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
+    CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = []; CACHE.asistencias = [];
     // Se cierra cualquier modal abierto directamente (sin pasar por
     // closeModalEl(), que preguntaría "¿descartar cambios?" — decisión
     // documentada en el README: un aviso claro sin intentar preservar el
@@ -995,13 +1000,18 @@
     materiasOcultasCal: {},
     mostrarSabado: true,
     horarioDia: null,
+    // Filtro compartido entre la vista general de Asistencia y el bloque de
+    // Asistencia en Detalle — una sola preferencia, mismo criterio que
+    // STATE.calViewMode (un toggle global, no uno por vista).
+    asistenciaRango: 'semana',
+    asistenciaHistorialFecha: todayISO(),
     editing: {}
   };
 
   // ================================================================
   // SIDENAV / TOOLBAR
   // ================================================================
-  var VIEW_LABELS = { inicio: 'Inicio', materias: 'Materias', detalle: 'Materias', agenda: 'Agenda', calendario: 'Calendario', horario: 'Horario', progreso: 'Progreso' };
+  var VIEW_LABELS = { inicio: 'Inicio', materias: 'Materias', detalle: 'Materias', agenda: 'Agenda', calendario: 'Calendario', horario: 'Horario', progreso: 'Progreso', asistencia: 'Asistencia' };
 
   function buildLeyendaItem(label, color, opts) {
     opts = opts || {};
@@ -2297,6 +2307,7 @@
       : function () { openEvaluacionModal({ materiaId: m.id, kind: 'evaluacion', modoNota: true }); };
     document.getElementById('btn-detalle-escala').onclick = function () { openMateriaModal(m.id); };
     renderDetalleSimulador(m);
+    renderDetalleAsistencia(m);
   }
 
   // Fase 6: extraído de renderDetalle para reusarlo en la sección
@@ -3309,6 +3320,313 @@
     });
     sorted.forEach(function (b) { b.cols = maxConcurrencia; });
     return sorted;
+  }
+
+  // ================================================================
+  // ASISTENCIA
+  // ================================================================
+  function loadAsistenciasRaw() { return CACHE.asistencias.slice(); }
+  function asistenciaRawPorMateriaFecha(materiaId, fecha) {
+    return loadAsistenciasRaw().filter(function (a) { return a.materiaId === materiaId && a.fecha === fecha; })[0] || null;
+  }
+  // Guardado optimista: mismo criterio que guardarNotifPref (no se vuelve a
+  // pedir la fila, se actualiza CACHE a mano con lo que ya se sabe que se
+  // mandó) — evita un round-trip extra por cada materia marcada.
+  function upsertAsistenciaLocal(materiaId, semestreId, fecha, estado) {
+    var arr = CACHE.asistencias;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].materiaId === materiaId && arr[i].fecha === fecha) { arr[i] = Object.assign({}, arr[i], { estado: estado }); return; }
+    }
+    arr.push({ id: null, materiaId: materiaId, semestreId: semestreId, fecha: fecha, estado: estado });
+  }
+
+  // "Qué materias tienen clase hoy": semestre activo (computeMateriasDelActivo,
+  // igual que Horario/Materias) + bloques de hoy, sólo estado 'cursando' — una
+  // materia ya aprobada/pendiente/de baja no debe seguir pidiendo asistencia
+  // aunque conserve bloques viejos, y un semestre que ya no es el activo deja
+  // de generar el modal solo (nunca lo devuelve computeMateriasDelActivo). Sin
+  // los toggles de Calendario (ver clasesDeDiaRaw): esos son de esa vista, no
+  // de qué clases existen de verdad. Una materia con 2+ bloques el mismo día
+  // aparece una sola vez.
+  function materiasConClaseHoy() {
+    var dow = designDia(today());
+    var vistos = {};
+    var out = [];
+    computeMateriasDelActivo().forEach(function (m) {
+      if (m.estado !== 'cursando' || vistos[m.id]) return;
+      if (!(m.bloques || []).some(function (b) { return b.dia === dow; })) return;
+      vistos[m.id] = true;
+      out.push(m);
+    });
+    return out;
+  }
+
+  // Para el historial retroactivo: mismo patrón semanal "de ahora" que
+  // clasesDeDiaRaw() (ver README, sección Semestres — es el horario del
+  // semestre activo aplicado hacia atrás, no una reconstrucción histórica
+  // exacta por fecha), más cualquier materia que ya tenga un registro
+  // guardado ese día aunque hoy no la devuelva el semestre activo (p. ej.
+  // después de cambiar de semestre activo) — así una fecha vieja con datos
+  // reales sigue siendo editable aunque ya no "tenga clase hoy" en ese
+  // sentido.
+  function materiasAsistenciaParaFecha(fechaIso) {
+    var dow = designDia(new Date(fechaIso + 'T00:00:00'));
+    var vistos = {};
+    var out = [];
+    // Mismo filtro 'cursando' que materiasConClaseHoy(): una materia ya
+    // aprobada/pendiente conserva sus bloques viejos, pero no tiene sentido
+    // seguir pidiéndole asistencia hoy sólo porque el patrón semanal
+    // coincide. El bloque de abajo (registros ya guardados) es la única
+    // manera en que una materia no-'cursando' puede seguir apareciendo acá.
+    computeMateriasDelActivo().forEach(function (m) {
+      if (m.estado !== 'cursando' || vistos[m.id]) return;
+      if (!(m.bloques || []).some(function (b) { return b.dia === dow; })) return;
+      vistos[m.id] = true;
+      out.push(m);
+    });
+    loadAsistenciasRaw().forEach(function (a) {
+      if (a.fecha !== fechaIso || vistos[a.materiaId]) return;
+      var m = computeMateriaById(a.materiaId);
+      if (!m) return;
+      vistos[m.id] = true;
+      out.push(m);
+    });
+    return out;
+  }
+
+  var ASISTENCIA_ESTADOS = ['asistio', 'no_asistio', 'no_hubo_clase'];
+  var ASISTENCIA_ESTADO_LABEL = { asistio: 'Asistí', no_asistio: 'No asistí', no_hubo_clase: 'No hubo clase' };
+
+  // Fila reusable materia + control de 3 estados — la usa el modal diario,
+  // el historial retroactivo y el bloque de Asistencia en Detalle (mismo
+  // componente en los tres lugares, no se reimplementa). `onChange(estado)`
+  // decide dónde vive la elección — este builder no sabe de Supabase.
+  function buildAsistenciaRow(materia, estadoActual, onChange) {
+    var node = tpl('asistencia-row');
+    qf(node, 'dot').setAttribute('style', dotStyle(materia.strong, '50%'));
+    qf(node, 'nombre').textContent = materia.nombre;
+    var seg = qf(node, 'seg');
+    seg.querySelectorAll('[data-estado]').forEach(function (btn) {
+      var estado = btn.getAttribute('data-estado');
+      btn.classList.toggle('is-on', estado === estadoActual);
+      btn.addEventListener('click', function () {
+        seg.querySelectorAll('[data-estado]').forEach(function (b) { b.classList.remove('is-on'); });
+        btn.classList.add('is-on');
+        onChange(estado);
+      });
+    });
+    return node;
+  }
+
+  // ---- Modal diario ----
+  var ASISTENCIA_MODAL_ESTADOS = {}; // materiaId -> estado elegido en el modal abierto ahora mismo
+
+  function renderAsistenciaModal(materias) {
+    ASISTENCIA_MODAL_ESTADOS = {};
+    var list = document.getElementById('asistencia-modal-list');
+    clear(list);
+    materias.forEach(function (m) {
+      list.appendChild(buildAsistenciaRow(m, null, function (estado) { ASISTENCIA_MODAL_ESTADOS[m.id] = estado; }));
+    });
+    document.getElementById('asistencia-modal-fecha').textContent = DIAS_LARGOS[today().getDay()] + ' ' + today().getDate() + ' de ' + MESES_LARGOS[today().getMonth()];
+  }
+
+  async function guardarAsistenciaModal() {
+    var hoy = todayISO();
+    var materias = materiasConClaseHoy();
+    var faltan = materias.filter(function (m) { return !ASISTENCIA_MODAL_ESTADOS[m.id]; });
+    if (faltan.length) { avisarError('Marcá las ' + materias.length + ' materias antes de guardar.'); return false; }
+    var rows = materias.map(function (m) {
+      return { user_id: CURRENT_USER.id, materia_id: m.id, semestre_id: m.semestreId, fecha: hoy, estado: ASISTENCIA_MODAL_ESTADOS[m.id] };
+    });
+    var res = await sb().from('asistencias').upsert(rows, { onConflict: 'user_id,materia_id,fecha' });
+    if (res.error) { avisarError('No se pudo guardar la asistencia. Intentá de nuevo.'); return false; }
+    var upd = await sb().from('profiles').update({ asistencia_ultima_fecha_completada: hoy }).eq('id', CURRENT_USER.id);
+    if (upd.error) { avisarError('No se pudo guardar la asistencia. Intentá de nuevo.'); return false; }
+    CURRENT_PROFILE.asistencia_ultima_fecha_completada = hoy;
+    materias.forEach(function (m) { upsertAsistenciaLocal(m.id, m.semestreId, hoy, ASISTENCIA_MODAL_ESTADOS[m.id]); });
+    return true;
+  }
+
+  // Último eslabón de la cadena de "un aviso a la vez" que arranca en
+  // onSignedIn() (import local → completar perfil → onboarding): prioridad
+  // más baja a propósito, es un recordatorio diario, no algo que deba
+  // interrumpir el primer login de una cuenta nueva.
+  function maybeOfrecerAsistencia() {
+    if (!CURRENT_PROFILE) return false;
+    var hoy = todayISO();
+    if (CURRENT_PROFILE.asistencia_ultima_fecha_completada === hoy) return false;
+    var materias = materiasConClaseHoy();
+    if (!materias.length) return false;
+    renderAsistenciaModal(materias);
+    openModal('modal-asistencia');
+    return true;
+  }
+
+  // ---- Estadísticas ----
+  // % de asistencia = asistio / (asistio + no_asistio) — no_hubo_clase queda
+  // afuera del denominador (no es una clase a la que se pudiera faltar) pero
+  // se muestra aparte igual.
+  function statsAsistencia(opts) {
+    opts = opts || {};
+    var rango = opts.rango || 'semana';
+    var registros = loadAsistenciasRaw();
+    if (opts.materiaId) registros = registros.filter(function (a) { return a.materiaId === opts.materiaId; });
+    if (rango === 'semana') {
+      var desde = toISODate(mondayOf(today()));
+      registros = registros.filter(function (a) { return a.fecha >= desde; });
+    } else if (rango === 'mes') {
+      var t = today();
+      var desdeMes = toISODate(new Date(t.getFullYear(), t.getMonth(), 1));
+      registros = registros.filter(function (a) { return a.fecha >= desdeMes; });
+    } else if (rango === 'semestre') {
+      var semId = opts.semestreId || activeSemestreId();
+      registros = registros.filter(function (a) { return a.semestreId === semId; });
+    }
+    var asistio = registros.filter(function (a) { return a.estado === 'asistio'; }).length;
+    var noAsistio = registros.filter(function (a) { return a.estado === 'no_asistio'; }).length;
+    var noHuboClase = registros.filter(function (a) { return a.estado === 'no_hubo_clase'; }).length;
+    var total = asistio + noAsistio;
+    return { asistio: asistio, noAsistio: noAsistio, noHuboClase: noHuboClase, total: total, pct: total ? Math.round((asistio / total) * 100) : null };
+  }
+
+  // Desglose por materia para la vista general — semana/mes acotan a las
+  // materias del semestre activo (mismo criterio que Horario/Materias);
+  // "semestre" muestra las del semestre elegido en el selector, sea o no el
+  // activo (para poder mirar un semestre ya terminado).
+  function statsAsistenciaPorMateria(rango, semestreId) {
+    var materias = rango === 'semestre'
+      ? computeMaterias({ semestreId: semestreId || activeSemestreId() })
+      : computeMateriasDelActivo();
+    return materias.map(function (m) {
+      var s = statsAsistencia({ rango: rango, materiaId: m.id, semestreId: semestreId });
+      return { materia: m, asistio: s.asistio, noAsistio: s.noAsistio, noHuboClase: s.noHuboClase, total: s.total, pct: s.pct };
+    }).filter(function (x) { return x.total > 0 || x.noHuboClase > 0; });
+  }
+
+  // ---- Vista general ----
+  function renderAsistencia() {
+    document.querySelectorAll('#asistencia-rango-toggle [data-asistencia-rango]').forEach(function (b) {
+      b.classList.toggle('is-on', b.getAttribute('data-asistencia-rango') === STATE.asistenciaRango);
+    });
+    var semSelWrap = document.getElementById('asistencia-semestre-wrap');
+    semSelWrap.classList.toggle('hidden', STATE.asistenciaRango !== 'semestre');
+    var semSelect = document.getElementById('asistencia-semestre-select');
+    if (!semSelect.options.length) {
+      semestresOrdenados().forEach(function (s) {
+        var opt = el('option'); opt.value = s.id; opt.textContent = s.nombre;
+        semSelect.appendChild(opt);
+      });
+      semSelect.value = activeSemestreId() || '';
+    }
+    var semestreId = STATE.asistenciaRango === 'semestre' ? (semSelect.value || activeSemestreId()) : null;
+
+    var general = statsAsistencia({ rango: STATE.asistenciaRango, semestreId: semestreId });
+    var empty = document.getElementById('asistencia-empty');
+    var content = document.getElementById('asistencia-content');
+    empty.classList.toggle('hidden', general.total > 0);
+    content.classList.toggle('hidden', general.total === 0);
+    if (general.total > 0) {
+      var tone = general.pct >= 75 ? TONE.success : general.pct >= 50 ? TONE.warning : TONE.danger;
+      var ring = document.getElementById('asistencia-ring');
+      ring.setAttribute('style', ringStyle(general.pct, tone, 120, 100));
+      clear(ring);
+      var inner = el('div'); inner.setAttribute('style', ringInnerStyle(120, 11));
+      var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:26px;font-weight:700'; v1.textContent = general.pct + '%';
+      var v2 = el('span'); v2.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v2.textContent = 'asistencia';
+      inner.appendChild(v1); inner.appendChild(v2);
+      ring.appendChild(inner);
+      document.getElementById('asistencia-detalle-txt').textContent = general.asistio + ' de ' + general.total + ' clases asistidas' + (general.noHuboClase ? ' · ' + general.noHuboClase + ' sin clase' : '');
+
+      var lista = document.getElementById('asistencia-por-materia');
+      clear(lista);
+      var porMateria = statsAsistenciaPorMateria(STATE.asistenciaRango, semestreId);
+      porMateria.forEach(function (x) {
+        var node = tpl('nota-row');
+        qf(node, 'label').textContent = x.materia.nombre;
+        qf(node, 'barFill').setAttribute('style', css({ width: (x.pct || 0) + '%', height: '100%', borderRadius: '3px', background: x.materia.strong }));
+        qf(node, 'val').textContent = x.pct != null ? x.pct + '%' : '—';
+        lista.appendChild(node);
+      });
+      if (!porMateria.length) {
+        var vacio = el('div'); vacio.style.cssText = 'font-size:13px;color:var(--c-ink3)'; vacio.textContent = 'Sin registros de asistencia en este rango.';
+        lista.appendChild(vacio);
+      }
+    }
+    renderAsistenciaHistorial();
+  }
+
+  // ---- Historial retroactivo ----
+  function renderAsistenciaHistorial() {
+    var input = document.getElementById('asistencia-historial-fecha');
+    input.max = todayISO();
+    if (input.value !== STATE.asistenciaHistorialFecha) input.value = STATE.asistenciaHistorialFecha;
+    var list = document.getElementById('asistencia-historial-list');
+    clear(list);
+    var fecha = STATE.asistenciaHistorialFecha;
+    var materias = materiasAsistenciaParaFecha(fecha);
+    if (!materias.length) {
+      var vacio = el('div'); vacio.style.cssText = 'font-size:13px;color:var(--c-ink3)'; vacio.textContent = 'Ese día no había materias con clase.';
+      list.appendChild(vacio);
+      return;
+    }
+    materias.forEach(function (m) {
+      var existente = asistenciaRawPorMateriaFecha(m.id, fecha);
+      list.appendChild(buildAsistenciaRow(m, existente ? existente.estado : null, function (estado) {
+        guardarAsistenciaHistorialFila(m, fecha, estado);
+      }));
+    });
+  }
+
+  async function guardarAsistenciaHistorialFila(materia, fecha, estado) {
+    var row = { user_id: CURRENT_USER.id, materia_id: materia.id, semestre_id: materia.semestreId, fecha: fecha, estado: estado };
+    var res = await sb().from('asistencias').upsert([row], { onConflict: 'user_id,materia_id,fecha' });
+    if (res.error) { avisarError('No se pudo guardar. Intentá de nuevo.'); return; }
+    upsertAsistenciaLocal(materia.id, materia.semestreId, fecha, estado);
+    showToast('Asistencia guardada.');
+    if (STATE.route.view === 'asistencia') renderAsistencia();
+  }
+
+  // ---- Bloque de Asistencia en Detalle de materia ----
+  function renderDetalleAsistencia(m) {
+    document.querySelectorAll('#detalle-asistencia-rango [data-asistencia-rango]').forEach(function (b) {
+      b.classList.toggle('is-on', b.getAttribute('data-asistencia-rango') === STATE.asistenciaRango);
+    });
+    var s = statsAsistencia({ rango: STATE.asistenciaRango, materiaId: m.id, semestreId: m.semestreId });
+    var empty = document.getElementById('detalle-asistencia-empty');
+    var content = document.getElementById('detalle-asistencia-content');
+    empty.classList.toggle('hidden', s.total > 0);
+    content.classList.toggle('hidden', s.total === 0);
+    if (s.total === 0) return;
+    document.getElementById('detalle-asistencia-pct').textContent = s.pct + '%';
+    document.getElementById('detalle-asistencia-txt').textContent = s.asistio + ' de ' + s.total + ' clases asistidas' + (s.noHuboClase ? ' · ' + s.noHuboClase + ' sin clase' : '');
+  }
+
+  function bindAsistenciaUI() {
+    document.getElementById('btn-asistencia-guardar').addEventListener('click', async function () {
+      var btn = document.getElementById('btn-asistencia-guardar');
+      setBtnBusy(btn, true, 'Guardando…');
+      var ok = await guardarAsistenciaModal();
+      setBtnBusy(btn, false);
+      if (!ok) return;
+      closeAllModals();
+      showToast('Asistencia guardada.');
+      if (STATE.route.view === 'asistencia') renderAsistencia();
+    });
+    document.querySelectorAll('#asistencia-rango-toggle [data-asistencia-rango]').forEach(function (b) {
+      b.addEventListener('click', function () { STATE.asistenciaRango = b.getAttribute('data-asistencia-rango'); renderAsistencia(); });
+    });
+    document.getElementById('asistencia-semestre-select').addEventListener('change', renderAsistencia);
+    document.getElementById('asistencia-historial-fecha').addEventListener('change', function () {
+      STATE.asistenciaHistorialFecha = this.value || todayISO();
+      renderAsistenciaHistorial();
+    });
+    document.querySelectorAll('#detalle-asistencia-rango [data-asistencia-rango]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        STATE.asistenciaRango = b.getAttribute('data-asistencia-rango');
+        renderDetalleAsistencia(computeMateriaById(STATE.route.materiaId));
+      });
+    });
   }
 
   // ================================================================
@@ -5802,7 +6120,7 @@
   // ================================================================
   // ROUTER
   // ================================================================
-  var CORE_VIEWS = ['inicio', 'materias', 'detalle', 'agenda', 'calendario', 'horario', 'progreso'];
+  var CORE_VIEWS = ['inicio', 'materias', 'detalle', 'agenda', 'calendario', 'horario', 'progreso', 'asistencia'];
   function renderRoute() {
     renderSidenav();
     // Red de seguridad: si quedó un quick-sheet o un row-menu abierto (long
@@ -5843,6 +6161,7 @@
     else if (STATE.route.view === 'calendario') renderCalendario();
     else if (STATE.route.view === 'horario') renderHorario();
     else if (STATE.route.view === 'progreso') renderProgreso();
+    else if (STATE.route.view === 'asistencia') renderAsistencia();
   }
   // Filtros/búsqueda/vista de Materias, Agenda y Calendario viven en la URL
   // (query string después del hash de la vista, ej. "#materias?filtro=cursando&q=algebra")
@@ -8049,12 +8368,15 @@
     // onboarding al final, sólo si seguís sin ninguna materia.
     var mostroImportLocal = maybeOfrecerImportLocal();
     var mostroCompletarPerfil = !mostroImportLocal && maybeOfrecerCompletarPerfilNoBloqueante();
-    if (!mostroImportLocal && !mostroCompletarPerfil && !CACHE.materias.length) mostrarOnboardingOCatalogo();
+    var mostroOnboarding = false;
+    if (!mostroImportLocal && !mostroCompletarPerfil && !CACHE.materias.length) { mostrarOnboardingOCatalogo(); mostroOnboarding = true; }
+    // Último de la cadena — ver maybeOfrecerAsistencia().
+    if (!mostroImportLocal && !mostroCompletarPerfil && !mostroOnboarding) maybeOfrecerAsistencia();
   }
 
   function onSignedOut() {
     CURRENT_USER = null; CURRENT_PROFILE = null;
-    CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = [];
+    CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = []; CACHE.asistencias = [];
     CACHE.notificaciones = []; CACHE.notifPrefs = []; CACHE.pushDevices = [];
     GOOGLE_CALENDAR_CONECTADO = false;
     renderNotifBadge();
@@ -8094,6 +8416,7 @@
     bindPushBanner();
     bindAjustesNotificaciones();
     bindAjustesGoogle();
+    bindAsistenciaUI();
     // El registro del Service Worker no depende de haber iniciado sesión
     // (scope sobre /, sirve tanto a la landing como a la app) — se hace acá,
     // apenas carga el documento. La SUSCRIPCIÓN a push sí requiere sesión y

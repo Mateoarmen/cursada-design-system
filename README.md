@@ -4503,3 +4503,101 @@ tanto en el grupo con horario armado como en "materias sueltas"
 (camino manual), con el motivo correcto debajo; el resto de las
 materias del mismo grupo siguen seleccionables normales; clickear la
 fila deshabilitada no hace nada, sin errores de consola nuevos.
+
+## Asistencia: modal diario + estadísticas por materia/semana/mes/semestre
+
+Feature nueva completa: un modal que aparece una única vez por día
+calendario para registrar si el usuario fue a clase, edición
+retroactiva desde un historial por fecha, y una sección "Asistencia"
+con % global y desglose por materia (también dentro de Detalle, acotado
+a esa materia).
+
+**Tabla `asistencias`** (Supabase, migración `add_asistencias`):
+`user_id`/`materia_id`/`semestre_id`/`fecha`/`estado` (enum
+`asistio`|`no_asistio`|`no_hubo_clase`), único por
+`(user_id, materia_id, fecha)`. RLS: una sola policy `ALL` con
+`auth.uid() = user_id`, igual que `materias`/`semestres`/`agenda`.
+`semestre_id` queda denormalizado en cada fila (no hay que resolverlo
+por join a `materias`) porque `semestres` no tiene rango de fechas —
+es lo único que permite el filtro "por semestre" de las estadísticas.
+Se agregó también `profiles.asistencia_ultima_fecha_completada` (date)
+para que "ya contestaste hoy" funcione igual en cualquier dispositivo
+(mismo patrón que `push_prompt_snoozed_until`, ya existente en
+`profiles`).
+
+**Cálculo de "qué materias tienen clase hoy"**
+(`materiasConClaseHoy()`): semestre activo (`computeMateriasDelActivo()`,
+igual que Horario/Materias) + bloques del día de hoy + estado
+`'cursando'` — una materia aprobada/pendiente/de baja no vuelve a pedir
+asistencia aunque conserve bloques viejos, y un semestre que dejó de
+ser el activo deja de generar el modal solo. Si da vacío (fin de
+semana, feriado, sin horario cargado), no hay modal.
+
+**Trigger del modal**: último eslabón de la cadena de "un aviso a la
+vez" que ya vive en `onSignedIn()` (import local → completar perfil →
+onboarding) — sólo se ofrece si ninguno de los tres anteriores se
+mostró. Como `onSignedIn()` corre una vez por inicio de sesión real (no
+en cada `hashchange`), "una vez por día" sale gratis comparando
+`profiles.asistencia_ultima_fecha_completada` contra hoy; si se cierra
+sin completar no se escribe nada ahí, así que reaparece solo la
+próxima vez que se abra la app ese mismo día.
+
+**Decisiones no pedidas explícitamente:**
+- El modal **no** entra a `MODAL_FORMS`/`MODAL_EXTRA_STATE`: cerrarlo
+  sin contestar no dispara el aviso de "¿descartar cambios?" de los
+  demás modales — ya reaparece solo al otro día, un confirm() extra
+  sólo sumaba fricción a algo pensado como "breve y nada intrusivo".
+- % de asistencia = `asistio / (asistio + no_asistio)`; `no_hubo_clase`
+  queda afuera del denominador (no es una clase a la que se pudiera
+  faltar) pero se sigue mostrando aparte ("· 1 sin clase").
+- El filtro semana/mes/semestre es **una sola preferencia compartida**
+  (`STATE.asistenciaRango`) entre la vista general y el bloque de
+  Detalle — mismo criterio que `STATE.calViewMode`, un toggle global en
+  vez de uno por vista.
+- Historial retroactivo (`materiasAsistenciaParaFecha`): mismo patrón
+  semanal "de ahora" que ya usa Calendario para `clasesDeDiaRaw`
+  (horario del semestre activo aplicado hacia atrás, no una
+  reconstrucción histórica exacta por fecha — no hay dato en el
+  proyecto para reconstruir exacto, `semestres` no tiene fechas), más
+  la unión con cualquier materia que ya tenga un registro guardado ese
+  día aunque hoy no la devuelva el semestre activo — así una fecha
+  vieja con datos reales sigue siendo editable después de cambiar de
+  semestre activo. Ahí sí no se filtra por `'cursando'` en la mitad de
+  "ya tiene registro" (a propósito: una materia que se aprobó después
+  de haber tenido asistencia cursándola no debería perder ese
+  historial).
+- "Asistencia" entra al cajón (`#sidenav-nav`), no al tab bar mobile —
+  mismo criterio que "Progreso", que tampoco está ahí (tab bar fijo a 5
+  destinos a propósito).
+- Fila reusable `buildAsistenciaRow()` (materia + control de 3 estados,
+  `.seg`/`.seg-item` como cualquier otro selector fijo de la app): la
+  usan el modal diario, el historial y el bloque de Detalle sin
+  reimplementarla tres veces, tal como pedía el enunciado.
+
+**Bugs encontrados probando en `Cursada.test.html`** (no sólo por
+lectura de código):
+- Quedó una referencia muerta a un `#asistencia-pct` que nunca se
+  llegó a poner en el HTML (el % se terminó mostrando adentro del ring,
+  con `ringInnerStyle`, no como texto aparte) — tiraba
+  `TypeError: Cannot set properties of null` apenas había algún
+  registro y la vista general quedaba en blanco. Se sacó la línea
+  muerta.
+- Con el toggle Semana/Mes/Semestre metido en `.topbar-actions` del
+  header (mismo lugar que usa Calendario para Mes/Semana), el título
+  "Asistencia" se recortaba a "Asis" en 375px — `.topbar-title` tiene
+  `flex:1;overflow:hidden` en mobile y tres `seg-item` con label largo
+  no entran al lado sin apretarlo. Se movió el toggle a su propia fila
+  dentro de `.view` (mismo lugar que el de Tarjetas/Tabla en Materias),
+  en vez de intentar acortar las etiquetas.
+
+Verificado en `Cursada.test.html` (fixture nuevo: 5 filas de
+`asistencias` sembradas en `mock-supabase-client.js`, con
+`asistencia_ultima_fecha_completada: null` para que el modal dispare
+solo al cargar): el modal aparece con la materia correcta según el día
+real de la semana, guardar cierra el modal y persiste; los filtros
+Semana/Mes/Semestre del resumen general y del bloque de Detalle
+recalculan bien (probado forzando el semestre del selector a uno sin
+datos); el historial por fecha muestra el patrón semanal del semestre
+activo más los registros ya guardados fuera de ese patrón, y guardar
+una fila ahí actualiza el resumen sin recargar. Probado también en
+375px (modal, vista general y bloque de Detalle) sin desbordes nuevos.

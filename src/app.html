@@ -140,6 +140,7 @@
       <button class="nav-item" data-nav="calendario"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Calendario</span></button>
       <button class="nav-item" data-nav="horario"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span>Horario</span></button>
       <button class="nav-item" data-nav="progreso"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 6 13.5 14.5 8.5 9.5 2 16"/><polyline points="16 6 22 6 22 12"/></svg><span>Progreso</span></button>
+      <button class="nav-item" data-nav="asistencia"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Asistencia</span></button>
     </nav>
     <div class="sidenav-legend hidden" id="sidenav-legend">
       <span class="lbl" id="sidenav-legend-lbl">Referencias</span>
@@ -485,6 +486,23 @@
           <h2 class="panel-title">Mini horario de la materia</h2>
           <div class="mini-days" id="detalle-mini-days"></div>
         </div>
+        <div class="card panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Asistencia</h2>
+            <div class="seg" id="detalle-asistencia-rango">
+              <button type="button" class="seg-item is-on" data-asistencia-rango="semana">Semana</button>
+              <button type="button" class="seg-item" data-asistencia-rango="mes">Mes</button>
+              <button type="button" class="seg-item" data-asistencia-rango="semestre">Semestre</button>
+            </div>
+          </div>
+          <div id="detalle-asistencia-empty" class="hidden">
+            <span style="font-size:13px;color:var(--c-ink3)">Sin registros de asistencia en este rango.</span>
+          </div>
+          <div id="detalle-asistencia-content" class="hidden" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <span class="mono" style="font-size:22px;font-weight:700" id="detalle-asistencia-pct"></span>
+            <span style="font-size:13px;color:var(--c-ink2)" id="detalle-asistencia-txt"></span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -662,6 +680,49 @@
             <div id="progreso-materias"></div>
             <span class="hidden" id="progreso-aviso-notas" style="font-size:11px;color:var(--c-ink3);margin-top:8px;display:block"></span>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ASISTENCIA ============ -->
+    <section class="view-screen hidden" id="asistencia">
+      <header class="topbar">
+        <button class="icon-btn topbar-menu" data-menu aria-label="Abrir menú"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="topbar-brand" aria-hidden="true"></span>
+        <span class="topbar-title"><h1 class="t">Asistencia</h1></span>
+      </header>
+      <div class="view">
+        <div class="seg" id="asistencia-rango-toggle" style="align-self:flex-start">
+          <button type="button" class="seg-item is-on" data-asistencia-rango="semana">Semana</button>
+          <button type="button" class="seg-item" data-asistencia-rango="mes">Mes</button>
+          <button type="button" class="seg-item" data-asistencia-rango="semestre">Semestre</button>
+        </div>
+        <div class="field hidden" id="asistencia-semestre-wrap" style="max-width:260px">
+          <label for="asistencia-semestre-select">Semestre</label>
+          <select id="asistencia-semestre-select"></select>
+        </div>
+        <div class="empty-state hidden" id="asistencia-empty">
+          <div class="empty-copy">
+            <span class="t">Todavía no hay asistencia registrada en este rango</span>
+            <span class="s">Contestá el aviso diario cuando aparezca, o cargala a mano desde el historial de acá abajo.</span>
+          </div>
+        </div>
+        <div id="asistencia-content" class="hidden">
+          <div class="card panel">
+            <div class="panel-head"><h2 class="panel-title">Resumen</h2></div>
+            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+              <div id="asistencia-ring"></div>
+              <span style="font-size:13px;color:var(--c-ink2)" id="asistencia-detalle-txt"></span>
+            </div>
+          </div>
+          <div class="card panel">
+            <div class="panel-head"><h2 class="panel-title">Por materia</h2></div>
+            <div id="asistencia-por-materia" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+        </div>
+        <div class="card panel">
+          <div class="panel-head"><h2 class="panel-title">Historial</h2><input type="date" class="mono" id="asistencia-historial-fecha" style="height:34px;border:1px solid var(--c-line);border-radius:8px;padding:0 10px;background:var(--c-surface);color:var(--c-ink)"></div>
+          <div id="asistencia-historial-list" style="display:flex;flex-direction:column;gap:10px"></div>
         </div>
       </div>
     </section>
@@ -1001,6 +1062,24 @@
         <button type="submit" class="btn btn-primary">Guardar evento</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ============ MODAL ASISTENCIA ============ -->
+<div class="modal-backdrop" id="modal-asistencia" role="dialog" aria-modal="true" aria-labelledby="modal-asistencia-title">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <div class="titles">
+        <h2 class="t" id="modal-asistencia-title" style="font-family:var(--font-display);font-size:20px;font-weight:600;letter-spacing:-.01em">¿Fuiste a clase hoy?</h2>
+        <span class="s" id="asistencia-modal-fecha"></span>
+      </div>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <div class="modal-body pad-lg" id="asistencia-modal-list"></div>
+    <div class="modal-foot" style="justify-content:flex-end">
+      <button type="button" class="btn" data-close-modal>Ahora no</button>
+      <button type="button" class="btn btn-primary" id="btn-asistencia-guardar">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -1568,6 +1647,20 @@
     <span style="color:var(--c-ink3);font-size:13px">a</span>
     <input type="time" step="1800" class="mono" data-f="fin" style="height:40px;flex:1;border:1px solid var(--c-line);border-radius:10px;padding:0 12px;background:var(--c-surface);color:var(--c-ink)">
     <button type="button" class="remove-link" data-f="remove">Quitar</button>
+  </div>
+</template>
+
+<template data-template="asistencia-row">
+  <div class="asistencia-row">
+    <div class="asistencia-row-info">
+      <span class="dot" data-f="dot"></span>
+      <span class="nombre" data-f="nombre"></span>
+    </div>
+    <div class="seg" data-f="seg">
+      <button type="button" class="seg-item" data-estado="asistio">Asistí</button>
+      <button type="button" class="seg-item" data-estado="no_asistio">No asistí</button>
+      <button type="button" class="seg-item" data-estado="no_hubo_clase">No hubo clase</button>
+    </div>
   </div>
 </template>
 
