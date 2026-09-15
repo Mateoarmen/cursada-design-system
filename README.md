@@ -4453,3 +4453,53 @@ sigue mostrando exactamente las mismas materias, notas y "próxima
 evaluación" que antes; "Prefiero cargarlo a mano" deja el semestre
 nuevo activo y vacío, listo para alta manual; mobile (375px) igual que
 el onboarding inicial, sin errores de consola nuevos.
+
+## No dejar elegir en "oferta"/"electivas" una materia ya marcada aprobada/pendiente
+
+Pedido de seguimiento al feature de "Borrar una materia mal cargada en
+el onboarding" (arriba): un usuario confirmó el escenario que ese fix
+sólo permitía limpiar después de que ya pasó — tildó Matemática
+Financiera como "Debo rendir examen" en el paso "progreso" (pensando
+en un semestre anterior) y DESPUÉS también la eligió como parte de su
+oferta del semestre actual en el mismo pasaje por el wizard. Nada
+cruzaba esos dos pasos, así que terminó con dos materias reales:
+una `pendiente` en un semestre histórico y otra `cursando` en el
+activo — exactamente el bug que generaba la confusión, no un caso
+aislado. No tiene sentido permitirlo: no se puede estar cursando por
+primera vez algo de lo que a la vez "ya se debe rendir examen" o "ya
+se aprobó".
+
+**`wizMotivoYaEnProgreso(materiaId)`**: función nueva, consulta las
+cuatro fuentes de verdad del paso "progreso" (`WIZ.aprobadasIdsElegidas`/
+`pendientesIdsElegidas`, tildadas en este mismo pasaje del wizard, y
+`aprobadasIdsYaCargadas`/`pendientesIdsYaCargadas`, ya existentes de un
+reingreso anterior — ver sección de onboarding automático) y devuelve
+el motivo a mostrar, o `null` si la materia sigue libre. Se llama en
+los 4 lugares donde "oferta"/"electivas" arman una fila por
+`materia_id` (grupo con horario armado, dictado suelto del camino
+manual, fallback "sin horario" de `cat_materias_sugeridas`, y
+electivas) — mismo patrón "disabled + motivo" que ya existía sólo para
+electivas `sin_minimo` (`wiz-item-row`, campo `data-f="motivo"`), ahora
+reusado en los otros 3 sitios que antes eran siempre clickeables.
+
+**Se deshabilita, no se oculta**: al igual que `sin_minimo`, la fila
+sigue visible pero sin click y con la razón abajo ("Ya la marcaste
+como aprobada."/"...como pendiente de examen.") — ocultarla sin más
+dejaría al usuario preguntándose dónde se fue la materia que sabe que
+existe en el catálogo. Cuando una fila queda deshabilitada, su
+`dictado_id`/`materia_id` se saca activamente del estado de selección
+correspondiente (`excluidas`, `WIZ.dictadoIdsElegidos`,
+`WIZ.materiaIdsSinHorario`, `WIZ.electivaIdsElegidos`) para que un
+grupo que ya la traía preseleccionada, o un toggle de turno que
+recalcula la lista, no la cuelen igual — todo lo que se manda a
+confirmar (`wizConfirmar`, revisión del horario) lee de esos mismos
+mapas, así que la exclusión es real, no sólo visual.
+
+Verificado en `Cursada.test.html` (con un materia_id del fixture de
+oferta aliasado temporalmente a uno de "progreso", sólo para la prueba
+— revertido después): tildar "Debo rendir examen" en el paso
+"progreso" y avanzar hasta "oferta" muestra esa materia deshabilitada
+tanto en el grupo con horario armado como en "materias sueltas"
+(camino manual), con el motivo correcto debajo; el resto de las
+materias del mismo grupo siguen seleccionables normales; clickear la
+fila deshabilitada no hace nada, sin errores de consola nuevos.

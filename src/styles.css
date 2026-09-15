@@ -631,7 +631,14 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   animation:cta-glow-spin 5.5s linear infinite;
 }
 .inicio-hero-inner{
-  flex:1;min-width:0;border-radius:calc(var(--r-card) + .5px);background:var(--c-surface);
+  flex:1;min-width:0;border-radius:calc(var(--r-card) + .5px);
+  /* Relleno con leve tinte de acento (antes var(--c-surface) liso, igual a
+     cualquier otra .card) — la única señal de que esto es "lo urgente" era
+     el borde giratorio; a media pantalla ese borde compite con poco y la
+     tarjeta se leía con el mismo peso que un kpi-card. Sólo claro: en
+     oscuro .inicio-hero-inner ya tiene su propio fondo recesado (ver arriba
+     en el bloque html[data-theme="oscuro"], que sigue pisando esto). */
+  background:linear-gradient(180deg,rgba(10,99,240,.05),var(--c-surface) 65%);
   padding:20px;display:flex;flex-direction:column;gap:14px;
 }
 .inicio-hero-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -893,7 +900,11 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    llega a 4.5:1). Vive suelto en el flujo del .card, no en su propia fila
    con fondo, para no competir con el encabezado real del grupo. */
 .agenda-month-divider{padding:14px 20px 4px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--c-ink2)}
-.agenda-list > .agenda-month-divider:first-child{padding-top:4px}
+/* Cuando es el primer hijo del .card (mes que abre "Próximamente") los
+   14px de arriba se sumaban al radio redondeado de la tarjeta y lo dejaban
+   apretado contra la curva — antes se lo bajaba a 4px pensando en no sumar
+   más aire del que ya da el gap de .agenda-group, pero en la práctica se
+   veía cortado/pegado arriba. Mismo padding que los divisores internos. */
 .agenda-list > .agenda-month-divider + .swipe-row .agenda-row{border-top:none}
 .agenda-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .agenda-title{font-size:15px;font-weight:600;letter-spacing:-.01em}

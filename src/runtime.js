@@ -4641,6 +4641,24 @@
     };
   }
 
+  // Una materia tildada "Aprobada"/"Debo rendir examen" en el paso
+  // "progreso" (de este semestre en curso del wizard, o ya cargada de un
+  // reingreso anterior) no tiene sentido ofrecerla de nuevo en "oferta"/
+  // "electivas" como algo que se está cursando por primera vez este
+  // semestre — no hay forma de estar cursando y debiendo rendir el examen
+  // de la misma materia al mismo tiempo. Antes nada cruzaba estos dos
+  // pasos, así que era fácil terminar con dos materias iguales: una
+  // 'pendiente'/'aprobada' en un semestre histórico y otra 'cursando' en el
+  // activo (bug real reportado por un usuario: Matemática Financiera
+  // apareciendo en "Materias pendientes" a pesar de estar cursándola).
+  // Devuelve el motivo a mostrar en la fila deshabilitada, o null si la
+  // materia está libre para elegir.
+  function wizMotivoYaEnProgreso(materiaId) {
+    if (WIZ.aprobadasIdsElegidas[materiaId] || WIZ.aprobadasIdsYaCargadas[materiaId]) return 'Ya la marcaste como aprobada.';
+    if (WIZ.pendientesIdsElegidas[materiaId] || WIZ.pendientesIdsYaCargadas[materiaId]) return 'Ya la marcaste como pendiente de examen.';
+    return null;
+  }
+
   function wizMostrarPaso(idx) {
     WIZ.pasoIdx = idx;
     WIZ_PASOS.forEach(function (p, i) { document.getElementById('wiz-panel-' + p).classList.toggle('hidden', i !== idx); });
@@ -5105,22 +5123,29 @@
         g.materias.forEach(function (m) {
           var node = tpl('wiz-item-row');
           node.classList.add('is-check', 'is-sub');
-          node.classList.toggle('is-on', !excluidas[m.dictado_id]);
           qf(node, 'titulo').textContent = m.nombre;
           var metaPartes = [m.salon, formatHorario(m.bloques)];
           qf(node, 'meta').textContent = metaPartes.filter(Boolean).join(' · ');
-          node.addEventListener('click', async function () {
-            if (excluidas[m.dictado_id]) {
-              delete excluidas[m.dictado_id];
-              // Tildar esta versión de la materia destilda automáticamente
-              // cualquier otra versión (de otro grupo) que estuviera activa.
-              var otroDictadoId = dictadoActivoPorMateria[m.materia_id];
-              if (otroDictadoId && otroDictadoId !== m.dictado_id) excluidas[otroDictadoId] = true;
-            } else {
-              excluidas[m.dictado_id] = true;
-            }
-            await wizRenderOferta();
-          });
+          var motivoYaProgreso = wizMotivoYaEnProgreso(m.materia_id);
+          if (motivoYaProgreso) {
+            node.disabled = true;
+            excluidas[m.dictado_id] = true;
+            var motivo = qf(node, 'motivo'); motivo.classList.remove('hidden'); motivo.textContent = motivoYaProgreso;
+          } else {
+            node.classList.toggle('is-on', !excluidas[m.dictado_id]);
+            node.addEventListener('click', async function () {
+              if (excluidas[m.dictado_id]) {
+                delete excluidas[m.dictado_id];
+                // Tildar esta versión de la materia destilda automáticamente
+                // cualquier otra versión (de otro grupo) que estuviera activa.
+                var otroDictadoId = dictadoActivoPorMateria[m.materia_id];
+                if (otroDictadoId && otroDictadoId !== m.dictado_id) excluidas[otroDictadoId] = true;
+              } else {
+                excluidas[m.dictado_id] = true;
+              }
+              await wizRenderOferta();
+            });
+          }
           grupoWrap.appendChild(node);
         });
         content.appendChild(grupoWrap);
@@ -5170,16 +5195,23 @@
       filtrados.forEach(function (d) {
         var node = tpl('wiz-item-row');
         node.classList.add('is-check');
-        node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
         qf(node, 'titulo').textContent = d.nombre;
         qf(node, 'meta').textContent = [d.grupo, d.turno, d.salon, formatHorario(d.bloques)].filter(Boolean).join(' · ');
         if (d.estado && d.estado !== 'abierto' && d.estado !== 'ofrecido') {
           var badge = qf(node, 'badge'); badge.classList.remove('hidden'); badge.textContent = d.estado; badge.setAttribute('style', badgeStyle('neutral'));
         }
-        node.addEventListener('click', function () {
-          if (WIZ.dictadoIdsElegidos[d.dictado_id]) delete WIZ.dictadoIdsElegidos[d.dictado_id]; else WIZ.dictadoIdsElegidos[d.dictado_id] = d;
+        var motivoYaProgreso = wizMotivoYaEnProgreso(d.materia_id);
+        if (motivoYaProgreso) {
+          node.disabled = true;
+          delete WIZ.dictadoIdsElegidos[d.dictado_id];
+          var motivo = qf(node, 'motivo'); motivo.classList.remove('hidden'); motivo.textContent = motivoYaProgreso;
+        } else {
           node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
-        });
+          node.addEventListener('click', function () {
+            if (WIZ.dictadoIdsElegidos[d.dictado_id]) delete WIZ.dictadoIdsElegidos[d.dictado_id]; else WIZ.dictadoIdsElegidos[d.dictado_id] = d;
+            node.classList.toggle('is-on', !!WIZ.dictadoIdsElegidos[d.dictado_id]);
+          });
+        }
         content.appendChild(node);
       });
     } else if (deEsteSemestre.length) {
@@ -5195,13 +5227,20 @@
       (WIZ.materiasSugeridasPorSemestre[s] || []).forEach(function (m) {
         var node = tpl('wiz-item-row');
         node.classList.add('is-check');
-        node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
         qf(node, 'titulo').textContent = m.nombre;
         qf(node, 'meta').textContent = (m.creditos ? m.creditos + ' créditos' : '') + (m.obligatoria === false ? ' · electiva de plan' : '');
-        node.addEventListener('click', function () {
-          if (WIZ.materiaIdsSinHorario[m.materia_id]) delete WIZ.materiaIdsSinHorario[m.materia_id]; else WIZ.materiaIdsSinHorario[m.materia_id] = m;
+        var motivoYaProgreso = wizMotivoYaEnProgreso(m.materia_id);
+        if (motivoYaProgreso) {
+          node.disabled = true;
+          delete WIZ.materiaIdsSinHorario[m.materia_id];
+          var motivo = qf(node, 'motivo'); motivo.classList.remove('hidden'); motivo.textContent = motivoYaProgreso;
+        } else {
           node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
-        });
+          node.addEventListener('click', function () {
+            if (WIZ.materiaIdsSinHorario[m.materia_id]) delete WIZ.materiaIdsSinHorario[m.materia_id]; else WIZ.materiaIdsSinHorario[m.materia_id] = m;
+            node.classList.toggle('is-on', !!WIZ.materiaIdsSinHorario[m.materia_id]);
+          });
+        }
         content.appendChild(node);
       });
     }
@@ -5356,20 +5395,21 @@
       orden.forEach(function (materiaId) {
         var secciones = porMateria[materiaId];
         secciones.forEach(function (e) {
-          var sinMinimo = e.estado === 'sin_minimo';
+          var motivoDeshabilitada = e.estado === 'sin_minimo' ? 'No se abrió por falta de inscriptos.' : wizMotivoYaEnProgreso(e.materia_id);
           var node = tpl('wiz-item-row');
           node.classList.add('is-check');
-          node.classList.toggle('is-on', !!WIZ.electivaIdsElegidos[e.dictado_id]);
           // El nombre de la materia va siempre en el título de la fila (antes
           // sólo se mostraba arriba, agrupado, y la fila decía "Sección N"
           // sin más contexto). La sección se agrega sólo si hay más de una
           // para esa materia — si hay una sola, mostrarla es ruido.
           qf(node, 'titulo').textContent = e.nombre + (secciones.length > 1 ? ' — Sección ' + e.seccion : '');
           qf(node, 'meta').textContent = [e.turno, formatHorario(e.bloques)].filter(Boolean).join(' · ');
-          if (sinMinimo) {
+          if (motivoDeshabilitada) {
             node.disabled = true;
-            var motivo = qf(node, 'motivo'); motivo.classList.remove('hidden'); motivo.textContent = 'No se abrió por falta de inscriptos.';
+            delete WIZ.electivaIdsElegidos[e.dictado_id];
+            var motivo = qf(node, 'motivo'); motivo.classList.remove('hidden'); motivo.textContent = motivoDeshabilitada;
           } else {
+            node.classList.toggle('is-on', !!WIZ.electivaIdsElegidos[e.dictado_id]);
             node.addEventListener('click', function () {
               if (WIZ.electivaIdsElegidos[e.dictado_id]) delete WIZ.electivaIdsElegidos[e.dictado_id]; else WIZ.electivaIdsElegidos[e.dictado_id] = e;
               node.classList.toggle('is-on', !!WIZ.electivaIdsElegidos[e.dictado_id]);
