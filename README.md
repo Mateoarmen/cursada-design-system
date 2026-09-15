@@ -4329,3 +4329,127 @@ haya o no evaluaciones esperando nota, el orden por fecha, asignar la
 nota desde la card actualiza Progreso/promedio en vivo y saca la fila
 de la lista (o toda la card si era la última), mobile (375px) y
 desktop, sin errores de consola nuevos.
+
+## Borrar una materia mal cargada en el onboarding + atajo al paso "progreso"
+
+Pedido de un usuario real: cargó mal una materia como "Aprobada"/"Debo
+rendir examen" durante el onboarding (equivocada, o directamente nunca
+la cursó) y no había forma de sacarla — el único lugar donde esas
+materias aparecían era el mini-modal "Cargar nota" (Progreso →
+"Materias pendientes", estado `pendiente`) o el panel "Cargar notas
+pendientes" de Ajustes (estado `aprobada` sin evaluaciones, ver feature
+"Card 'Esperando nota'" arriba — distinto criterio, sin nota vs. sin
+evaluación), y ambos sólo sabían cargar una nota, nunca eliminar. El
+mismo usuario tampoco tenía forma de volver a la parte del onboarding
+donde se tildan materias aprobadas/pendientes si se había olvidado una
+— la única entrada era "Rehacer configuración inicial", que reinicia
+el wizard completo (carrera → semestre → oferta → electivas).
+
+**`eliminarMateriaId(id)`**: misma lógica que el botón "Eliminar" del
+modal de materia (`btn-materia-eliminar` — borra la materia y sus
+evaluaciones de agenda, sincronizando el borrado a Google Calendar
+antes de que la fila deje de existir), extraída a función standalone
+para poder llamarla desde lugares que no pasan por ese modal. A
+diferencia del confirm() genérico del modal ("¿Eliminar esta
+materia?"), acá el mensaje repite el nombre — se llega sin haber
+abierto la materia primero, así que sin el nombre no queda claro cuál
+se está por borrar. Se usa desde el mini-modal "Cargar nota" (nuevo
+enlace "Eliminar materia" en el pie, mismo patrón `.remove-link` que el
+resto de la app) y desde cada fila de "Cargar notas pendientes" en
+Ajustes (nuevo botón "Eliminar" junto a "Guardar").
+
+**`abrirWizardProgreso()`**: atajo nuevo en Ajustes ("Revisar materias
+aprobadas/pendientes", visible sólo si ya hay `carrera_id` guardado)
+que entra directo al paso "progreso" del wizard de catálogo
+(`WIZ.carreraId` se toma del perfil en vez de pedirlo de nuevo) en vez
+de rehacer los 6 pasos. "Guardar" ahí llama sólo a
+`wizCrearMateriasAprobadas()` — esa función no toca la oferta del
+semestre activo, sólo crea materias en un semestre histórico (ver
+"Bloque 4" en la sección de onboarding automático), así que cerrar el
+wizard en este atajo nunca duplica ni reabre nada de lo que ya está
+armado. "Atrás" y el steps-track quedan ocultos: no hay pasos previos
+ni siguientes que mostrar en este modo.
+
+Verificado en `Cursada.test.html` (con `carrera_id` seteado a mano vía
+"Rehacer configuración inicial" para simular una cuenta ya
+onboardeada): "Revisar materias aprobadas/pendientes" aparece en
+Ajustes recién después de elegir carrera; abre el wizard directo en
+"¿Ya aprobaste materias de esta carrera?" sin dots ni "Atrás"; tildar
+una nueva y "Guardar" la crea (aparece en Progreso y en "Cargar notas
+pendientes" de Ajustes, sin tocar Materias del semestre activo);
+"Eliminar materia" desde el mini-modal de "Debo rendir examen" y desde
+"Cargar notas pendientes" borra la materia y actualiza los contadores
+de Progreso en vivo, sin errores de consola nuevos.
+
+## Mini-onboarding al crear un semestre nuevo
+
+Pedido: al crear un semestre desde el gestor (`#modal-semestres`,
+"Crear"), la app sólo dejaba un semestre vacío — activo, pero sin
+ninguna materia. Elegir qué se está cursando quedaba en manos del alta
+manual, materia por materia, aunque la institución tuviera catálogo
+cargado y la carrera ya estuviera resuelta desde el onboarding inicial.
+El pedido: que "Crear semestre" dispare un mini-onboarding que permita
+volver a elegir materias, y arme el semestre nuevo en base a eso — sin
+tocar el semestre que estaba activo.
+
+**Reusar el wizard de catálogo, no reinventar uno nuevo**: el wizard de
+onboarding (`WIZ`/`WIZ_PASOS`, ver sección "Onboarding automático desde
+el catálogo") ya sabe elegir semestre del plan → oferta → electivas →
+revisar/confirmar, y sus RPCs de escritura (`aplicar_dictados`,
+`aplicar_plan`, `aplicar_agenda`) sólo tocan el `semestre_id` que se les
+pasa — la pieza que hacía falta era entrar a la mitad del wizard con ese
+id ya fijo, no reconstruir esa lógica aparte. Mismo patrón que ya existía
+para el atajo "Revisar materias aprobadas/pendientes" de Ajustes
+(`abrirWizardProgreso`, entra directo al paso "progreso" con un flag
+`WIZ.soloX`): esta feature agrega `abrirWizardNuevoSemestre`, que entra
+directo al paso "semestre" con `WIZ.soloNuevoSemestre = true`, saltando
+"carrera" (ya elegida) y "progreso" (no aplica — es un semestre
+adicional, no la primera carga). `wizMostrarPaso`/`wizAtras` tratan
+"semestre" como el piso real del flujo en este modo: los dots muestran
+sólo 4 pasos (no 6) y "Atrás" queda oculto ahí en vez de dejar volver a
+un paso "carrera"/"progreso" sin datos cargados.
+
+**Por qué no reusar `obtenerOCrearSemestrePeriodo`**: el paso "semestre"
+del onboarding normal resuelve el semestre destino con
+`obtenerOCrearSemestrePeriodo(PERIODO_ACTUAL)`, que **reusa** el
+semestre existente de ese período si ya hay uno — pensado para que
+reingresar al wizard (reingreso, "Rehacer configuración inicial") no
+duplique. Para "Crear semestre" eso es exactamente el bug a evitar: el
+semestre activo de hoy casi siempre tiene ese mismo período, así que
+esa función lo hubiera reactivado y le hubiera sumado materias en vez
+de crear uno de verdad nuevo. La solución: `crearSemestreConOnboarding`
+crea el semestre (mismo patrón que `crearSemestre()` — desactiva los
+demás, éste nace activo) ANTES de abrir el wizard, y le pasa el id ya
+resuelto a `abrirWizardNuevoSemestre`; el branch `'semestre'` de
+`wizContinuar()` detecta `WIZ.soloNuevoSemestre` y se salta el llamado a
+`obtenerOCrearSemestrePeriodo` por completo, dejando `WIZ.semestreId`
+tal cual se lo pasaron.
+
+**El semestre anterior no se toca**: "no modificar el semestre activo"
+se interpretó como "no tocar sus materias/notas/horario" — el flag
+`activo` sí cambia (se apaga), porque ésa es la esencia de crear uno
+nuevo y no tiene otra forma de convivir con la restricción de "un solo
+activo" de la base (ver `saveSemestresRaw`). Ninguna RPC de catálogo ni
+de este flujo toca materias de otro `semestre_id`.
+
+**Sin catálogo, o sin carrera elegida todavía**: `crearSemestreConOnboarding`
+cae directo a la `crearSemestre()` de siempre (semestre vacío) — no hay
+oferta de la que elegir materias para esas instituciones. "Prefiero
+cargarlo a mano", disponible en todos los pasos del mini-onboarding
+igual que en el onboarding inicial, deja el semestre nuevo (ya creado y
+activo) tal cual y lleva a Materias — no hace falta un caso especial
+para abandonar el flujo a mitad de camino.
+
+Verificado en `Cursada.test.html` (con `carrera_id` seteado a mano en
+el fixture para simular una cuenta ORT ya onboardeada — se revirtió
+después de probar): "Crear" desde el gestor de semestres abre el
+mini-onboarding directo en "¿En qué semestre de la carrera estás?" (4
+dots, sin "Atrás"); elegir un grupo armado (semestre 4, datos mock)
+resuelve materias y horario reales; "Atrás" desde "oferta" vuelve a
+"semestre" sin romperse (no cae a "progreso"/"carrera"); confirmar deja
+el semestre nuevo activo con sus materias y agenda armada, mientras el
+semestre anterior — verificado volviendo a activarlo desde el gestor —
+sigue mostrando exactamente las mismas materias, notas y "próxima
+evaluación" que antes; "Prefiero cargarlo a mano" deja el semestre
+nuevo activo y vacío, listo para alta manual; mobile (375px) igual que
+el onboarding inicial, sin errores de consola nuevos.

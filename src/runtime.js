@@ -2510,6 +2510,28 @@
     renderRoute();
   }
 
+  // Misma acción que "Eliminar" del modal de materia (botón
+  // btn-materia-eliminar) pero standalone, para poder borrar una materia
+  // "Aprobada"/"Pendiente" sin nota desde los paneles de carga rápida de
+  // nota (Progreso y Ajustes) — esas materias suelen venir del paso
+  // "progreso" del wizard y, si se tildaron mal (materia equivocada, o el
+  // usuario no la había cursado en realidad), antes no había forma de
+  // sacarlas salvo cargándoles una nota igual. Confirma con nombre propio
+  // (a diferencia del genérico "¿Eliminar esta materia?" del modal) porque
+  // acá se llega sin haber abierto la materia primero — sin el nombre en el
+  // mensaje, no queda claro cuál se está por borrar.
+  async function eliminarMateriaId(id) {
+    var m = materiaRawById(id);
+    if (!m) return false;
+    if (!confirm('¿Eliminar "' + m.nombre + '"? También se van a borrar sus evaluaciones de la agenda.')) return false;
+    var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return a.materiaId === id; }).map(function (a) { return a.id; });
+    for (var i = 0; i < idsAgendaBorrados.length; i++) await syncToGoogleCalendar('delete', 'agenda', idsAgendaBorrados[i]);
+    var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (x) { return x.id !== id; }));
+    var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.materiaId !== id; }));
+    if (!okMat || !okAg) { avisarError(); return false; }
+    return true;
+  }
+
   // ---- Mobile: swipe para marcar entregado + long-press para menú
   // contextual. Sin ningún touchstart/swipe previo en el repo — gestos
   // nuevos de punta a punta. Pointer Events (no touchstart/touchmove) para
@@ -3773,15 +3795,8 @@
     });
     document.getElementById('btn-materia-eliminar').addEventListener('click', async function () {
       if (!STATE.editing.materiaId) return;
-      if (!confirm('¿Eliminar esta materia? También se van a borrar sus evaluaciones de la agenda.')) return;
-      var id = STATE.editing.materiaId;
-      var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return a.materiaId === id; }).map(function (a) { return a.id; });
-      // Antes de borrar de Supabase: sync-google-event lee la fila para
-      // conseguir el google_event_id — después de borrada ya no la encuentra.
-      for (var i = 0; i < idsAgendaBorrados.length; i++) await syncToGoogleCalendar('delete', 'agenda', idsAgendaBorrados[i]);
-      var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (m) { return m.id !== id; }));
-      var okAg = await saveAgendaRaw(loadAgendaRaw().filter(function (a) { return a.materiaId !== id; }));
-      if (!okMat || !okAg) avisarError();
+      var ok = await eliminarMateriaId(STATE.editing.materiaId);
+      if (!ok) return;
       snapshotModalForm('modal-materia');
       closeAllModals();
       location.hash = '#materias';
@@ -4256,6 +4271,17 @@
       closeAllModals();
       renderRoute();
     });
+    // Para cuando la materia "Debo rendir examen" se cargó mal (equivocada,
+    // duplicada, o el usuario en realidad nunca la cursó) — antes la única
+    // acción posible acá era cargarle una nota, no había forma de sacarla.
+    document.getElementById('btn-cargar-examen-eliminar').addEventListener('click', async function () {
+      var materiaId = CARGAR_EXAMEN_MATERIA_ID;
+      if (!materiaId) return;
+      var ok = await eliminarMateriaId(materiaId);
+      if (!ok) return;
+      closeAllModals();
+      renderRoute();
+    });
   });
 
   // Mini-modal "Asignar nota" para una evaluación puntual ya agendada — el
@@ -4588,12 +4614,17 @@
   function wizMostrarPaso(idx) {
     WIZ.pasoIdx = idx;
     WIZ_PASOS.forEach(function (p, i) { document.getElementById('wiz-panel-' + p).classList.toggle('hidden', i !== idx); });
+    // Mini-onboarding de "nuevo semestre" (ver abrirWizardNuevoSemestre): el
+    // flujo arranca en "semestre", no en "carrera" — el primer paso real para
+    // efectos de dots/Atrás es ése, no el índice 0 del array completo.
+    var primerPaso = WIZ.soloNuevoSemestre ? WIZ_PASOS.indexOf('semestre') : 0;
     var track = document.getElementById('wiz-steps-track');
     clear(track);
     WIZ_PASOS.forEach(function (p, i) {
+      if (i < primerPaso) return;
       track.appendChild(el('span', 'dot' + (i < idx ? ' is-done' : '') + (i === idx ? ' is-current' : '')));
     });
-    document.getElementById('btn-wiz-atras').classList.toggle('hidden', idx === 0);
+    document.getElementById('btn-wiz-atras').classList.toggle('hidden', idx === primerPaso);
     document.getElementById('btn-wiz-continuar').textContent = idx === WIZ_PASOS.length - 1 ? 'Confirmar' : 'Continuar';
     document.getElementById('wiz-error').classList.add('hidden');
   }
@@ -4619,6 +4650,54 @@
     document.getElementById('wizard-onboarding').classList.remove('hidden');
     wizMostrarPaso(0);
     await wizCargarCarreras();
+  }
+
+  // Atajo a sólo el paso "progreso" del wizard (¿ya aprobaste materias?),
+  // para cuando al usuario le faltó tildar una materia y no quiere volver a
+  // pasar por carrera/semestre/oferta/electivas para agregarla — antes la
+  // única entrada a este paso era "Rehacer configuración inicial", que
+  // rehace el wizard entero. Reusa WIZ.carreraId ya guardado en el perfil
+  // (por eso sólo tiene sentido si CURRENT_PROFILE.carrera_id ya existe, ver
+  // toggle del botón en openAjustesModal) y wizCrearMateriasAprobadas() sola
+  // — esa función no toca nada del semestre activo, sólo crea materias
+  // "Aprobada"/"Pendiente" en un semestre histórico (ver su comentario) —
+  // así "Guardar" acá no reabre ni duplica nada de la oferta ya armada.
+  // Atrás/steps-track se ocultan: no hay a dónde volver ni pasos restantes
+  // que mostrar en este modo.
+  async function abrirWizardProgreso() {
+    WIZ = wizEstadoInicial();
+    WIZ.carreraId = CURRENT_PROFILE.carrera_id;
+    WIZ.soloProgreso = true;
+    document.getElementById('wizard-onboarding').classList.remove('hidden');
+    wizMostrarPaso(WIZ_PASOS.indexOf('progreso'));
+    document.getElementById('btn-wiz-atras').classList.add('hidden');
+    document.getElementById('wiz-steps-track').classList.add('hidden');
+    document.getElementById('btn-wiz-continuar').textContent = 'Guardar';
+    await wizCargarProgresoAnterior();
+  }
+
+  // Mini-onboarding para "Crear semestre" (ver crearSemestreConOnboarding, en
+  // la sección SEMESTRES) — mismo wizard de catálogo que el onboarding
+  // inicial, saltando "carrera" (ya elegida) y "progreso" (no aplica: es un
+  // semestre adicional, no la primera carga). `semestreId` ya viene fijo al
+  // que se acaba de crear (activo, vacío) — a diferencia del paso "semestre"
+  // del onboarding normal, wizContinuar() NO debe pisarlo llamando a
+  // obtenerOCrearSemestrePeriodo() acá (esa función reusaría/reactivaría el
+  // semestre existente del período actual — el que se está por dejar de
+  // estar activo — en vez de éste, nuevo). El resto del flujo (oferta,
+  // electivas, revisión, confirmar) es exactamente el mismo código que el
+  // onboarding inicial: las RPCs de aplicar_* sólo tocan el semestre_id que
+  // se les pasa, así que el semestre que se estaba cursando antes queda
+  // intacto salvo por su flag `activo` (ver crearSemestreConOnboarding).
+  async function abrirWizardNuevoSemestre(semestreId, carreraId) {
+    WIZ = wizEstadoInicial();
+    WIZ.carreraId = carreraId;
+    WIZ.semestreId = semestreId;
+    WIZ.soloNuevoSemestre = true;
+    document.getElementById('wizard-onboarding').classList.remove('hidden');
+    document.getElementById('wiz-steps-track').classList.remove('hidden');
+    wizMostrarPaso(WIZ_PASOS.indexOf('semestre'));
+    wizRenderSemestrePills();
   }
 
   // ---- Paso 1: institución y carrera ----
@@ -5499,7 +5578,10 @@
 
   // ---- Navegación entre pasos ----
   function wizAtras() {
-    if (WIZ.pasoIdx === 0) return;
+    // Mini-onboarding de nuevo semestre: no hay "carrera"/"progreso" a los
+    // que volver (ver abrirWizardNuevoSemestre) — "semestre" es el piso.
+    var primerPaso = WIZ.soloNuevoSemestre ? WIZ_PASOS.indexOf('semestre') : 0;
+    if (WIZ.pasoIdx <= primerPaso) return;
     wizMostrarPaso(WIZ.pasoIdx - 1);
   }
 
@@ -5522,19 +5604,45 @@
       wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizCargarProgresoAnterior();
     } else if (paso === 'progreso') {
+      // Atajo abierto con abrirWizardProgreso(): "Guardar" acá mismo en vez
+      // de seguir a "semestre" — ver comentario de esa función sobre por
+      // qué wizCrearMateriasAprobadas() sola alcanza y no toca la oferta ya
+      // armada del semestre activo.
+      if (WIZ.soloProgreso) {
+        setBtnBusy(btn, true, 'Guardando…');
+        try {
+          await wizCrearMateriasAprobadas();
+        } catch (e) {
+          setBtnBusy(btn, false);
+          wizMostrarError(e.message || 'No se pudo guardar — intentá de nuevo.');
+          return;
+        }
+        setBtnBusy(btn, false);
+        document.getElementById('wizard-onboarding').classList.add('hidden');
+        hideOnboarding();
+        renderRoute();
+        showToast('Progreso actualizado.');
+        return;
+      }
       wizMostrarPaso(WIZ.pasoIdx + 1);
       wizRenderSemestrePills();
     } else if (paso === 'semestre') {
       if (!WIZ.semestresElegidos.length) { wizMostrarError('Elegí al menos un semestre.'); return; }
-      setBtnBusy(btn, true, 'Preparando…');
-      try {
-        WIZ.semestreId = await obtenerOCrearSemestrePeriodo(PERIODO_ACTUAL);
-      } catch (e) {
+      // WIZ.soloNuevoSemestre: WIZ.semestreId ya apunta al semestre recién
+      // creado (ver abrirWizardNuevoSemestre) — llamar acá a
+      // obtenerOCrearSemestrePeriodo() lo pisaría con el semestre existente
+      // del período actual (el que se acaba de desactivar).
+      if (!WIZ.soloNuevoSemestre) {
+        setBtnBusy(btn, true, 'Preparando…');
+        try {
+          WIZ.semestreId = await obtenerOCrearSemestrePeriodo(PERIODO_ACTUAL);
+        } catch (e) {
+          setBtnBusy(btn, false);
+          wizMostrarError(e.message);
+          return;
+        }
         setBtnBusy(btn, false);
-        wizMostrarError(e.message);
-        return;
       }
-      setBtnBusy(btn, false);
       wizMostrarPaso(WIZ.pasoIdx + 1);
       await wizCargarOferta();
     } else if (paso === 'oferta') {
@@ -5562,6 +5670,10 @@
     document.getElementById('btn-rehacer-onboarding').addEventListener('click', function () {
       closeAllModals();
       abrirWizard();
+    });
+    document.getElementById('btn-revisar-progreso').addEventListener('click', function () {
+      closeAllModals();
+      abrirWizardProgreso();
     });
   }
 
@@ -5909,6 +6021,36 @@
     renderRoute();
   }
 
+  // "Crear" en el gestor de semestres: si hay catálogo (ORT) y la carrera ya
+  // está elegida, no crea un semestre vacío de una — dispara un
+  // mini-onboarding (abrirWizardNuevoSemestre) para volver a elegir qué
+  // materias se cursan, igual que el onboarding inicial pero apuntando
+  // siempre a ESTE semestre nuevo. El semestre se crea acá mismo (mismo
+  // patrón de crearSemestre: desactiva los demás, éste nace activo) — el
+  // wizard sólo AGREGA materias sobre un semestre que ya existe, nunca las
+  // reemplaza ni toca las de otro semestre. Sin catálogo (o sin carrera
+  // elegida todavía), cae al alta vacía de siempre: no hay de dónde elegir
+  // materias.
+  async function crearSemestreConOnboarding(nombre) {
+    nombre = (nombre || '').trim();
+    if (!nombre) return;
+    if (!(CURRENT_PROFILE && CURRENT_PROFILE.university_id === ORT_UNIVERSITY_ID && CURRENT_PROFILE.carrera_id)) {
+      return crearSemestre(nombre);
+    }
+    var arr = loadSemestresRaw().map(function (s) { return Object.assign({}, s, { activo: false }); });
+    var id = uid();
+    arr.push({ id: id, nombre: nombre, activo: true, orden: proximoOrdenSemestre(), periodo: PERIODO_ACTUAL });
+    var btn = document.getElementById('btn-crear-semestre');
+    setBtnBusy(btn, true, 'Creando…');
+    var ok = await saveSemestresRaw(arr);
+    setBtnBusy(btn, false);
+    if (!ok) { avisarError(); return; }
+    document.getElementById('input-nuevo-semestre').value = '';
+    closeAllModals();
+    renderRoute();
+    await abrirWizardNuevoSemestre(id, CURRENT_PROFILE.carrera_id);
+  }
+
   // Nombre sugerido para un semestre creado a partir de un período del
   // catálogo ('2026-2' -> "2026 · Segundo semestre") — mismo formato que
   // sugerirNombreSemestre(), pero derivado del período que el usuario eligió
@@ -5984,8 +6126,8 @@
       document.getElementById('input-nuevo-semestre').placeholder = sugerirNombreSemestre();
       openModal('modal-semestres');
     });
-    document.getElementById('btn-crear-semestre').addEventListener('click', function () { crearSemestre(document.getElementById('input-nuevo-semestre').value); });
-    document.getElementById('input-nuevo-semestre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); crearSemestre(ev.target.value); } });
+    document.getElementById('btn-crear-semestre').addEventListener('click', function () { crearSemestreConOnboarding(document.getElementById('input-nuevo-semestre').value); });
+    document.getElementById('input-nuevo-semestre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); crearSemestreConOnboarding(ev.target.value); } });
 
     bindNuevoMenus();
     document.getElementById('inicio-search').addEventListener('keydown', function (e) {
@@ -7338,6 +7480,12 @@
     // El wizard de catálogo sólo tiene sentido para instituciones con
     // catálogo cargado (hoy, sólo ORT) — ver mostrarOnboardingOCatalogo().
     document.getElementById('btn-rehacer-onboarding').classList.toggle('hidden', p.university_id !== ORT_UNIVERSITY_ID);
+    // El atajo de "revisar aprobadas/pendientes" (ver abrirWizardProgreso)
+    // necesita WIZ.carreraId de arranque — sin carrera todavía elegida no
+    // hay plan de estudios contra el cual mostrar el paso "progreso", así
+    // que en ese caso "Rehacer configuración inicial" (arriba) ya cubre el
+    // caso, de punta a punta.
+    document.getElementById('btn-revisar-progreso').classList.toggle('hidden', p.university_id !== ORT_UNIVERSITY_ID || !p.carrera_id);
     STATE.editing = { ajustesTagNuevoAbierto: false, ajustesTagNuevoColor: 'azul' };
     renderAjustesTags();
     renderAjustesAprobadas();
@@ -7469,6 +7617,14 @@
         } else {
           avisarError();
         }
+      });
+      qf(node, 'eliminarBtn').addEventListener('click', async function () {
+        var ok = await eliminarMateriaId(m.id);
+        if (!ok) return;
+        renderProgresoPendientesModal();
+        renderAjustesAprobadas();
+        renderProgreso();
+        renderInicio();
       });
       wrap.appendChild(node);
     });

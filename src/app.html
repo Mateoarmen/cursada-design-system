@@ -1214,6 +1214,7 @@
               <button type="button" class="btn" id="btn-exportar">Exportar</button>
               <button type="button" class="btn" id="btn-importar">Importar</button>
               <input type="file" accept="application/json" class="file-input-hidden" id="input-importar">
+              <button type="button" class="btn hidden" id="btn-revisar-progreso">Revisar materias aprobadas/pendientes</button>
               <button type="button" class="btn hidden" id="btn-rehacer-onboarding">Rehacer configuración inicial</button>
               <button type="button" class="btn" id="btn-ajustes-logout">Cerrar sesión</button>
             </div>
@@ -1295,9 +1296,12 @@
           <input id="cargar-examen-nota" type="number" step="0.1" min="0" inputmode="decimal" autocomplete="off" placeholder="Nota obtenida">
         </div>
       </div>
-      <div class="modal-foot" style="justify-content:flex-end">
-        <button type="button" class="btn" data-close-modal>Cancelar</button>
-        <button type="submit" class="btn btn-primary" id="btn-cargar-examen-guardar">Guardar</button>
+      <div class="modal-foot">
+        <button type="button" class="remove-link" id="btn-cargar-examen-eliminar">Eliminar materia</button>
+        <div style="display:flex;gap:10px;align-items:center;margin-left:auto">
+          <button type="button" class="btn" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-cargar-examen-guardar">Guardar</button>
+        </div>
       </div>
     </form>
   </div>
@@ -1615,6 +1619,7 @@
       <input type="number" data-f="notaInput">
     </div>
     <button type="button" class="btn btn-sm" data-f="guardarBtn">Guardar</button>
+    <button type="button" class="remove-link" data-f="eliminarBtn" title="Eliminar materia" aria-label="Eliminar materia">Eliminar</button>
   </div>
 </template>
 
