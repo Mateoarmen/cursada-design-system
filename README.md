@@ -4601,3 +4601,136 @@ datos); el historial por fecha muestra el patrón semanal del semestre
 activo más los registros ya guardados fuera de ese patrón, y guardar
 una fila ahí actualiza el resumen sin recargar. Probado también en
 375px (modal, vista general y bloque de Detalle) sin desbordes nuevos.
+
+## Auditoría y consolidación del sistema visual (tokens, tipografía, espaciado)
+
+Se pidió una auditoría del sistema visual completo (colores, radios,
+sombras, tipografía, espaciado) y, con base en eso, consolidarlo en
+variables — sin romper funcionalidad. A diferencia del Redisño Hallmark
+(sección de arriba, que rediseñó estructura/dirección visual), este pedido
+era de consistencia: el sistema de tokens de `styles.css` ya era bueno,
+pero convivía con literales sueltos por todos lados y con dos namespaces
+paralelos (`--lp-*` en landing, `--lg-*` en legal) que repetían los mismos
+valores a mano.
+
+**Auditoría inicial** (script propio, no a ojo): 122 colores únicos, 45
+border-radius únicos, 57 font-size únicos y ~260 padding distintos sólo en
+`styles.css`. La causa no era que faltara sistema — `--c-*`/`--r-*` ya
+existían — sino que se usaban en menos del 10% de los casos.
+
+**Decisiones tomadas explícitamente con el usuario (no por default):**
+
+- **Radio de borde**: el proyecto tenía dos radios intencionales y
+  documentados contra el mockup (`design-reference/DESIGN.md`): 20px para
+  cards/modales, 10-12px para controles. El pedido nuevo pedía elegir un
+  único radio base entre 6/8/12px + un derivado chico — lo que implicaba
+  achicar cards y modales. Se preguntó explícitamente antes de tocar nada;
+  el usuario eligió aplicar el pedido literal (`--radius:12px`,
+  `--radius-sm:8px`) en vez de preservar el 20/26 existente. `--r-control`/
+  `--r-tile`/`--r-card`/`--r-modal`/`--r-chip` quedaron como alias de estos
+  dos valores — ningún selector que ya los usaba necesitó tocarse.
+- **Escala tipográfica**: el pedido fijaba 12/14/16/20/24/32px, pero la app
+  ya tenía números "hero" genuinos entre 36 y 48px (promedio grande de
+  Progreso, saludo de Inicio, KPIs, título de onboarding) — bajarlos todos
+  a 32px era una pérdida de impacto real, no sólo prolijidad. Se preguntó
+  y el usuario eligió agregar un 7mo escalón, `--fs-40`, sólo para esos
+  ~5 usos puntuales; el resto del proyecto quedó en los 6 tamaños
+  originales. Nota aparte: el redondeo directo de la variante mobile de
+  esos mismos elementos (27px) daba 24px por vecino más cercano, pero eso
+  rompía la relación con el nuevo `--fs-40` de desktop — se fijó a 32px
+  a mano (un escalón abajo, no dos).
+- Todo lo demás (paleta de color, escala de espaciado en base 4, dos
+  niveles de sombra) se aplicó sin preguntar, por ser consolidación directa
+  sin pérdida visual.
+
+**Bugs de consistencia encontrados auditando (no visibles a simple
+vista, sólo comparando valores):**
+
+- `ACCENTS.azul` en `runtime.js` (paleta de color de materia que usan
+  calendario/horario/chips) seguía en el azul genérico `#0A84FF`. El
+  README de la sección "Marca" (arriba) documenta explícitamente que ese
+  azul se había unificado con el azul de marca (`#0A63F0`) — la
+  documentación decía una cosa, el código hacía otra. Corregido.
+- `--lp-ink2`/`--lg-ink2` (landing/legal) usaban `#55565B`, un tercer gris
+  que no coincidía con ningún paso de la escala de neutros de la app —
+  ni con `--c-ink2` ni con nada. Peor: `--lp-ink3`/`--lg-ink3` coincidían
+  con `--c-ink2` de la app (un desfasaje de un escalón completo entre los
+  namespaces). Los tres quedaron alineados a los mismos dos valores.
+- El avatar placeholder (sin foto) tenía el mismo degradé de fondo en
+  sidenav y en el hero de Perfil, pero colores de texto distintos
+  (`#5B5B60` vs `#3A3A3C`) sin razón documentada — y `#5B5B60` medía
+  4.31:1 de contraste sobre ese fondo, bajo el 4.5:1 AA. Unificados en
+  el que sí pasa.
+- `--c-ink3` (texto terciario, usado en metadatos a 11-13px en toda la
+  app) medía 3.62:1 sobre blanco — bajo AA para texto normal. Oscurecido
+  de `#86868B` a `#757579` (4.59:1); mismo ajuste del lado oscuro (opacidad
+  .45→.5 sobre `rgba(235,235,245,·)`).
+- `--c-danger` como color de texto (no como fondo/dot/borde) medía 3.55:1
+  sobre blanco. Se agregó `--c-danger-text` (más oscuro, AA-safe) siguiendo
+  el mismo patrón soft/strong que ya usa la paleta de 8 colores de materia,
+  y se migraron los 11 usos de `--c-danger` como texto — sin tocar
+  fondos/bordes/dots, que siguen con el rojo de marca puro.
+- El botón primario en tema oscuro (texto blanco sobre el degradé
+  `#2C7BFF→#0A63F0`) mide 3.90:1 en el extremo más claro del degradé —
+  bajo AA. **No se corrigió**: arreglarlo bien implica oscurecer el azul
+  de marca en oscuro (decisión de marca, no de sistema) o agrandar la
+  tipografía del botón hasta calificar como "texto grande" (se vería
+  raro). Queda documentado acá para que el usuario decida si le importa.
+
+**Qué se tocó, en orden:**
+
+1. **Tokens nuevos** en `styles.css` (`:root` y bloque oscuro): variantes
+   de acento (`--c-accent-hover/-active/-muted`), fondos semánticos suaves
+   (`--c-success-bg`/`--c-warning-bg`/`--c-danger-bg`), escala tipográfica
+   (`--fs-*`/`--lh-*`/`--fw-*`), escala de espaciado (`--space-*`), radio
+   consolidado (`--radius`/`--radius-sm`/`--radius-pill`/`--radius-full`),
+   dos niveles de sombra (`--shadow-sm`/`--shadow-lg`, alias de
+   `--c-shadow`/`--c-modal-shadow` — este último pasó de una capa a tres),
+   `--c-white`, `--c-cta-glow-highlight`, `--c-avatar-from/-to/-text`.
+   Ningún nombre de variable existente se tocó (`runtime.js` referencia
+   `var(--c-ink3)` etc. directo en strings de `style.cssText` — renombrar
+   hubiera roto eso).
+2. **Botones, inputs, cards de materia, calendario/horario, nav lateral**:
+   altura mínima 40px (antes 30-34px) en toda la familia de botones/inputs
+   principales, transición 180ms pareja, estados `:active`/`:disabled`/
+   `.is-loading` que no existían. Nav lateral: inactivo pasó de `--c-ink` a
+   `--c-ink2` para que la jerarquía dependa de peso+color+fondo, no sólo
+   del degradé del activo.
+3. **Auditoría de estados interactivos**: de los 48 elementos clicables
+   reales del HTML, 12 no tenían `:hover` (`.modal-close`, en todos los
+   modales, era el más notorio) — agregado a los 12. Uno de esos fixes
+   (`.wiz-item-row`) también aplicaba sin querer a un `<div>` contenedor
+   no-clicable (`.wiz-status-row`, no puede ser `<button>` porque contiene
+   sus propios botones) — se excluyó para no dar una afordancia falsa.
+4. **Retrofit mecánico de tipografía/espaciado** en `styles.css`,
+   `landing.html`, `legal.html` y los `style.cssText` de `runtime.js`: cada
+   `font-size`/`padding`/`margin`/`gap` en px se mapeó al valor más cercano
+   de la escala nueva vía script (no a mano, ~700 declaraciones en total).
+   Se excluyeron a propósito: valores dentro de `calc()`/`env()` (safe-area
+   del notch — mezclar un token ahí es frágil), valores negativos
+   (compensaciones ópticas, no espaciado real) y valores por debajo de 4px
+   (ajustes de líneas/iconos, fuera del piso de la escala).
+5. **Landing y legal**: no se fusionaron con `styles.css` (la landing es
+   standalone a propósito — no depende de `runtime.js` ni de Supabase, ver
+   `build-landing.mjs`). En cambio se les agregó su propio juego de tokens
+   `--lp-*`/`--lg-*` con los mismos valores que `--c-*`/`--radius*`/
+   `--fs-*`/`--space-*`, y se retocaron sus componentes igual que en la
+   app.
+
+**Verificación**: `npm run build` + `npm run test:sim` (15/15) después de
+cada bloque de cambios, no sólo al final. `node --check src/runtime.js`
+para confirmar que el retrofit de los `style.cssText` no rompió sintaxis.
+Inspección visual en navegador (login, registro, landing completa en claro
+y oscuro, legal) en cada paso — sin errores de consola ni regresiones de
+layout. No se pudo probar más allá del login/landing con datos reales en
+esta sesión (sin sesión de Supabase disponible); recomendado correr el
+ciclo de `cursada-ship` (`build:test` con el mock) antes de dar por
+verificado el resto de las pantallas (Materias, Calendario, Horario) con
+datos reales.
+
+**Deliberadamente fuera de alcance**: los ~90 colores rgba/hex de un solo
+uso que quedan en `styles.css` (sombras/gradientes decorativos de un
+componente puntual, la mayoría ya comentados con su razón de ser) y las
+constantes de color del lado JS para materias/tonos (`ACCENTS`, `TONE`
+en `runtime.js`, más allá del fix puntual del azul) — tocar esa paleta
+completa es una decisión de marca, no de consistencia de sistema.

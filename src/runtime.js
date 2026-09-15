@@ -18,7 +18,7 @@
   // sistema de Apple (naranja-rojizo, amarillo, rosa y gris de iOS) para
   // completar las 9 identidades que ya usan las materias existentes.
   var ACCENTS = {
-    azul: { strong: '#0A84FF', to: '#0060DF', text: '#0060DF', soft: rgba('#0A84FF', .12) },
+    azul: { strong: '#0A63F0', to: '#0847B4', text: '#0847B4', soft: rgba('#0A63F0', .12) },
     verde: { strong: '#34C759', to: '#248A3D', text: '#248A3D', soft: rgba('#34C759', .12) },
     violeta: { strong: '#5E5CE6', to: '#4340CC', text: '#4340CC', soft: rgba('#5E5CE6', .12) },
     coral: { strong: '#FF6B5B', to: '#E14F3F', text: '#D6402E', soft: rgba('#FF6B5B', .13) },
@@ -1050,7 +1050,7 @@
   }
   function renderAvatarInto(elm, size) {
     clear(elm);
-    elm.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:' + Math.round(size * .36) + 'px;font-weight:700;color:#fff;overflow:hidden;flex:none';
+    elm.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:' + Math.round(size * .36) + 'px;font-weight:700;color:var(--c-white);overflow:hidden;flex:none';
     var fotoUrl = CURRENT_PROFILE && CURRENT_PROFILE.foto_url;
     if (fotoUrl) {
       var img = el('img'); img.src = fotoUrl; img.alt = ''; img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
@@ -1232,8 +1232,8 @@
       ringGhost.setAttribute('style', ringStyle(0, 'var(--c-line)', 72, 1));
       clear(ringGhost);
       var innerGhost = el('div'); innerGhost.setAttribute('style', ringInnerStyle(72, 7));
-      var g1 = el('span', 'mono'); g1.style.cssText = 'font-size:16px;font-weight:700;color:var(--c-ink3)'; g1.textContent = '0/' + p.materias.length;
-      var g2 = el('span'); g2.style.cssText = 'font-size:9px;color:var(--c-ink3)'; g2.textContent = 'notas';
+      var g1 = el('span', 'mono'); g1.style.cssText = 'font-size:var(--fs-16);font-weight:700;color:var(--c-ink3)'; g1.textContent = '0/' + p.materias.length;
+      var g2 = el('span'); g2.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; g2.textContent = 'notas';
       innerGhost.appendChild(g1); innerGhost.appendChild(g2);
       ringGhost.appendChild(innerGhost);
 
@@ -1258,8 +1258,8 @@
     ring.setAttribute('style', ringStyle(p.evaluacionesCalificadas, TONE.success, 72, p.evaluacionesEsperadas || 1));
     clear(ring);
     var inner = el('div'); inner.setAttribute('style', ringInnerStyle(72, 7));
-    var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:16px;font-weight:700'; v1.textContent = p.evaluacionesCalificadas + '/' + p.evaluacionesEsperadas;
-    var v2 = el('span'); v2.style.cssText = 'font-size:9px;color:var(--c-ink3)'; v2.textContent = 'notas';
+    var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:var(--fs-16);font-weight:700'; v1.textContent = p.evaluacionesCalificadas + '/' + p.evaluacionesEsperadas;
+    var v2 = el('span'); v2.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; v2.textContent = 'notas';
     inner.appendChild(v1); inner.appendChild(v2);
     ring.appendChild(inner);
 
@@ -1305,11 +1305,11 @@
       var dot = el('span', 'tone-dot'); dot.style.background = m ? m.strong : 'var(--c-ink3)';
       var textWrap = el('div'); textWrap.style.cssText = 'display:flex;flex-direction:column;gap:2px;min-width:0';
       var tituloEl = el('span'); tituloEl.style.fontWeight = '600'; tituloEl.textContent = a.titulo;
-      var metaEl = el('span'); metaEl.style.cssText = 'font-size:12px;color:var(--c-ink3)';
+      var metaEl = el('span'); metaEl.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)';
       metaEl.textContent = (m ? m.nombre + ' · ' : '') + formatFechaAgenda(a.fecha, a.hora);
       textWrap.appendChild(tituloEl); textWrap.appendChild(metaEl);
       nombreWrap.appendChild(dot); nombreWrap.appendChild(textWrap);
-      var valEl = el('span'); valEl.style.cssText = 'color:var(--c-accent);font-size:12.5px;font-weight:600;white-space:nowrap;flex:none';
+      var valEl = el('span'); valEl.style.cssText = 'color:var(--c-accent);font-size:var(--fs-12);font-weight:600;white-space:nowrap;flex:none';
       valEl.textContent = 'Asignar nota ›';
       row.appendChild(nombreWrap); row.appendChild(valEl);
       makeRowClickable(row, function () { abrirAsignarNotaModal(a.id); }, 'Asignar nota a ' + a.titulo);
@@ -1429,7 +1429,7 @@
     }
     document.getElementById('proximos-titulo').textContent = tituloProximos;
     if (!proximos.length) {
-      var empty = el('div'); empty.style.cssText = 'padding:24px 0;text-align:center;color:var(--c-ink3);font-size:13px';
+      var empty = el('div'); empty.style.cssText = 'padding:var(--space-24) 0;text-align:center;color:var(--c-ink3);font-size:var(--fs-14)';
       empty.textContent = usandoMes ? 'No tenés nada agendado este mes.' : 'No tenés nada agendado para los próximos 7 días.';
       proxList.appendChild(empty);
     }
@@ -1683,8 +1683,8 @@
     ring.setAttribute('style', ringStyle(p.evaluacionesCalificadas, TONE.success, 72, p.evaluacionesEsperadas || 1));
     clear(ring);
     var inner = el('div'); inner.setAttribute('style', ringInnerStyle(72, 7));
-    var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:16px;font-weight:700'; v1.textContent = p.evaluacionesCalificadas + '/' + p.evaluacionesEsperadas;
-    var v2 = el('span'); v2.style.cssText = 'font-size:9px;color:var(--c-ink3)'; v2.textContent = 'notas';
+    var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:var(--fs-16);font-weight:700'; v1.textContent = p.evaluacionesCalificadas + '/' + p.evaluacionesEsperadas;
+    var v2 = el('span'); v2.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; v2.textContent = 'notas';
     inner.appendChild(v1); inner.appendChild(v2);
     ring.appendChild(inner);
 
@@ -1754,7 +1754,7 @@
     var list = document.getElementById('semestre-materias-list');
     clear(list);
     if (!materias.length) {
-      var empty = el('div'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3);padding:8px 4px';
+      var empty = el('div'); empty.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3);padding:var(--space-8) var(--space-4)';
       empty.textContent = 'Este semestre no tiene materias todavía.';
       list.appendChild(empty);
     }
@@ -1764,7 +1764,7 @@
       var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
       var nombre = el('span'); nombre.textContent = m.nombre;
       nombreWrap.appendChild(dot); nombreWrap.appendChild(nombre);
-      var right = el('div'); right.style.cssText = 'display:flex;align-items:center;gap:8px;flex:none';
+      var right = el('div'); right.style.cssText = 'display:flex;align-items:center;gap:var(--space-8);flex:none';
       var badge = el('span', 'badge'); badge.setAttribute('style', badgeStyle(m.badgeTone)); badge.textContent = m.badgeLabel;
       var valEl = el('span', 'mono'); valEl.style.color = TONE[m.tone]; valEl.textContent = m.notaTxt + '/' + val(m.esc.aprob, m.esc);
       right.appendChild(badge); right.appendChild(valEl);
@@ -1839,7 +1839,7 @@
         var dot = el('span', 'tone-dot'); dot.style.background = m.strong;
         var nombreEl = el('span'); nombreEl.textContent = m.nombre;
         nombreWrap.appendChild(dot); nombreWrap.appendChild(nombreEl);
-        var valEl = el('span'); valEl.style.cssText = 'color:var(--c-ink3);font-size:12.5px'; valEl.textContent = 'Cargar nota ›';
+        var valEl = el('span'); valEl.style.cssText = 'color:var(--c-ink3);font-size:var(--fs-12)'; valEl.textContent = 'Cargar nota ›';
         row.appendChild(nombreWrap); row.appendChild(valEl);
         makeRowClickable(row, function () { abrirCargarNotaExamenModal(m.id); }, 'Cargar nota de ' + m.nombre);
         group.appendChild(row);
@@ -2204,13 +2204,13 @@
     var ringInner = document.getElementById('detalle-ring-inner');
     ringInner.setAttribute('style', ringInnerStyle(140, ringThick));
     clear(ringInner);
-    var v1 = el('span'); v1.className = 'mono'; v1.style.cssText = 'font-size:34px;font-weight:600;line-height:1'; v1.textContent = m.notaTxt;
-    var v2 = el('span'); v2.className = 'mono'; v2.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v2.textContent = 'aprueba ' + m.aprobTxt;
+    var v1 = el('span'); v1.className = 'mono'; v1.style.cssText = 'font-size:var(--fs-32);font-weight:600;line-height:1'; v1.textContent = m.notaTxt;
+    var v2 = el('span'); v2.className = 'mono'; v2.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; v2.textContent = 'aprueba ' + m.aprobTxt;
     ringInner.appendChild(v1); ringInner.appendChild(v2);
     // Bloque 2: umbral de exoneración, en su propia línea para no
     // amontonar todo en el subtítulo del anillo.
     if (m.exonTxt) {
-      var v3 = el('span'); v3.className = 'mono'; v3.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v3.textContent = 'exonera ' + m.exonTxt;
+      var v3 = el('span'); v3.className = 'mono'; v3.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; v3.textContent = 'exonera ' + m.exonTxt;
       ringInner.appendChild(v3);
     }
 
@@ -2226,7 +2226,7 @@
       notasList.appendChild(node);
     });
     if (!m.notasEvals.length) {
-      var pend = el('div'); pend.style.cssText = 'font-size:13px;color:var(--c-ink3)'; pend.textContent = 'Todavía no cargaste notas.';
+      var pend = el('div'); pend.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; pend.textContent = 'Todavía no cargaste notas.';
       notasList.appendChild(pend);
     }
 
@@ -2361,7 +2361,7 @@
     var ringInner = document.getElementById('detalle-sim-ring-inner');
     ringInner.setAttribute('style', ringInnerStyle(72, 8));
     clear(ringInner);
-    var v = el('span'); v.className = 'mono'; v.style.cssText = 'font-size:17px;font-weight:600;line-height:1'; v.textContent = val(r.puntosProyectados, m.esc);
+    var v = el('span'); v.className = 'mono'; v.style.cssText = 'font-size:var(--fs-16);font-weight:600;line-height:1'; v.textContent = val(r.puntosProyectados, m.esc);
     ringInner.appendChild(v);
 
     document.getElementById('detalle-sim-stat-reales').textContent = valU(r.puntosReales, m.esc);
@@ -2688,7 +2688,7 @@
     });
     if (completadasEntries.length) groupsNode.appendChild(buildCompletadasSection('agenda', completadasEntries.length, buildAgendaRowsList(completadasEntries, t, ocultarMateriaChip)));
     if (!entries.length) {
-      var empty = el('div'); empty.style.cssText = 'padding:40px 0;text-align:center;color:var(--c-ink3);font-size:14px';
+      var empty = el('div'); empty.style.cssText = 'padding:var(--space-48) 0;text-align:center;color:var(--c-ink3);font-size:var(--fs-14)';
       empty.textContent = 'No hay ítems con estos filtros.';
       groupsNode.appendChild(empty);
     }
@@ -3532,8 +3532,8 @@
       ring.setAttribute('style', ringStyle(general.pct, tone, 120, 100));
       clear(ring);
       var inner = el('div'); inner.setAttribute('style', ringInnerStyle(120, 11));
-      var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:26px;font-weight:700'; v1.textContent = general.pct + '%';
-      var v2 = el('span'); v2.style.cssText = 'font-size:11px;color:var(--c-ink3)'; v2.textContent = 'asistencia';
+      var v1 = el('span', 'mono'); v1.style.cssText = 'font-size:var(--fs-24);font-weight:700'; v1.textContent = general.pct + '%';
+      var v2 = el('span'); v2.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; v2.textContent = 'asistencia';
       inner.appendChild(v1); inner.appendChild(v2);
       ring.appendChild(inner);
       document.getElementById('asistencia-detalle-txt').textContent = general.asistio + ' de ' + general.total + ' clases asistidas' + (general.noHuboClase ? ' · ' + general.noHuboClase + ' sin clase' : '');
@@ -3549,7 +3549,7 @@
         lista.appendChild(node);
       });
       if (!porMateria.length) {
-        var vacio = el('div'); vacio.style.cssText = 'font-size:13px;color:var(--c-ink3)'; vacio.textContent = 'Sin registros de asistencia en este rango.';
+        var vacio = el('div'); vacio.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; vacio.textContent = 'Sin registros de asistencia en este rango.';
         lista.appendChild(vacio);
       }
     }
@@ -3566,7 +3566,7 @@
     var fecha = STATE.asistenciaHistorialFecha;
     var materias = materiasAsistenciaParaFecha(fecha);
     if (!materias.length) {
-      var vacio = el('div'); vacio.style.cssText = 'font-size:13px;color:var(--c-ink3)'; vacio.textContent = 'Ese día no había materias con clase.';
+      var vacio = el('div'); vacio.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; vacio.textContent = 'Ese día no había materias con clase.';
       list.appendChild(vacio);
       return;
     }
@@ -4897,18 +4897,18 @@
     var right = document.getElementById('ob-right');
     clear(right);
     computeMateriasDelActivo().slice(0, 3).forEach(function (m) {
-      var card = el('div', 'card'); card.style.cssText = 'padding:18px;display:flex;flex-direction:column;gap:11px';
+      var card = el('div', 'card'); card.style.cssText = 'padding:var(--space-16);display:flex;flex-direction:column;gap:var(--space-12)';
       var top = el('div'); top.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
       var chip = el('span'); chip.setAttribute('style', chipStyle(m.colorId)); chip.textContent = truncate(m.doc, 18);
-      var meta = el('span', 'mono'); meta.style.cssText = 'font-size:11px;color:var(--c-ink3)'; meta.textContent = m.badgeLabel;
+      var meta = el('span', 'mono'); meta.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; meta.textContent = m.badgeLabel;
       top.appendChild(chip); top.appendChild(meta);
-      var nombre = el('span'); nombre.style.cssText = 'font-family:var(--font-display);font-size:17px;font-weight:600;letter-spacing:-.01em'; nombre.textContent = m.nombre;
-      var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:12px';
+      var nombre = el('span'); nombre.style.cssText = 'font-family:var(--font-display);font-size:var(--fs-16);font-weight:600;letter-spacing:-.01em'; nombre.textContent = m.nombre;
+      var row = el('div'); row.style.cssText = 'display:flex;align-items:center;gap:var(--space-12)';
       var ring = el('div'); ring.setAttribute('style', ringStyle(m.actual, TONE[m.tone], 46, m.esc.total));
       var inner = el('div'); inner.setAttribute('style', ringInnerStyle(46, 5));
-      var v = el('span', 'mono'); v.style.cssText = 'font-size:13px;font-weight:600'; v.textContent = m.notaTxt;
+      var v = el('span', 'mono'); v.style.cssText = 'font-size:var(--fs-14);font-weight:600'; v.textContent = m.notaTxt;
       inner.appendChild(v); ring.appendChild(inner);
-      var det = el('span', 'mono'); det.style.cssText = 'font-size:11px;color:var(--c-ink2)'; det.textContent = 'aprueba con ' + m.aprobTxt + ' · ' + m.horario;
+      var det = el('span', 'mono'); det.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink2)'; det.textContent = 'aprueba con ' + m.aprobTxt + ' · ' + m.horario;
       row.appendChild(ring); row.appendChild(det);
       card.appendChild(top); card.appendChild(nombre); card.appendChild(row);
       right.appendChild(card);
@@ -5070,7 +5070,7 @@
   async function wizCargarCarreras() {
     var lista = document.getElementById('wiz-carreras-list');
     clear(lista);
-    var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Cargando carreras…';
+    var loading = el('span'); loading.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; loading.textContent = 'Cargando carreras…';
     lista.appendChild(loading);
     try {
       var carreras = await rpc('cat_carreras_de', { p_university_id: ORT_UNIVERSITY_ID });
@@ -5120,7 +5120,7 @@
   async function wizCargarProgresoAnterior() {
     var wrap = document.getElementById('wiz-progreso-list');
     clear(wrap);
-    var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Cargando el plan de tu carrera…';
+    var loading = el('span'); loading.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; loading.textContent = 'Cargando el plan de tu carrera…';
     wrap.appendChild(loading);
     try {
       var resultados = await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(function (s) {
@@ -5171,7 +5171,7 @@
       var materias = WIZ.aprobadasPorSemestre[s] || [];
       if (!materias.length) return;
       huboAlguna = true;
-      var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
+      var titulo = el('span'); titulo.style.cssText = 'font-size:var(--fs-12);font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:var(--space-8)';
       titulo.textContent = 'Semestre ' + s;
       wrap.appendChild(titulo);
       materias.forEach(function (m) {
@@ -5209,7 +5209,7 @@
       });
     });
     if (!huboAlguna) {
-      var empty = el('span'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3)';
+      var empty = el('span'); empty.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)';
       empty.textContent = 'Todavía no hay materias cargadas en el plan de esta carrera.';
       wrap.appendChild(empty);
     }
@@ -5407,7 +5407,7 @@
     });
     var hayMaterias = Object.keys(elegidos).some(function (gid) { return Array.isArray(elegidos[gid].materias); });
     if (hayMaterias) {
-      var sub = el('span'); sub.style.cssText = 'font-size:12px;color:var(--c-ink3);margin:2px 0 -4px';
+      var sub = el('span'); sub.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3);margin:2px 0 -4px';
       sub.textContent = 'Ya vienen con horario armado — destildá alguna si no la vas a cursar (ya la aprobaste, por ejemplo).';
       content.appendChild(sub);
       var excluidas = WIZ.grupoMateriasExcluidasPorSemestre[s] || (WIZ.grupoMateriasExcluidasPorSemestre[s] = {});
@@ -5535,11 +5535,11 @@
     } else if (deEsteSemestre.length) {
       // Este semestre sí tiene dictados cargados, pero ninguno en el turno
       // elegido — distinto del caso "sin horario en el catálogo" de abajo.
-      var aviso2 = el('span'); aviso2.style.cssText = 'font-size:12px;color:var(--c-ink3);font-style:italic';
+      var aviso2 = el('span'); aviso2.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3);font-style:italic';
       aviso2.textContent = 'Este semestre no tiene dictados en el turno elegido — probá el otro turno, arriba.';
       content.appendChild(aviso2);
     } else {
-      var nota = el('span'); nota.style.cssText = 'font-size:12px;color:var(--c-ink3);font-style:italic';
+      var nota = el('span'); nota.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3);font-style:italic';
       nota.textContent = 'Sin horario cargado en el catálogo todavía — elegí las materias y completá el horario vos después.';
       content.appendChild(nota);
       (WIZ.materiasSugeridasPorSemestre[s] || []).forEach(function (m) {
@@ -5620,7 +5620,7 @@
   async function wizRenderOferta() {
     var content = document.getElementById('wiz-oferta-content');
     clear(content);
-    var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Buscando tu oferta…';
+    var loading = el('span'); loading.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; loading.textContent = 'Buscando tu oferta…';
     content.appendChild(loading);
     try {
       var semestresManual = WIZ.semestresElegidos.filter(function (s) { return wizCaminoDeSemestre(s) === 'manual'; });
@@ -5629,7 +5629,7 @@
       var multiple = WIZ.semestresElegidos.length > 1;
       WIZ.semestresElegidos.slice().sort(function (a, b) { return a - b; }).forEach(function (s) {
         if (multiple) {
-          var titulo = el('span'); titulo.style.cssText = 'font-size:12px;font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:8px';
+          var titulo = el('span'); titulo.style.cssText = 'font-size:var(--fs-12);font-weight:700;color:var(--c-ink2);letter-spacing:.04em;text-transform:uppercase;margin-top:var(--space-8)';
           titulo.textContent = 'Semestre ' + s;
           content.appendChild(titulo);
         }
@@ -5690,14 +5690,14 @@
   async function wizCargarElectivasSegunTurno() {
     var lista = document.getElementById('wiz-electivas-list');
     clear(lista);
-    var loading = el('span'); loading.style.cssText = 'font-size:13px;color:var(--c-ink3)'; loading.textContent = 'Cargando electivas…';
+    var loading = el('span'); loading.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)'; loading.textContent = 'Cargando electivas…';
     lista.appendChild(loading);
     try {
       var electivas = await rpc('cat_electivas', { p_university_id: ORT_UNIVERSITY_ID, p_periodo: PERIODO_ACTUAL, p_turno: WIZ.electivaTurno });
       WIZ.electivas = electivas || [];
       clear(lista);
       if (!WIZ.electivas.length) {
-        var empty = el('span'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3)';
+        var empty = el('span'); empty.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)';
         empty.textContent = 'No hay electivas para este turno todavía — podés continuar sin elegir ninguna.';
         lista.appendChild(empty);
         return;
@@ -5825,7 +5825,7 @@
       });
       // No se deja confirmar hasta resolverlo o aceptarlo explícitamente
       // (regla del enunciado) — se valida en wizConfirmar().
-      var aceptar = el('label'); aceptar.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;margin-top:4px;cursor:pointer';
+      var aceptar = el('label'); aceptar.style.cssText = 'display:flex;align-items:center;gap:var(--space-8);font-size:var(--fs-12);margin-top:var(--space-4);cursor:pointer';
       var check = el('input'); check.type = 'checkbox'; check.id = 'wiz-aceptar-solapamiento';
       var span = el('span'); span.textContent = 'Confirmar igual, ya sé que se pisan.';
       aceptar.appendChild(check); aceptar.appendChild(span);
@@ -7908,7 +7908,7 @@
     clear(wrap);
     var tags = loadEventTagsRaw();
     if (!tags.length) {
-      var empty = el('span'); empty.style.cssText = 'font-size:12px;color:var(--c-ink3)'; empty.textContent = 'Todavía no hay etiquetas.';
+      var empty = el('span'); empty.style.cssText = 'font-size:var(--fs-12);color:var(--c-ink3)'; empty.textContent = 'Todavía no hay etiquetas.';
       wrap.appendChild(empty);
     } else {
       var grupos = [];
@@ -7960,7 +7960,7 @@
     clear(wrap);
     var materias = materiasAprobadasSinNota();
     if (!materias.length) {
-      var empty = el('span'); empty.style.cssText = 'font-size:13px;color:var(--c-ink3)';
+      var empty = el('span'); empty.style.cssText = 'font-size:var(--fs-14);color:var(--c-ink3)';
       empty.textContent = 'No tenés notas pendientes de cargar.';
       wrap.appendChild(empty);
       return;
