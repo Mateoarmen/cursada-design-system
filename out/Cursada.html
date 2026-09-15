@@ -5412,12 +5412,23 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
     // Nada en los próximos 7 días: en vez de dejar la card vacía, se pasa a
     // mostrar lo que quede del mes en curso — mismo criterio que "Lo
     // próximo" (hero, usa proximos[0]) para no desaparecer sólo porque no
-    // hay nada en la semana.
+    // hay nada en la semana. Si tampoco hay nada en lo que queda del mes,
+    // se busca sin límite de fecha: mientras haya algo cargado a futuro
+    // (aunque caiga en otro mes), la card lo muestra en vez de quedar vacía.
     var diasHastaFinMes = diffDias(new Date(t7.getFullYear(), t7.getMonth() + 1, 0), t7);
     var proximos = proximosEnRango(7);
     var usandoMes = !proximos.length;
     if (usandoMes) proximos = proximosEnRango(Math.max(7, diasHastaFinMes));
-    document.getElementById('proximos-titulo').textContent = usandoMes ? 'Este mes' : 'Próximos 7 días';
+    var usandoOtroMes = usandoMes && !proximos.length;
+    if (usandoOtroMes) proximos = proximosEnRango(Infinity);
+    var tituloProximos = 'Próximos 7 días';
+    if (usandoOtroMes && proximos.length) {
+      var nombreMes = MESES_LARGOS[proximos[0].d.getMonth()];
+      tituloProximos = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+    } else if (usandoMes) {
+      tituloProximos = 'Este mes';
+    }
+    document.getElementById('proximos-titulo').textContent = tituloProximos;
     if (!proximos.length) {
       var empty = el('div'); empty.style.cssText = 'padding:24px 0;text-align:center;color:var(--c-ink3);font-size:13px';
       empty.textContent = usandoMes ? 'No tenés nada agendado este mes.' : 'No tenés nada agendado para los próximos 7 días.';
