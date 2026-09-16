@@ -1118,6 +1118,19 @@
           <span class="hint" style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
           <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
         </div>
+        <!-- Sólo se muestra (y se exige) en modo completar-obligatorio, y
+             sólo si esta cuenta de Google todavía no tiene password_set —
+             ver openPerfilModal(). No hay forma de llegar a esto desde el
+             menú de perfil normal: se pide una única vez, en el alta. -->
+        <div class="perfil-group hidden" id="perfil-password-group" style="display:flex;flex-direction:column;gap:var(--space-16)">
+          <span class="perfil-group-lbl">Creá una contraseña</span>
+          <span class="auth-info" style="display:block">Con Google no pudimos pedirte una contraseña antes de crear tu cuenta — creála para poder entrar también con tu email si alguna vez no tenés Google a mano.</span>
+          <div class="field-row">
+            <div class="field"><label for="perfil-password-nueva">Contraseña</label><input id="perfil-password-nueva" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Mínimo 6 caracteres"></div>
+            <div class="field"><label for="perfil-password-confirmar">Confirmar</label><input id="perfil-password-confirmar" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Repetila"></div>
+          </div>
+          <span class="auth-error hidden" id="perfil-password-error" role="alert" aria-live="polite"></span>
+        </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Datos personales</span>
           <div class="field-row">
@@ -1149,17 +1162,6 @@
             <label for="perfil-carrera-select">Carrera</label>
             <select class="hidden" id="perfil-carrera-select" aria-label="Carrera"></select>
             <input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas" aria-label="Carrera">
-          </div>
-        </div>
-        <div class="perfil-group hidden" id="perfil-seguridad-group" style="display:flex;flex-direction:column;gap:var(--space-16)">
-          <span class="perfil-group-lbl">Seguridad</span>
-          <span class="auth-info" style="display:block">Entraste con Google. Agregá una contraseña para poder iniciar sesión también con tu email.</span>
-          <button type="button" class="btn" id="btn-perfil-agregar-password" style="align-self:flex-start">Agregar contraseña</button>
-          <div class="hidden" id="perfil-password-form" style="display:flex;flex-direction:column;gap:var(--space-8)">
-            <div class="field"><label for="perfil-password-nueva">Contraseña nueva</label><input id="perfil-password-nueva" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Mínimo 6 caracteres"></div>
-            <div class="field"><label for="perfil-password-confirmar">Confirmar contraseña</label><input id="perfil-password-confirmar" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Repetila"></div>
-            <span class="auth-error hidden" id="perfil-password-error" role="alert" aria-live="polite"></span>
-            <button type="button" class="btn btn-primary" id="btn-perfil-password-guardar">Guardar contraseña</button>
           </div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>

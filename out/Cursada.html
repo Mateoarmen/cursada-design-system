@@ -3462,6 +3462,19 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
           <span class="hint" style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
           <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
         </div>
+        <!-- Sólo se muestra (y se exige) en modo completar-obligatorio, y
+             sólo si esta cuenta de Google todavía no tiene password_set —
+             ver openPerfilModal(). No hay forma de llegar a esto desde el
+             menú de perfil normal: se pide una única vez, en el alta. -->
+        <div class="perfil-group hidden" id="perfil-password-group" style="display:flex;flex-direction:column;gap:var(--space-16)">
+          <span class="perfil-group-lbl">Creá una contraseña</span>
+          <span class="auth-info" style="display:block">Con Google no pudimos pedirte una contraseña antes de crear tu cuenta — creála para poder entrar también con tu email si alguna vez no tenés Google a mano.</span>
+          <div class="field-row">
+            <div class="field"><label for="perfil-password-nueva">Contraseña</label><input id="perfil-password-nueva" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Mínimo 6 caracteres"></div>
+            <div class="field"><label for="perfil-password-confirmar">Confirmar</label><input id="perfil-password-confirmar" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Repetila"></div>
+          </div>
+          <span class="auth-error hidden" id="perfil-password-error" role="alert" aria-live="polite"></span>
+        </div>
         <div class="perfil-group">
           <span class="perfil-group-lbl">Datos personales</span>
           <div class="field-row">
@@ -3493,17 +3506,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
             <label for="perfil-carrera-select">Carrera</label>
             <select class="hidden" id="perfil-carrera-select" aria-label="Carrera"></select>
             <input id="perfil-carrera" name="carrera" placeholder="Ej: Lic. en Administración de Empresas" aria-label="Carrera">
-          </div>
-        </div>
-        <div class="perfil-group hidden" id="perfil-seguridad-group" style="display:flex;flex-direction:column;gap:var(--space-16)">
-          <span class="perfil-group-lbl">Seguridad</span>
-          <span class="auth-info" style="display:block">Entraste con Google. Agregá una contraseña para poder iniciar sesión también con tu email.</span>
-          <button type="button" class="btn" id="btn-perfil-agregar-password" style="align-self:flex-start">Agregar contraseña</button>
-          <div class="hidden" id="perfil-password-form" style="display:flex;flex-direction:column;gap:var(--space-8)">
-            <div class="field"><label for="perfil-password-nueva">Contraseña nueva</label><input id="perfil-password-nueva" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Mínimo 6 caracteres"></div>
-            <div class="field"><label for="perfil-password-confirmar">Confirmar contraseña</label><input id="perfil-password-confirmar" type="password" autocomplete="new-password" minlength="6" spellcheck="false" placeholder="Repetila"></div>
-            <span class="auth-error hidden" id="perfil-password-error" role="alert" aria-live="polite"></span>
-            <button type="button" class="btn btn-primary" id="btn-perfil-password-guardar">Guardar contraseña</button>
           </div>
         </div>
         <button type="button" class="btn perfil-logout" id="btn-perfil-logout">Cerrar sesión</button>
@@ -11609,7 +11611,8 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
   // post-login no bloqueante, cuentas de email que dejaron datos sin llenar)
   // | 'completar-obligatorio' (cuentas de Google recién creadas — Google no
   // deja interponer un formulario propio antes del alta, así que el único
-  // lugar posible para pedir estos datos es acá, y por eso son obligatorios;
+  // lugar posible para pedir estos datos —y la contraseña, ver
+  // perfil-password-group más abajo— es acá, y por eso son obligatorios;
   // ver README). Es el mismo modal y el mismo formulario en los tres casos,
   // sólo cambia el título, el texto de contexto, si se puede posponer y si
   // los campos son obligatorios — no hay tres formularios de perfil.
@@ -11657,12 +11660,15 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
 
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
 
-    // Sección "Seguridad": sólo para cuentas de Google — son las que no
-    // tienen contraseña seteada (ver openPerfilModal/esCuentaGoogle). Se
-    // colapsa el formulario cada vez que se reabre el modal, para no dejar
-    // texto tipeado de una visita anterior a la vista.
-    document.getElementById('perfil-seguridad-group').classList.toggle('hidden', !esCuentaGoogle());
-    document.getElementById('perfil-password-form').classList.add('hidden');
+    // "Creá una contraseña": únicamente en el gate obligatorio, y sólo si
+    // esta cuenta de Google todavía no tiene una (password_set en
+    // `profiles` — ver migración profiles_password_set). Una vez seteada
+    // queda para siempre: no hay forma de volver a ver este bloque desde
+    // el perfil normal (ver comentario en app.html).
+    var pedirPassword = obligatorio && !(CURRENT_PROFILE && CURRENT_PROFILE.password_set);
+    document.getElementById('perfil-password-group').classList.toggle('hidden', !pedirPassword);
+    document.getElementById('perfil-password-nueva').required = pedirPassword;
+    document.getElementById('perfil-password-confirmar').required = pedirPassword;
     document.getElementById('perfil-password-nueva').value = '';
     document.getElementById('perfil-password-confirmar').value = '';
     document.getElementById('perfil-password-error').classList.add('hidden');
@@ -12528,48 +12534,33 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       }
     });
     document.getElementById('btn-perfil-foto').addEventListener('click', function () { document.getElementById('input-avatar').click(); });
-    document.getElementById('btn-perfil-agregar-password').addEventListener('click', function () {
-      document.getElementById('perfil-password-form').classList.toggle('hidden');
-    });
-    // Botón suelto (type="button"), no submit del form-perfil de arriba: es
-    // una acción propia contra auth.updateUser(), independiente de guardar
-    // los datos de perfil en la tabla `profiles`. Mismo patrón que
-    // form-reset-password (ver bindAuthUI), pero de acá adentro no hace
-    // falta levantar ninguna sesión de recuperación — ya hay una activa.
-    document.getElementById('btn-perfil-password-guardar').addEventListener('click', async function () {
-      var pass = document.getElementById('perfil-password-nueva').value;
-      var confirm2 = document.getElementById('perfil-password-confirmar').value;
-      var errEl = document.getElementById('perfil-password-error');
-      errEl.classList.add('hidden');
-      if (pass !== confirm2) {
-        errEl.textContent = 'Las contraseñas no coinciden.';
-        errEl.classList.remove('hidden');
-        return;
-      }
-      if (pass.length < 6) {
-        errEl.textContent = 'La contraseña tiene que tener al menos 6 caracteres.';
-        errEl.classList.remove('hidden');
-        return;
-      }
-      var btn = document.getElementById('btn-perfil-password-guardar');
-      setBtnBusy(btn, true, 'Guardando…');
-      try {
-        var res = await sb().auth.updateUser({ password: pass });
-        if (res.error) throw res.error;
-        document.getElementById('perfil-password-nueva').value = '';
-        document.getElementById('perfil-password-confirmar').value = '';
-        document.getElementById('perfil-password-form').classList.add('hidden');
-        showToast('Contraseña agregada — ya podés iniciar sesión también con tu email.');
-      } catch (e) {
-        errEl.textContent = traducirErrorAuth(e);
-        errEl.classList.remove('hidden');
-      } finally {
-        setBtnBusy(btn, false);
-      }
-    });
     document.getElementById('form-perfil').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
+
+      // "Creá una contraseña" (ver openPerfilModal): sólo visible/requerido
+      // en el gate obligatorio de cuentas Google sin password_set. Se
+      // valida acá mismo (coincide + longitud) antes de tocar la red, igual
+      // que el resto del formulario — required en el input ya frena el
+      // submit si están vacíos.
+      var pideNuevaPassword = !document.getElementById('perfil-password-group').classList.contains('hidden');
+      var passErrEl = document.getElementById('perfil-password-error');
+      passErrEl.classList.add('hidden');
+      if (pideNuevaPassword) {
+        var passNueva = document.getElementById('perfil-password-nueva').value;
+        var passConfirm = document.getElementById('perfil-password-confirmar').value;
+        if (passNueva !== passConfirm) {
+          passErrEl.textContent = 'Las contraseñas no coinciden.';
+          passErrEl.classList.remove('hidden');
+          return;
+        }
+        if (passNueva.length < 6) {
+          passErrEl.textContent = 'La contraseña tiene que tener al menos 6 caracteres.';
+          passErrEl.classList.remove('hidden');
+          return;
+        }
+      }
+
       var uniSel = document.getElementById('perfil-universidad').value;
       var telSel = document.getElementById('perfil-tel-pais').value || 'UY';
       var tel = calcularTelefono(telSel, form.telefono.value.trim());
@@ -12584,8 +12575,24 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
         university_id: uniSel && uniSel !== 'otra' ? uniSel : null,
         university_other: uniSel === 'otra' ? form.universidad_otra.value.trim() : null
       };
+      if (pideNuevaPassword) patch.password_set = true;
       var btn = document.getElementById('btn-perfil-guardar');
       setBtnBusy(btn, true, 'Guardando…');
+      // auth.updateUser() primero, en su propio try: si falla (ej. Supabase
+      // exige más de 6 caracteres), se corta acá con el error puesto en el
+      // campo de contraseña — no llega a tocar `profiles` con
+      // password_set:true si en verdad no se pudo setear.
+      if (pideNuevaPassword) {
+        try {
+          var pwRes = await sb().auth.updateUser({ password: document.getElementById('perfil-password-nueva').value });
+          if (pwRes.error) throw pwRes.error;
+        } catch (e) {
+          passErrEl.textContent = traducirErrorAuth(e);
+          passErrEl.classList.remove('hidden');
+          setBtnBusy(btn, false);
+          return;
+        }
+      }
       try {
         var res = await sb().from('profiles').upsert(patch);
         if (res.error) throw res.error;
@@ -12717,11 +12724,13 @@ function calcularSimulacion(esc, evaluaciones, valoresSimulados, componentesFijo
       return;
     }
 
-    // Cuentas de Google con el perfil sin completar: se piden esos datos
-    // ANTES de revelar #app — es una pantalla más (fondo sólido, mismo
-    // tratamiento que el login), no un modal encima del dashboard. Se
-    // espera acá a que la Promise se resuelva (al guardar) antes de seguir.
-    if (esCuentaGoogle() && perfilIncompleto(CURRENT_PROFILE)) {
+    // Cuentas de Google con el perfil sin completar, o sin contraseña
+    // propia todavía (password_set en `profiles` — ver migración
+    // profiles_password_set): se piden esos datos ANTES de revelar #app —
+    // es una pantalla más (fondo sólido, mismo tratamiento que el login),
+    // no un modal encima del dashboard. Se espera acá a que la Promise se
+    // resuelva (al guardar) antes de seguir.
+    if (esCuentaGoogle() && (perfilIncompleto(CURRENT_PROFILE) || !CURRENT_PROFILE.password_set)) {
       await esperarCompletarPerfilObligatorio();
     }
 

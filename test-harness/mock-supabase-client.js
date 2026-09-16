@@ -9,7 +9,10 @@
   var PERIODO_ACTUAL = '2026-2';
   function isoPlusHoras(h) { return new Date(Date.now() + h * 3600000).toISOString(); }
   var TABLES = {
-    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5, push_prompt_snoozed_until: null, last_seen_at: null, asistencia_ultima_fecha_completada: null }],
+    // password_set: false a propósito — con ?google=1 (ver FAKE_USER más
+    // abajo) es lo que dispara el gate obligatorio de "Creá una
+    // contraseña" aun con el resto del perfil ya completo.
+    profiles: [{ id: 'test-user-id-000', nombre: 'Quimey', apellido: 'Test', birth_date: '2003-04-12', carrera: 'Sistemas', carrera_id: null, telefono_e164: '+59891112233', telefono_pais: 'UY', university_id: ORT_UNIVERSITY_ID, university_other: null, foto_url: null, materias_carrera: 40, margen_riesgo: 1.5, push_prompt_snoozed_until: null, last_seen_at: null, asistencia_ultima_fecha_completada: null, password_set: false }],
     // Notificaciones: 10 filas de preferencias (defaults reales, ver
     // migración notificaciones_schema), unas pocas de notification_queue
     // (channel inapp — leídas, no leídas, hoy/ayer/semana, una de tipo
@@ -161,10 +164,11 @@
     ]
   };
   function todayPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
-  // ?google=1: simula una cuenta que entró con Google (sin contraseña
-  // propia) — dispara esCuentaGoogle() en runtime.js, ej. para probar el
-  // bloque "Seguridad → Agregar contraseña" del modal de perfil sin
-  // depender de un login real contra Google.
+  // ?google=1: simula una cuenta que entró con Google — dispara
+  // esCuentaGoogle() en runtime.js. Combinado con profiles.password_set:
+  // false del fixture de abajo, dispara el gate obligatorio de "Creá una
+  // contraseña" al entrar (ver onSignedIn/openPerfilModal), sin depender
+  // de un login real contra Google.
   var FAKE_USER = { id: 'test-user-id-000', email: 'qa@example.com', app_metadata: { provider: /[?&]google=1/.test(location.search) ? 'google' : 'email' } };
   var authListeners = [];
 
