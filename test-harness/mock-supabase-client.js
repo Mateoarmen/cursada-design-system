@@ -161,7 +161,11 @@
     ]
   };
   function todayPlus(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
-  var FAKE_USER = { id: 'test-user-id-000', email: 'qa@example.com', app_metadata: { provider: 'email' } };
+  // ?google=1: simula una cuenta que entró con Google (sin contraseña
+  // propia) — dispara esCuentaGoogle() en runtime.js, ej. para probar el
+  // bloque "Seguridad → Agregar contraseña" del modal de perfil sin
+  // depender de un login real contra Google.
+  var FAKE_USER = { id: 'test-user-id-000', email: 'qa@example.com', app_metadata: { provider: /[?&]google=1/.test(location.search) ? 'google' : 'email' } };
   var authListeners = [];
 
   function makeSession() { return { user: FAKE_USER, access_token: 'fake' }; }

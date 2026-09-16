@@ -7332,6 +7332,17 @@
     PERFIL_CAMPOS.forEach(function (n) { form[n].required = obligatorio; });
 
     renderAvatarInto(document.getElementById('modal-perfil-avatar'), 72);
+
+    // Sección "Seguridad": sólo para cuentas de Google — son las que no
+    // tienen contraseña seteada (ver openPerfilModal/esCuentaGoogle). Se
+    // colapsa el formulario cada vez que se reabre el modal, para no dejar
+    // texto tipeado de una visita anterior a la vista.
+    document.getElementById('perfil-seguridad-group').classList.toggle('hidden', !esCuentaGoogle());
+    document.getElementById('perfil-password-form').classList.add('hidden');
+    document.getElementById('perfil-password-nueva').value = '';
+    document.getElementById('perfil-password-confirmar').value = '';
+    document.getElementById('perfil-password-error').classList.add('hidden');
+
     openModal('modal-perfil');
     snapshotModalForm('modal-perfil');
   }
@@ -8193,6 +8204,45 @@
       }
     });
     document.getElementById('btn-perfil-foto').addEventListener('click', function () { document.getElementById('input-avatar').click(); });
+    document.getElementById('btn-perfil-agregar-password').addEventListener('click', function () {
+      document.getElementById('perfil-password-form').classList.toggle('hidden');
+    });
+    // Botón suelto (type="button"), no submit del form-perfil de arriba: es
+    // una acción propia contra auth.updateUser(), independiente de guardar
+    // los datos de perfil en la tabla `profiles`. Mismo patrón que
+    // form-reset-password (ver bindAuthUI), pero de acá adentro no hace
+    // falta levantar ninguna sesión de recuperación — ya hay una activa.
+    document.getElementById('btn-perfil-password-guardar').addEventListener('click', async function () {
+      var pass = document.getElementById('perfil-password-nueva').value;
+      var confirm2 = document.getElementById('perfil-password-confirmar').value;
+      var errEl = document.getElementById('perfil-password-error');
+      errEl.classList.add('hidden');
+      if (pass !== confirm2) {
+        errEl.textContent = 'Las contraseñas no coinciden.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (pass.length < 6) {
+        errEl.textContent = 'La contraseña tiene que tener al menos 6 caracteres.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      var btn = document.getElementById('btn-perfil-password-guardar');
+      setBtnBusy(btn, true, 'Guardando…');
+      try {
+        var res = await sb().auth.updateUser({ password: pass });
+        if (res.error) throw res.error;
+        document.getElementById('perfil-password-nueva').value = '';
+        document.getElementById('perfil-password-confirmar').value = '';
+        document.getElementById('perfil-password-form').classList.add('hidden');
+        showToast('Contraseña agregada — ya podés iniciar sesión también con tu email.');
+      } catch (e) {
+        errEl.textContent = traducirErrorAuth(e);
+        errEl.classList.remove('hidden');
+      } finally {
+        setBtnBusy(btn, false);
+      }
+    });
     document.getElementById('form-perfil').addEventListener('submit', async function (ev) {
       ev.preventDefault();
       var form = ev.target;
