@@ -319,10 +319,21 @@
       showToast('Nota cargada — no llegaste al mínimo, ' + materiaPendiente.nombre + ' sigue pendiente de rendir.');
     }
   }
+  // En escala "nota" cada evaluación está en la misma base 0-total (ej. dos
+  // parciales de 0-12) y lo que importa es el promedio. En "puntos"/"pct"
+  // cada evaluación es un componente parcial de un total acumulado (ej.
+  // Parcial 1 vale 15 y Parcial 2 vale 30 de un curso sobre 100, ver
+  // notaMaxima por ítem en renderCargarNotaNota) y hay que sumar lo ganado,
+  // no promediarlo — promediar hacía que dos parciales de 13 y 20 mostraran
+  // 17 en vez de 33 (bug reportado, ver mismo fix en cursada-mobile).
+  function acumularParciales(esc, parciales) {
+    if (esc.tipo === 'nota') return parciales.reduce(function (x, y) { return x + y; }, 0) / parciales.length;
+    return parciales.reduce(function (x, y) { return x + y; }, 0);
+  }
   function toneDe(estado, esc, parciales) {
     if (estado === 'aprobada') return 'success';
     if (!parciales.length) return 'neutral';
-    var a = parciales.reduce(function (x, y) { return x + y; }, 0) / parciales.length;
+    var a = acumularParciales(esc, parciales);
     if (a < esc.aprob) return 'danger';
     if (a < esc.aprob + margenDe(esc)) return 'warning';
     return 'success';
@@ -841,9 +852,8 @@
     var evaluaciones = items.filter(function (a) { return a.kind === 'evaluacion'; });
     var notasEvals = evaluaciones.filter(function (a) { return a.nota != null; });
     // Puntos fijos del curso sin fecha (participación en clase, etc. — ver
-    // README) ya cargados: cuentan para el promedio igual que cualquier
-    // nota individual, mismo criterio que ya aplica la app al promediar
-    // notas de evaluaciones con distinto notaMaxima entre sí.
+    // README) ya cargados: cuentan para `actual` igual que cualquier nota
+    // individual (ver acumularParciales).
     var componentesFijos = m.componentesFijos || [];
     var parciales = notasEvals.map(function (a) { return a.nota; })
       .concat(componentesFijos.filter(function (c) { return c.valor != null; }).map(function (c) { return c.valor; }));
@@ -860,7 +870,10 @@
     // deja de aplicar (ya no hay forma de exonerar una vez que tenés que
     // rendir), por eso se anula acá y no sólo en el texto.
     if (m.estado === 'pendiente') e = Object.assign({}, e, { aprob: APROBACION_EXAMEN_PENDIENTE, exoneracion: null });
-    var actual = parciales.length ? parciales.reduce(function (a, b) { return a + b; }, 0) / parciales.length : null;
+    // `actual`: promedio en escala "nota" (cada evaluación en la misma base
+    // 0-total), suma en "puntos"/"pct" (cada evaluación es un componente
+    // parcial de un total acumulado) — ver acumularParciales.
+    var actual = parciales.length ? acumularParciales(e, parciales) : null;
     var tone = toneDe(m.estado, e, parciales);
     var acc = ACCENTS[m.colorId] || ACCENTS.gris;
     // Cuánto falta para aprobar: la diferencia directa entre el promedio actual y el
