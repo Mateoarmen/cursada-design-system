@@ -137,18 +137,26 @@ celeste claro, gira vía `@property` sobre un `conic-gradient`) que envuelve
 un `.btn-primary` sin tocar su forma. Agregada a pedido explícito del
 usuario, probada primero como prototipo aislado antes de tocar el producto.
 
-Regla de uso, no decorativa: **sólo en los CTA de "primera acción"** —
-`#btn-ob-empezar` (onboarding), `#btn-empty-primera` (estado vacío de
-Materias) y `#btn-progreso-semestre-cargar` (estado vacío de "Progreso del
-semestre" en Inicio, `#progreso-semestre-empty`). Los tres son botones que
-un usuario ve una sola vez cada uno (hasta que carga su primera materia o
-su primera nota) y que no compiten con ningún otro control en pantalla —
-`#progreso-semestre-empty` sólo tiene ese botón, nada de "+ Nuevo" ni
-acciones secundarias al lado. No se usa en botones de acción repetida
-(Guardar, + Nuevo, Continuar, "Abrir materia" del hero de Inicio, etc.) —
-ahí el movimiento constante sería ruido y rompería "éxito silencioso, no
-toasts celebratorios" de Microinteractions. Si se agrega un cuarto lugar,
-tiene que cumplir el mismo criterio (única vez, sin competencia visual), no
+Regla de uso, no decorativa: **sólo en los CTA de "primera acción" que no
+compiten con otro control en la misma pantalla** — hoy son dos:
+`#btn-ob-empezar` (onboarding) y `#btn-empty-primera` (estado vacío de
+Materias). Cada uno es un botón que el usuario ve una sola vez (hasta que
+carga su primera materia) y no comparte pantalla con ningún otro CTA.
+
+`#btn-progreso-semestre-cargar` (estado vacío de "Progreso del semestre" en
+Inicio) se probó con `.cta-glow` y se revirtió a `.btn` liso: en Inicio esa
+card convive con el CTA de "Lo próximo" arriba, que sí es el urgente de la
+pantalla — dos marcos girando a la vez competían entre sí en vez de marcar
+una sola primera acción (ver comentario en `app.html` junto al botón). No
+es un lugar sancionado pendiente de cablear, es una decisión ya tomada y
+revertida: "único CTA en pantalla" es una condición de screen completa, no
+sólo del componente que lo contiene.
+
+No se usa en botones de acción repetida (Guardar, + Nuevo, Continuar,
+"Abrir materia" del hero de Inicio, etc.) — ahí el movimiento constante
+sería ruido y rompería "éxito silencioso, no toasts celebratorios" de
+Microinteractions. Si se agrega un tercer lugar, tiene que cumplir el mismo
+criterio (única vez, sin ningún otro CTA glowing en la misma pantalla), no
 "se ve bien acá también".
 
 ## Qué preserva cada superficie
