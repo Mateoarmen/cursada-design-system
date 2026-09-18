@@ -423,12 +423,18 @@
   :root{
     --lp-page:#FFFFFF; --lp-surface:#FFFFFF; --lp-sidenav:#FBFBFD; --lp-bg:#EDEDF0;
     /* ink2/ink3 alineados a --c-ink2/--c-ink3 de styles.css (PASO 4): antes
-       #55565B/#6E6E73 acá, un tercer gris fuera de la escala de la app. */
-    --lp-ink:#12161C; --lp-ink2:#6E6E73; --lp-ink3:#757579;
+       #55565B/#6E6E73 acá, un tercer gris fuera de la escala de la app.
+       PASO 5 (audit): --c-ink2/--c-ink3 se re-oscurecieron en styles.css
+       porque medían bajo AA contra --c-bg (no sólo contra blanco) — se
+       repite el mismo valor acá para no reabrir un tercer gris. */
+    --lp-ink:#12161C; --lp-ink2:#636367; --lp-ink3:#69696C;
     --lp-accent:#0A63F0; --lp-accent-to:#0847B4;
     /* Antes #C9271F: un rojo AA-safe propio, distinto del --c-danger-text
-       (#D13027) que ya resuelve lo mismo del lado de la app. */
-    --lp-danger:#D13027;
+       (#D13027) que ya resuelve lo mismo del lado de la app.
+       PASO 5 (audit): --c-danger-text bajó a #C02C23 en styles.css por el
+       mismo motivo que ink2/ink3 (AA contra --c-bg, no sólo blanco) —
+       mismo valor acá. */
+    --lp-danger:#C02C23;
     --lp-accent-soft:rgba(10,99,240,.1); --lp-accent-soft-strong:rgba(10,99,240,.3);
     --lp-danger-soft:rgba(201,39,31,.1);
     --lp-fill:rgba(18,22,28,.055); --lp-border:rgba(18,22,28,.08);

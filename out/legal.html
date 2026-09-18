@@ -134,9 +134,12 @@
   :root{
     /* ink2/ink3 alineados a --c-ink2/--c-ink3 de styles.css (PASO 4 del
        sistema visual): antes #55565B/#6E6E73 acá, un tercer gris que no
-       coincidía con ningún paso de la escala de neutros de la app. */
+       coincidía con ningún paso de la escala de neutros de la app.
+       PASO 5 (audit): --c-ink2/--c-ink3 se re-oscurecieron en styles.css
+       porque medían bajo AA contra --c-bg (#EDEDF0 — el fondo de página
+       acá también, no una sección alterna) — mismo valor acá. */
     --lg-bg:#EDEDF0; --lg-surface:#FFFFFF; --lg-border:rgba(18,22,28,.08);
-    --lg-ink:#12161C; --lg-ink2:#6E6E73; --lg-ink3:#757579; --lg-accent:#0A63F0;
+    --lg-ink:#12161C; --lg-ink2:#636367; --lg-ink3:#69696C; --lg-accent:#0A63F0;
     --lg-font-display:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
     --lg-font-body:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
     --lg-font-mono:"JetBrains Mono",ui-monospace,'SF Mono',Menlo,monospace;

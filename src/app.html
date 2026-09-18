@@ -678,7 +678,7 @@
           <div class="card panel" id="progreso-creditos-panel">
             <div class="panel-head"><h2 class="panel-title">Progreso hacia el título</h2></div>
             <div id="progreso-materias"></div>
-            <span class="hidden" id="progreso-aviso-notas" style="font-size:11px;color:var(--c-ink3);margin-top:8px;display:block"></span>
+            <span class="hidden" id="progreso-aviso-notas" style="font-size:var(--fs-12);color:var(--c-ink3);margin-top:8px;display:block"></span>
           </div>
         </div>
       </div>
@@ -889,7 +889,7 @@
           <div style="display:flex;flex-direction:column;gap:11px">
             <div style="display:flex;align-items:baseline;justify-content:space-between">
               <span style="font-size:12px;font-weight:600;color:var(--c-ink2)">Sistema de calificación de esta materia</span>
-              <span class="mono" style="font-size:11px;color:var(--c-ink3)">se aplica sólo a esta materia</span>
+              <span class="mono" style="font-size:var(--fs-12);color:var(--c-ink3)">se aplica sólo a esta materia</span>
             </div>
             <div class="seg-cards" id="modal-sistema-cards">
               <button type="button" class="seg-card" data-sistema="nota"><b>Nota 0–12</b><span>escala clásica uruguaya</span></button>
@@ -904,7 +904,7 @@
         </div>
       </div>
       <div class="modal-foot">
-        <span class="mono" style="font-size:11px;color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-materia-hint"></span>
+        <span class="mono" style="font-size:var(--fs-12);color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-materia-hint"></span>
         <div style="display:flex;gap:10px;align-items:center">
           <button type="button" class="remove-link hidden" id="btn-materia-eliminar">Eliminar</button>
           <button type="button" class="btn btn-ghost hidden" id="btn-materia-atras">Atrás</button>
@@ -1009,7 +1009,7 @@
         <div class="field"><label for="eval-notas">Notas</label><textarea id="eval-notas" name="notas" placeholder="Qué llevar, temas incluidos, bibliografía…"></textarea></div>
       </div>
       <div class="modal-foot">
-        <span class="mono" style="font-size:11px;color:var(--c-ink3)">se agrega al calendario y a la agenda</span>
+        <span class="mono" style="font-size:var(--fs-12);color:var(--c-ink3)">se agrega al calendario y a la agenda</span>
         <div style="display:flex;gap:10px;align-items:center">
           <button type="button" class="remove-link hidden" id="btn-evaluacion-eliminar">Eliminar</button>
           <button type="button" class="btn" data-close-modal>Cancelar</button>
@@ -1115,7 +1115,7 @@
           <div class="av" id="modal-perfil-avatar"></div>
           <div class="who"><b id="perfil-nombre-completo"></b><span id="perfil-email-hero"></span></div>
           <button type="button" class="btn" id="btn-perfil-foto">Cambiar foto</button>
-          <span class="hint" style="font-size:11px;color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
+          <span class="hint" style="font-size:var(--fs-12);color:var(--c-ink3)">Se recorta a cuadrado, máx. 256px.</span>
           <input type="file" accept="image/*" class="file-input-hidden" id="input-avatar">
         </div>
         <!-- Sólo se muestra (y se exige) en modo completar-obligatorio, y
@@ -1465,7 +1465,7 @@
         </div>
       </div>
       <div class="modal-foot">
-        <span class="mono" style="font-size:11px;color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-cargarnota-hint"></span>
+        <span class="mono" style="font-size:var(--fs-12);color:var(--c-ink3);max-width:340px;line-height:1.45" id="modal-cargarnota-hint"></span>
         <div style="display:flex;gap:10px;align-items:center">
           <button type="button" class="btn btn-ghost hidden" id="btn-cargarnota-atras">Atrás</button>
           <button type="button" class="btn" data-close-modal>Cancelar</button>
