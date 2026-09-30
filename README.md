@@ -4734,3 +4734,39 @@ componente puntual, la mayoría ya comentados con su razón de ser) y las
 constantes de color del lado JS para materias/tonos (`ACCENTS`, `TONE`
 en `runtime.js`, más allá del fix puntual del azul) — tocar esa paleta
 completa es una decisión de marca, no de consistencia de sistema.
+
+## Paridad visual con la app móvil (Cursada Mobile)
+
+**Qué se pidió:** actualizar el diseño y el lenguaje visual de la web (app,
+landing y legal) con el de la app móvil, incluyendo el rediseño de vistas.
+
+**Qué cambió (todo en `src/styles.css`, `app.html`, `landing.html`; `runtime.js`
+sólo lo mínimo):**
+- Tarjetas opacas y chatas en claro y oscuro (sin borde ni sombra); la sombra
+  queda sólo en lo que flota (popovers, modales, FAB, tab bar).
+- Radios 12/16/20/22 (antes 8/12), botón primario sólido `--c-accent-deep`
+  (sin degradé ni sombra de acento), nav activo en `--c-accent-soft`.
+- Una sola familia tipográfica: las cifras usan Instrument Sans tabular;
+  JetBrains Mono se sacó de las tres superficies y del link de Google Fonts.
+- Spotlight de claro pasa a tinte de marca (el gris azulado "se leía sucio").
+- Inicio: "Lo próximo" a todo el ancho y plano (sin marco giratorio), lidera el
+  título y el tiempo que falta es un dato chico a la derecha; 4 KPI
+  (se suma "Cursando", como en la app) sin chip de ícono; "Accesos rápidos"
+  como fila de fichas bajo las KPI; sin las posiciones por viewport
+  (`posicionarInicioHero/AccesosRapidos` ahora sólo fijan el orden).
+- Agenda: tarjeta por ítem en los dos temas, títulos de grupo 20/700.
+- Mobile web: tab bar flotante de vidrio con rótulos (como la app), FAB sólido.
+- Texto de tono con tokens AA (`--c-success-text`, `--c-warning-text`) en las
+  KPI en vez de los sólidos.
+
+**Decisiones no pedidas:** se ocultó el badge de las filas de "Próximos" en
+mobile (repetía chip y countdown) y se quitó el scroll interno de esa lista.
+No se tocó el contrato de `runtime.js` (`data-f`, `TONE`, `MODAL_FORMS`).
+
+### Crítica de Inicio (25/40) — ajustes aplicados
+- Contraste en claro: countdown urgente, deltas y sub de KPI usan `--c-warning-text`/`--c-success-text` (éste bajó a #1E7B36); el "/60" del anillo pasó de 9 a 11px.
+- Foco de teclado unificado (outline 2px de acento) y áreas de toque de 44px en los enlaces de cabecera.
+- Los avisos (notas pendientes, push) van debajo del hero, más compactos.
+- "Próximos 7 días": máx. 6 filas priorizando lo académico, sin scroll interno, con "Ver N más en la agenda".
+- Se fusionó "Progreso" en "Progreso del semestre" ("Hacia el título" quedó como fila); "Materias en riesgo" sube al primer lugar de la columna derecha.
+- El primario en claro vuelve a ser el azul de marca #0A63F0 (antes #0847B4, el `accentDeep` de la app).

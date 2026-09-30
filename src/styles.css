@@ -11,10 +11,17 @@
    arriba a pedido explícito del usuario esta vez) y los tokens nuevos
    --c-*-soft de acento/peligro que usa la landing rediseñada — el resto de
    la paleta, radios y easings ya estaba bien y se preserva sin tocar. */
+/* Paridad con la app móvil (Cursada Mobile) — la web adopta el lenguaje visual
+   que la app ya consolidó: tarjetas opacas y chatas (sin borde ni sombra, en
+   claro y en oscuro), radios de 12/16/20/22, botón primario sólido, acento
+   único usado con disciplina, una sola familia tipográfica (Instrument Sans
+   con cifras tabulares, sin JetBrains Mono) y el resplandor "spotlight" como
+   único fondo con carácter. Los tokens de acá abajo y el bloque "Paridad app
+   móvil" antes del @media mobile son la fuente; ver design.md. */
 /* Hallmark · redesign (proyecto completo) · genre: modern-minimal
  * macrostructure: shell existente preservado (ver design.md, "App pages")
  * theme: custom · paper: oklch(100% 0 0) · accent: oklch(54.6% 0.225 261)
- * display: Instrument Sans · body: Instrument Sans · mono: JetBrains Mono
+ * display: Instrument Sans · body: Instrument Sans · cifras: Instrument Sans tabular
  * axes: light+dark / geometric-sans / cool · studied: no · context: explicit */
 
 :root{
@@ -39,10 +46,19 @@
      blanco — contra --c-bg daba 4.32:1, bajo AA. Un paso más oscuro
      (4.96:1 contra --c-bg). */
   --c-danger-text:#C02C23;
+  /* Colores de tono para *texto* (mismos valores que la app: successText/
+     warningText/dangerText) — los sólidos #34C759/#FF9500 no llegan a 4.5:1
+     sobre superficie clara. */
+  --c-success-text:#1E7B36; --c-warning-text:#C93400;
   --c-muted4:rgba(0,0,0,.16); --c-muted5:#C7C7CC; --c-muted6:#AEAEB2;
   /* Azul Cursada — el azul de marca, único acento en todo el producto. */
   --c-accent:#0A63F0;
   --c-accent-to:#0847B4;
+  /* Relleno de botones/acciones primarias: en la app es `accentDeep` (sólido,
+     sin degradé). Claro #0847B4, oscuro #0A63F0. */
+  --c-accent-deep:#0A63F0;
+  --c-accent-soft:rgba(10,99,240,.12);
+  --c-surface-2:#F4F4F7;
   /* Sombra "ambient" en capas (redisño Hallmark, ver README/design.md) —
      antes una sola sombra casi imperceptible (0 1px 3px .06); esto reusa
      la misma receta de profundidad que ya se afinó para los mockups de la
@@ -50,17 +66,17 @@
      DESIGN.md pide ("Ambient Shadows") y que el claro no tenía. Sólo
      claro — el oscuro se queda chato a propósito, ver el bloque
      html[data-theme="oscuro"] más abajo. */
-  --c-shadow:0 1px 2px rgba(18,22,28,.04),0 8px 20px rgba(18,22,28,.05),0 24px 48px rgba(18,22,28,.05);
-  --c-card-border:1px solid rgba(18,22,28,.05);
+  --c-shadow:none;
+  --c-card-border:none;
   /* Elevada, multicapa (modales/dropdowns) — mismo tinte que --c-shadow,
      una capa más y más alcance para que se lea claramente por encima de
      --shadow-sm en vez de solo "más grande". */
   --c-modal-shadow:0 4px 8px rgba(18,22,28,.06),0 16px 32px rgba(18,22,28,.1),0 40px 80px rgba(18,22,28,.14);
   --c-focus:0 0 0 3px rgba(10,99,240,.25);
-  --c-overlay:rgba(0,0,0,.22);
+  --c-overlay:rgba(15,17,22,.35); /* = scrim de la app (claro) */
   /* Sombra de acento — pill activa del sidenav y CTA primario, para que el
      degradé de marca se sienta "levantado" en vez de sólo pintado. */
-  --c-accent-shadow:0 6px 16px rgba(10,99,240,.28);
+  --c-accent-shadow:none;
   /* Auditoría de sistema visual (PASO 2) — dos niveles de sombra con nombre
      genérico, alias de los tokens de arriba para no duplicar valores:
      --shadow-sm = reposo (cards), --shadow-lg = elevada (modales/dropdowns). */
@@ -118,7 +134,9 @@
      (link en build-app.mjs). */
   --font-display:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
   --font-body:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
-  --font-mono:"JetBrains Mono",ui-monospace,'SF Mono',Menlo,monospace;
+  /* Las cifras van en la misma familia que el texto (como en la app: antes
+     JetBrains Mono, pero se leía "de código" y no como un dato del producto). */
+  --font-mono:"Instrument Sans",-apple-system,BlinkMacSystemFont,system-ui,'SF Pro Text','Helvetica Neue',Arial,sans-serif;
 
   /* Escala tipográfica fija (PASO 2) — 6 tamaños, con line-height propio
      por tamaño. Todo font-size nuevo sale de acá, no de un px suelto. */
@@ -140,7 +158,7 @@
   /* Escala de espaciado en base 4 (PASO 2) — todo padding/margin/gap nuevo
      sale de acá. */
   --space-4:4px; --space-8:8px; --space-12:12px; --space-16:16px;
-  --space-24:24px; --space-32:32px; --space-48:48px;
+  --space-20:20px; --space-24:24px; --space-32:32px; --space-48:48px;
 
   /* Radio de borde: un único valor base + un derivado chico para elementos
      pequeños (PASO 2) — reemplaza los 4 radios sueltos que había antes
@@ -148,14 +166,15 @@
      mantienen como alias para no tener que tocar cada selector que ya los
      usa (ver auditoría: sólo ~8% de los border-radius del proyecto pasaban
      por variable, no vale la pena arrastrar el resto a mano). */
-  --radius:12px;
-  --radius-sm:8px;
+  --radius:16px;
+  --radius-sm:12px;
   --radius-pill:999px;
   --radius-full:50%;
   --r-control:var(--radius-sm);
   --r-tile:var(--radius);
-  --r-card:var(--radius);
-  --r-modal:var(--radius);
+  --r-card:20px;
+  --r-hero:22px;
+  --r-modal:22px;
   --r-chip:var(--radius-pill);
   --sidenav-w:236px;
   /* Alto de la fila compacta de .topbar en mobile (sin el safe-area-inset
@@ -207,6 +226,8 @@ html[data-theme="oscuro"]{
      que usa el degradé del isotipo: #2C7BFF → #0A63F0). */
   --c-accent:#2C7BFF;
   --c-accent-to:#0A63F0;
+  --c-accent-deep:#0A63F0;
+  --c-accent-soft:rgba(44,123,255,.16);
   --acc-azul-soft:rgba(44,123,255,.22); --acc-azul-strong:#2C7BFF;
   /* Sin sombra en tarjetas de contenido — el mockup no tiene ninguna. La
      sombra "ambient" de DESIGN.md se aplica puntualmente donde el mockup sí
@@ -216,8 +237,8 @@ html[data-theme="oscuro"]{
   /* Elevada, multicapa — igual criterio que en claro (una capa más que
      antes), sobre negro puro porque acá no hay tinte de superficie. */
   --c-modal-shadow:0 4px 10px rgba(0,0,0,.3),0 20px 44px rgba(0,0,0,.42),0 48px 100px -8px rgba(0,0,0,.55);
-  --c-overlay:rgba(0,0,0,.5);
-  --c-accent-shadow:0 6px 18px rgba(44,123,255,.34);
+  --c-overlay:rgba(0,0,0,.55); /* = scrim de la app (oscuro) */
+  --c-accent-shadow:none;
   --shadow-sm:var(--c-shadow);
   --shadow-lg:var(--c-modal-shadow);
 
@@ -231,6 +252,7 @@ html[data-theme="oscuro"]{
   /* El rojo puro ya pasa AA sobre fondos oscuros (4.8-5.3:1) — a diferencia
      del claro, acá no hace falta una variante más oscura para texto. */
   --c-danger-text:var(--c-danger);
+  --c-success-text:#34C759; --c-warning-text:#FF9F0A;
 
   /* Superficie "elevada" — hover de card en oscuro, donde no hay sombra
      (mockup: cards chatas a propósito, ver comentario arriba). Antes era
@@ -263,7 +285,7 @@ html[data-theme="oscuro"] .modal,html[data-theme="oscuro"] .auth-card{
    Corrige además el rgb (antes el azul de tema claro, 10,99,240, quedó
    hardcodeado acá sin importar el tema) al azul de marca oscuro exacto que
    usa el mockup para esta sombra: rgba(44,123,255,.42). */
-html[data-theme="oscuro"] .fab{box-shadow:0 10px 26px rgba(44,123,255,.42),inset 0 1px 0 rgba(255,255,255,.28)}
+html[data-theme="oscuro"] .fab{box-shadow:0 10px 20px rgba(44,123,255,.42)}
 /* Sombra negra pura sobre un fondo ya casi negro no se ve — el hover de
    Materias necesita otra señal en tema oscuro. */
 html[data-theme="oscuro"] .materia-card:hover{background:var(--c-surface-2);box-shadow:none}
@@ -274,25 +296,17 @@ html[data-theme="oscuro"] .horario-day.is-on{box-shadow:0 8px 20px rgba(44,123,2
    oscura que el resto de las tarjetas (#171A21 vs #191C22) — es la única
    superficie "recesada" de toda la app, a propósito, para que se lea como
    "detrás" del borde en degradé. */
-html[data-theme="oscuro"] .inicio-hero-inner{background:#171A21}
 
 /* Fondo "spotlight" del panel de contenido (Cambio 1 del rediseño visual,
    ver Calendario en la referencia): degradé radial más luminoso hacia la
    esquina superior derecha, oscureciéndose hacia el resto de la pantalla.
    Sólo en .main (el sidenav mantiene su fondo sólido propio) y sólo en
    tema oscuro — en claro .main sigue heredando --c-bg plano, sin foco. */
-html[data-theme="oscuro"] .main{
-  background:
-    radial-gradient(1300px 780px at 96% -8%, rgba(86,110,160,.28), transparent 60%),
-    radial-gradient(820px 620px at 82% 4%, rgba(44,123,255,.16), transparent 55%),
-    var(--c-bg);
-}
+
 
 /* Agenda en tema oscuro: cada fila pasa de "renglón con separador" a
    "tarjeta propia", igual que el mockup — el riel de color (.bar4) es una
    sola regla compartida con el tema claro, ver más abajo. */
-html[data-theme="oscuro"] .agenda-list{background:none;box-shadow:none;display:flex;flex-direction:column;gap:var(--space-8)}
-html[data-theme="oscuro"] .agenda-row{background:var(--c-surface);border-radius:var(--radius);border-top:none}
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -376,7 +390,7 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .semestre-row{display:flex;align-items:center;gap:var(--space-8)}
 .semestre-row-select{flex:1;min-width:0;display:flex;align-items:center;gap:var(--space-12);height:42px;padding:0 var(--space-12);border-radius:var(--radius-sm);border:none;background:var(--c-surfaceAlt);text-align:left;transition:background-color 120ms ease}
 .semestre-row-select:hover:not(.is-active){background:var(--c-muted4)}
-.semestre-row-select.is-active{background:linear-gradient(135deg,var(--c-accent),var(--c-accent-to))}
+.semestre-row-select.is-active{background:var(--c-accent-deep)}
 .semestre-row-check{width:16px;height:16px;flex:none;border-radius:50%;border:1.5px solid var(--c-muted4)}
 .semestre-row-select.is-active .semestre-row-check{background:var(--c-white);border-color:var(--c-white);position:relative}
 .semestre-row-select.is-active .semestre-row-check::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--c-accent)}
@@ -415,8 +429,8 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
 .nav-item .nav-ico{width:18px;height:18px;color:var(--c-ink2);transition:color 120ms ease}
 .nav-item:hover:not(.is-active){background:var(--c-surfaceAlt);color:var(--c-ink)}
 .nav-item:hover:not(.is-active) .nav-ico{color:var(--c-ink)}
-.nav-item.is-active{font-weight:var(--fw-semibold);color:var(--c-white);background:linear-gradient(135deg,var(--c-accent),var(--c-accent-to));box-shadow:var(--c-accent-shadow)}
-.nav-item.is-active .nav-ico{color:var(--c-white)}
+.nav-item.is-active{font-weight:var(--fw-semibold);color:var(--c-accent);background:var(--c-accent-soft)}
+.nav-item.is-active .nav-ico{color:var(--c-accent)}
 .sidenav-legend{display:flex;flex-direction:column;gap:var(--space-8);padding:0 var(--space-12)}
 .sidenav-legend .lbl{font-size:var(--fs-12);letter-spacing:.06em;text-transform:uppercase;color:var(--c-ink3);font-weight:600}
 .legend-row{display:flex;align-items:center;gap:var(--space-8)}
@@ -442,12 +456,7 @@ h1,h2,h3,h4,h5,h6{margin:0;font-weight:inherit;font-size:inherit;font-family:inh
    del oscuro, con su propio tinte muy sutil sobre --c-bg claro (#EDEDF0).
    Esta regla de acá es la base (rige en claro); la de html[data-theme=
    "oscuro"] .main la pisa por especificidad en oscuro. */
-.main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;
-  background:
-    radial-gradient(1300px 780px at 96% -8%, rgba(130,160,210,.32), transparent 60%),
-    radial-gradient(820px 620px at 82% 4%, rgba(10,99,240,.14), transparent 55%),
-    var(--c-bg);
-}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
 .topbar{
   min-height:62px;flex:none;background:rgba(245,245,247,.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--c-line);
   display:flex;align-items:center;justify-content:space-between;padding:var(--space-12) var(--space-32);gap:var(--space-12) var(--space-16);flex-wrap:wrap;
@@ -502,7 +511,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    fondo plano) — se le suma :active (antes no existía ningún estado de
    "presionado") y :disabled/.is-loading, que tampoco existían. */
 .btn{
-  height:40px;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-8);padding:0 var(--space-16);border-radius:var(--r-control);
+  height:44px;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-8);padding:0 var(--space-16);border-radius:var(--r-control);
   font-size:var(--fs-14);font-weight:var(--fw-semibold);letter-spacing:-.005em;border:none;background:var(--c-surfaceAlt);color:var(--c-ink);
   transition:filter 180ms var(--ease-out),background-color 180ms var(--ease-out),opacity 180ms var(--ease-out);
 }
@@ -521,7 +530,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    usa el isotipo del sidenav, ahora también en el CTA primario en vez de un
    relleno plano, para que la marca tenga un solo lenguaje de "acento" en
    vez de dos (uno con degradé, uno sin). */
-.btn-primary{background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));color:var(--c-white)}
+.btn-primary{background:var(--c-accent-deep);color:var(--c-white)}
 .btn-primary:hover{filter:brightness(1.06)}
 .btn-primary:active{filter:brightness(.94)}
 .btn-primary.is-loading::after,.btn-danger-solid.is-loading::after{border-color:rgba(255,255,255,.35);border-top-color:var(--c-white)}
@@ -534,8 +543,8 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .btn-danger-solid{background:var(--c-danger);color:var(--c-white)}
 .btn-danger-solid:hover{filter:brightness(1.08)}
 .btn-danger-solid:active{filter:brightness(.92)}
-.btn-sm{padding:0 var(--space-12);font-size:var(--fs-12)}
-.icon-btn{height:40px;width:40px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2);transition:filter 180ms var(--ease-out),background-color 180ms var(--ease-out)}
+.btn-sm{height:36px;padding:0 var(--space-12);font-size:var(--fs-12)}
+.icon-btn{height:44px;width:44px;border:none;border-radius:var(--r-control);display:flex;align-items:center;justify-content:center;background:var(--c-surfaceAlt);color:var(--c-ink2);transition:filter 180ms var(--ease-out),background-color 180ms var(--ease-out)}
 .icon-btn:hover{filter:brightness(.97)}
 .icon-btn:active{filter:brightness(.93)}
 .icon-btn:focus-visible{outline:none;box-shadow:var(--c-focus)}
@@ -652,15 +661,15 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 .topbar.is-searching .search-input{display:block}
 .topbar.is-searching .topbar-search-done{display:flex}
 
-.seg{display:flex;background:var(--c-surfaceAlt);border-radius:var(--radius-sm);padding:2px;gap:2px}
-.seg-item{height:30px;padding:0 var(--space-16);border-radius:var(--radius-sm);font-size:var(--fs-14);color:var(--c-ink2);display:flex;align-items:center;gap:var(--space-8);border:none;background:transparent;transition:background 150ms var(--ease-out),color 150ms var(--ease-out)}
+.seg{display:flex;background:var(--c-surfaceAlt);border-radius:var(--radius-sm);padding:3px;gap:2px}
+.seg-item{height:34px;padding:0 var(--space-16);border-radius:var(--radius-sm);font-size:var(--fs-14);color:var(--c-ink2);display:flex;align-items:center;gap:var(--space-8);border:none;background:transparent;transition:background 150ms var(--ease-out),color 150ms var(--ease-out)}
 .seg-item svg{width:14px;height:14px;flex:none}
 .seg-item:hover:not(.is-on){color:var(--c-ink)}
-.seg-item.is-on{background:var(--c-surface);font-weight:600;color:var(--c-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg-item.is-on{background:var(--c-ink);font-weight:600;color:var(--c-bg)}
 
-.pill{height:32px;display:inline-flex;align-items:center;padding:0 var(--space-16);border-radius:var(--r-chip);font-size:var(--fs-14);font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt);border:none}
+.pill{height:36px;display:inline-flex;align-items:center;padding:0 var(--space-16);border-radius:var(--r-chip);font-size:var(--fs-14);font-weight:500;color:var(--c-ink);background:var(--c-surfaceAlt);border:none}
 .pill:hover:not(.is-on){filter:brightness(.96)}
-.pill.is-on{font-weight:600;color:var(--c-white);background:var(--c-accent)}
+.pill.is-on{font-weight:600;color:var(--c-white);background:var(--c-accent-deep)}
 
 .chip{display:inline-flex;align-items:center;height:22px;padding:0 var(--space-8);border-radius:var(--r-chip);font-size:var(--fs-12);font-weight:600;letter-spacing:-.005em;white-space:nowrap}
 .badge{display:inline-flex;align-items:center;height:24px;padding:0 var(--space-12);border-radius:var(--r-chip);font-size:var(--fs-12);font-weight:600;white-space:nowrap}
@@ -787,7 +796,6 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   padding:var(--space-24);display:flex;flex-direction:column;gap:var(--space-16);
 }
 .inicio-hero-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-12)}
-.inicio-hero-eyebrow{font-size:var(--fs-12);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-accent)}
 .inicio-hero-body{display:flex;flex-direction:column;gap:var(--space-4);min-width:0}
 .inicio-hero-title{font-family:var(--font-display);font-size:var(--fs-20);font-weight:600;letter-spacing:-.015em;line-height:1.2}
 .inicio-hero-meta{font-size:var(--fs-14);color:var(--c-ink2)}
@@ -850,7 +858,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    al lado, así que no se nota como un gris distinto, sólo más legible. Los
    estados .urgente/.vencido no cambian. */
 .prox-countdown{font-size:var(--fs-12);color:var(--c-ink2);font-weight:600}
-.prox-countdown.urgente{color:var(--c-warning)}
+.prox-countdown.urgente{color:var(--c-warning-text)}
 .prox-countdown.vencido{color:var(--c-danger-text)}
 .riesgo-row{display:flex;align-items:center;gap:var(--space-16);padding:var(--space-16) var(--space-8) 0;margin:0 -6px;border-top:1px solid var(--c-line-faint);border-radius:var(--radius);transition:background 150ms var(--ease-out)}
 .riesgo-row:first-child{border-top:none;padding-top:0}
@@ -884,7 +892,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
 @media(max-width:1100px){.materias-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.materias-grid{grid-template-columns:1fr}}
 .materia-card{padding:var(--space-24);display:flex;flex-direction:column;gap:var(--space-16);cursor:pointer;min-width:0}
-.materia-card:hover{box-shadow:var(--shadow-lg)}
+.materia-card:hover{background:var(--c-surface-2)}
 .mc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-8)}
 .mc-tile{width:40px;height:40px;flex:none;border-radius:var(--r-tile);display:flex;align-items:center;justify-content:center;font-size:var(--fs-12);font-weight:600;color:var(--c-white);letter-spacing:-.01em}
 .mc-name{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -1241,7 +1249,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
    se note el scale-in), sale en 150ms (cerrar tiene que sentirse inmediato,
    nadie quiere esperar a un modal que se va). */
 .modal-backdrop{
-  position:fixed;inset:0;background:var(--c-overlay);display:flex;align-items:flex-start;justify-content:center;
+  position:fixed;inset:0;background:var(--c-overlay);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;
   padding:var(--space-16);overflow-y:auto;overscroll-behavior:contain;
   /* Por encima del cajón (150) y de todo el chrome mobile fijo — tab bar
      (120), FAB (121), quick-sheet/row-menu (122) — que si no, al abrir
@@ -1608,7 +1616,7 @@ html[data-theme="oscuro"] .topbar{background:rgba(15,17,22,.82)}
   .sidenav{position:fixed;top:0;left:0;z-index:150;transform:translateX(-260px);transition:transform 220ms var(--ease-drawer);height:100vh}
   .sidenav.is-open{transform:translateX(0)}
   .sidenav-backdrop{
-    display:block;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:140;
+    display:block;position:fixed;inset:0;background:var(--c-overlay);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:140;
     opacity:0;visibility:hidden;pointer-events:none;
     transition:opacity 200ms var(--ease-out),visibility 200ms;
   }
@@ -1796,7 +1804,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
    sin este guard se verían sin estilo en cualquier ancho >760px.
    .inicio-hero quedó afuera de esta lista a propósito (bloque C4): ahora
    tiene sus propias reglas base (arriba) y se muestra en los dos anchos. */
-.horario-daysel,.horario-timeline{display:none}
+.horario-daysel,.horario-timeline,.horario-dayhead{display:none}
 
 /* Base (todo ancho) de .perfil-hero: reemplaza el style="display:flex;
    align-items:center;gap:16px" inline que tenía antes esta fila (foto +
@@ -1807,6 +1815,230 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
    ocultan ahí abajo. */
 .perfil-hero{display:flex;align-items:center;gap:var(--space-16)}
 @media(min-width:761px){.perfil-hero .who,.perfil-logout{display:none}}
+
+/* ============================================================================
+   Paridad app móvil — bloque de lenguaje visual compartido con Cursada Mobile
+   (ver design.md, "Paridad con la app"). Va después de todas las reglas base y
+   antes del @media mobile, así pisa por orden sin subir especificidad.
+   ============================================================================ */
+::selection{background:var(--c-accent-soft)}
+html{caret-color:var(--c-accent);scrollbar-color:var(--c-muted4) transparent;scrollbar-width:thin}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-thumb{background:var(--c-muted4);border-radius:var(--radius-pill);border:3px solid transparent;background-clip:content-box}
+.mono{font-weight:600}
+/* Popovers: sin sombra en las tarjetas, sí en lo que flota. */
+.nuevo-menu,.notif-panel{box-shadow:var(--c-modal-shadow)}
+
+/* ---------- Inicio ---------- */
+.inicio-hello{font-size:var(--fs-32);font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.inicio-date{font-size:var(--fs-14);font-weight:500;color:var(--c-ink3)}
+.inicio-head-text{display:flex;flex-direction:column;gap:6px}
+
+/* "Lo próximo": el pico de Inicio. Superficie de tinta (--c-ink; en oscuro
+   se invierte sola a clara) en vez de una tarjeta blanca más, con el título
+   a escala de display. Sigue liderando el título: la cuenta regresiva es un
+   dato chico y neutro en el encabezado (no crece, no se tiñe). El azul queda
+   sólo en la acción principal. Sin marco giratorio. */
+.inicio-hero{padding:0;background:none;animation:none;border-radius:var(--r-hero)}
+.inicio-hero-inner{border-radius:var(--r-hero);background:var(--c-ink);color:var(--c-surface);padding:var(--space-24);gap:var(--space-16);box-shadow:0 1px 2px rgba(0,0,0,.12),0 12px 32px -12px rgba(0,0,0,.28)}
+.inicio-hero-label{font-size:var(--fs-14);font-weight:600;color:color-mix(in srgb,var(--c-surface) 66%,transparent)}
+.inicio-hero-head .badge{height:auto;padding:0;background:none!important;border-radius:0;font-size:var(--fs-14);font-weight:500;font-variant-numeric:tabular-nums;color:color-mix(in srgb,var(--c-surface) 66%,transparent)!important}
+.inicio-hero-body{gap:var(--space-12)}
+.inicio-hero-title{font-size:clamp(32px,4.6vw,56px);font-weight:700;letter-spacing:-.035em;line-height:1.02;text-wrap:balance}
+.inicio-hero-meta{font-size:var(--fs-16);font-weight:500;color:color-mix(in srgb,var(--c-surface) 66%,transparent)}
+.inicio-hero-progress{gap:var(--space-8);max-width:560px}
+.inicio-hero-progress .bar-wrap{height:6px;background:color-mix(in srgb,var(--c-surface) 18%,transparent)}
+#inicio-hero-bar{background:var(--c-surface)!important}
+.inicio-hero-sub{font-size:13px;color:color-mix(in srgb,var(--c-surface) 66%,transparent)}
+.inicio-hero-actions{gap:var(--space-8)}
+.inicio-hero-actions .btn{height:48px;flex:1 1 0;min-width:0}
+.inicio-hero-actions .btn-ghost{background:color-mix(in srgb,var(--c-surface) 14%,transparent);color:var(--c-surface);font-weight:var(--fw-medium)}
+.inicio-hero-actions .btn-ghost:hover{background:color-mix(in srgb,var(--c-surface) 22%,transparent)}
+@media(min-width:901px){
+  .inicio-hero-inner{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:var(--space-32);row-gap:var(--space-8);align-items:end;padding:var(--space-48) var(--space-48) var(--space-32)}
+  .inicio-hero-head{grid-column:1/-1;margin-bottom:var(--space-16)}
+  .inicio-hero-body,.inicio-hero-progress{grid-column:1}
+  .inicio-hero-progress{margin-top:var(--space-12)}
+  .inicio-hero-actions{grid-column:2;grid-row:2 / span 2;align-self:end}
+  .inicio-hero-actions .btn{flex:none;min-width:168px}
+}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-12)}
+.kpi-card{position:relative;min-width:0;padding:var(--space-20,20px);border-radius:var(--r-card);gap:var(--space-8)}
+.kpi-card .icon-tile{position:absolute;top:20px;right:20px;width:auto;height:auto;padding:0;background:none;border-radius:0;color:var(--c-ink3)}
+.kpi-card .icon-tile svg{width:15px;height:15px}
+.kpi-label{font-size:13px;font-weight:500;color:var(--c-ink2);padding-right:24px}
+.kpi-value{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-top:var(--space-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-sub{font-size:var(--fs-12);line-height:1.4}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Inicio menos "todo tarjetas": el hero es el pico y lo demás se reparte en
+   tres densidades. KPI = franja tipográfica sobre el fondo (cifras grandes
+   separadas por filetes de 1px, sin caja); Accesos = píldoras en una línea;
+   "Próximos 7 días" = lista plana sobre el fondo. Sólo Riesgo, Curva,
+   Esperando nota y Progreso conservan tarjeta, porque son bloques con
+   contenido propio. Sólo CSS: el DOM y los data-f no cambian. */
+#inicio .kpi-row{gap:0;padding:var(--space-8) 0}
+#inicio .kpi-card{background:none;border:none;box-shadow:none;border-radius:0;padding:var(--space-4) var(--space-24);gap:var(--space-4);border-left:1px solid var(--c-line)}
+#inicio .kpi-card:first-child{padding-left:0;border-left:none}
+#inicio .kpi-card .icon-tile{display:none}
+#inicio .kpi-label{padding-right:0}
+#inicio .kpi-value{font-size:clamp(36px,3.6vw,48px);letter-spacing:-.04em;line-height:1;margin-top:var(--space-8)}
+@media(max-width:1100px){
+  #inicio .kpi-row{row-gap:var(--space-24)}
+  #inicio .kpi-card:nth-child(odd){padding-left:0;border-left:none}
+}
+#inicio .accesos-panel .panel-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#inicio .accesos-row{display:flex;flex-wrap:wrap;gap:var(--space-8)}
+#inicio .acceso-btn{flex-direction:row;align-items:center;justify-content:center;gap:var(--space-8);height:40px;padding:0 var(--space-16) 0 var(--space-12);border-radius:var(--radius-pill);font-size:var(--fs-14);font-weight:500;color:var(--c-ink);background:var(--c-surface);white-space:nowrap}
+#inicio .acceso-btn .ico{width:18px;height:18px;padding:0;background:none;border-radius:0;color:var(--c-ink2)}
+#inicio .acceso-btn:hover .ico{color:var(--c-accent)}
+#inicio .inicio-cols > .card.panel:first-child{background:none;border:none;box-shadow:none;padding-left:0;padding-right:0}
+/* Simetría: la franja de KPI queda encuadrada por filetes de borde a borde
+   (mismo ancho que las tarjetas de arriba y de abajo) y las dos columnas
+   terminan a la misma altura: la última tarjeta de la derecha absorbe el
+   sobrante y baja su pie. */
+#inicio .kpi-row{border-top:1px solid var(--c-line);border-bottom:1px solid var(--c-line);padding:var(--space-24) 0}
+#inicio .inicio-cols{align-items:stretch}
+@media(min-width:901px){
+  #inicio .carga-card:not(.hidden){flex:1 1 auto;justify-content:space-between}
+  #inicio .carga-card .carga-chart-mini{margin:auto 0}
+}
+
+/* Accesos rápidos: fila de fichas, como en la app. La ficha es la superficie
+   (el panel no es una tarjeta más, si no serían tarjetas dentro de tarjetas). */
+.accesos-panel{display:flex;flex-direction:column;gap:var(--space-12)}
+.accesos-panel .panel-title{font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:0;color:var(--c-ink3)}
+.accesos-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.acceso-btn{height:auto;flex-direction:column;justify-content:flex-start;gap:var(--space-8);padding:14px var(--space-8);border-radius:var(--radius);background:var(--c-surface);font-size:var(--fs-12);font-weight:500;line-height:1.3;color:var(--c-ink2);text-align:center}
+.acceso-btn:hover{background:var(--c-surface-2)}
+.acceso-btn .ico{width:34px;height:34px;padding:8px;border-radius:var(--radius-sm);background:var(--c-surfaceAlt);color:var(--c-ink)}
+@media(max-width:400px){.acceso-btn{padding:12px 4px;font-size:11px}.acceso-btn .ico{width:32px;height:32px;padding:7px}}
+@media(max-width:340px){.accesos-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* El badge de la fila repetía lo que ya dicen el chip y la cuenta regresiva
+   (y la app no lo tiene): fuera en todos los anchos. !important porque
+   badgeStyle() le pone display inline. */
+.prox-row > .badge{display:none!important}
+/* "Cargar notas" es un aviso, no la acción principal de Inicio: el azul pleno
+   queda para "Abrir materia" de Lo próximo. */
+#btn-inicio-notas-pendientes{background:var(--c-accent-soft);color:var(--c-accent)}
+#btn-inicio-notas-pendientes:hover{filter:none;background:var(--c-accent-soft);opacity:.85}
+
+.panel-title{font-size:21px;font-weight:700;letter-spacing:-.025em}
+.panel-head{flex-wrap:wrap;gap:var(--space-4) var(--space-12)}
+.panel-hint{text-align:right}
+.prox-row{border-radius:0}
+.prox-date .d{font-size:26px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.prox-date .m{font-weight:500;letter-spacing:.02em}
+.prox-countdown{font-size:13px;color:var(--c-ink3)}
+.progreso-semestre-promedio-val{font-size:var(--fs-40);letter-spacing:-.03em}
+.push-banner{border-radius:var(--r-card)}
+/* Foco de teclado unificado (antes: sombra de 3px al 25% en .btn y el outline
+   naranja por defecto del navegador en enlaces). */
+:where(a,button,.btn,.icon-btn,[role="button"],[tabindex]):focus-visible{outline:2px solid var(--c-accent);outline-offset:2px;box-shadow:none}
+.btn:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px;box-shadow:none}
+/* Áreas de toque: los enlaces de las cabeceras de panel llegan a 44px sin cambiar su tamaño visual. */
+.panel-hint a,a.panel-hint{display:inline-flex;align-items:center;min-height:44px;margin:-14px 0}
+.progreso-semestre-materia-row{min-height:44px}
+/* Aviso de notas/push: debajo del hero y en una sola línea compacta. */
+.push-banner{padding:var(--space-12) var(--space-16);gap:var(--space-12)}
+.push-banner-text .s{color:var(--c-ink2)}
+@media(max-width:760px){#inicio-notas-pendientes-banner .s{display:none}}
+.prox-mas{margin-top:var(--space-4);height:44px;border:none;border-radius:var(--radius-sm);background:var(--c-surfaceAlt);color:var(--c-ink2);font:inherit;font-size:var(--fs-14);font-weight:500}
+.prox-mas:hover{background:var(--c-muted4);color:var(--c-ink)}
+#proximos-list{max-height:none;overflow:visible}
+.progreso-titulo .nota-row .label{white-space:nowrap}
+.progreso-titulo .nota-row .bar-wrap{width:88px}
+.progreso-titulo{margin-top:var(--space-16);padding-top:var(--space-16);border-top:1px solid var(--c-line-faint)}
+/* Horario (grilla): bloque de color suave con punto de identidad, texto en
+   tinta — igual que las clases en la app. */
+.hg-day-label{letter-spacing:0;text-transform:none;font-size:13px}
+.hg-hour-label{color:var(--c-ink3)}
+.hg-block{border-radius:var(--radius);padding:var(--space-8) var(--space-12);border:none;color:var(--c-ink)}
+.hg-block .n{font-weight:600}
+.hg-block .n::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--blk);margin-right:var(--space-8);vertical-align:1px}
+.hg-block .h{opacity:1;color:var(--c-ink2)}
+.hg-block .s{opacity:1;color:var(--c-ink2)}
+.sidenav-legend .lbl{letter-spacing:0;text-transform:none}
+
+/* Fondo "spotlight" FIJO, como la app: una banda celeste arriba a la derecha
+   que queda quieta mientras el contenido se desplaza por encima. Capa propia
+   (position:fixed detrás de todo, z-index:-1) en vez de background-attachment:
+   fixed, que Safari iOS ignora. Mismos stops que Spotlight.tsx. */
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:420px;pointer-events:none;z-index:-1;
+  background:radial-gradient(ellipse 85% 85% at 96% 0,rgba(44,123,255,.30) 0,rgba(44,123,255,.15) 55%,rgba(44,123,255,0) 100%)}
+html[data-theme="oscuro"] body::before{background:radial-gradient(ellipse 85% 85% at 96% 0,rgba(86,110,160,.28) 0,rgba(44,123,255,.14) 55%,rgba(44,123,255,0) 100%)}
+
+/* ---------- Curva del semestre (card de Inicio + modal) ---------- */
+.carga-card{display:flex;flex-direction:column;gap:var(--space-16);padding:var(--space-24);width:100%;text-align:left;border:none;font:inherit;color:inherit;cursor:pointer;transition:background 150ms var(--ease-out)}
+.carga-card:hover{background:var(--c-surface-2)}
+.carga-card-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-12)}
+.carga-card-meta{font-size:var(--fs-12);font-weight:600;color:var(--c-ink2);font-variant-numeric:tabular-nums}
+.carga-chart-mini{display:block;pointer-events:none}
+.carga-chart-mini svg,.carga-chart svg{display:block;overflow:visible}
+.carga-card-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-12)}
+.carga-card-next{display:flex;flex-direction:column;gap:2px;min-width:0}
+.carga-card-next-l{font-size:var(--fs-12);color:var(--c-ink3)}
+.carga-card-next-t{font-size:var(--fs-14);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.carga-pico,.carga-tag,.carga-chip-hoy{display:inline-flex;align-items:center;height:26px;padding:0 var(--space-12);border-radius:var(--radius-pill);font-size:var(--fs-12);font-weight:600;white-space:nowrap;flex:none}
+.carga-pico,.carga-tag.is-acento{background:var(--c-accent-soft);color:var(--c-accent)}
+.carga-tag{background:var(--c-surfaceAlt);color:var(--c-ink2)}
+.carga-chip-hoy{margin-left:auto;background:var(--c-surfaceAlt);color:var(--c-ink2)}
+.carga-chip-hoy:empty{display:none}
+.carga-chart{cursor:crosshair;touch-action:pan-y;border-radius:var(--radius-sm);user-select:none}
+.carga-chart:focus-visible{outline:2px solid var(--c-accent);outline-offset:4px}
+.carga-grid{stroke:var(--c-line-faint);stroke-width:1;vector-effect:non-scaling-stroke}
+.carga-grid.base{stroke:var(--c-line)}
+.carga-area{fill:var(--c-accent-soft)}
+.carga-line{fill:none;stroke:var(--c-accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.carga-pico-dot,.carga-hoy-dot{fill:var(--c-accent)}
+.carga-hoy-dot{stroke:var(--c-surface);stroke-width:2}
+.carga-hoy-stem{stroke:var(--c-accent);stroke-opacity:.55;stroke-width:1.5;vector-effect:non-scaling-stroke}
+.carga-cursor{stroke:var(--c-muted4);stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
+.carga-sel-dot{fill:var(--c-bg);stroke:var(--c-ink);stroke-width:2}
+.carga-axis{position:relative;height:16px;margin-top:calc(-1 * var(--space-8))}
+.carga-mes{position:absolute;top:0;text-align:center;font-size:11px;font-weight:500;color:var(--c-ink3);white-space:nowrap;overflow:hidden}
+.carga-mes.is-sel{color:var(--c-ink);font-weight:700}
+.carga-mes.is-hoy{color:var(--c-accent);font-weight:700}
+.carga-detalle{display:flex;flex-direction:column;gap:var(--space-4)}
+.carga-det-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-12)}
+.carga-det-title{display:flex;align-items:baseline;gap:var(--space-8);min-width:0}
+.carga-det-title b{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.carga-det-title span{font-size:var(--fs-14);color:var(--c-ink2)}
+.carga-det-tags{display:flex;gap:var(--space-4)}
+.carga-det-count{font-size:var(--fs-14);color:var(--c-ink2)}
+.carga-det-lista{display:flex;flex-direction:column;margin-top:var(--space-8)}
+.carga-fila{display:flex;align-items:center;gap:var(--space-12);height:56px;padding:0;border:none;border-top:1px solid var(--c-line-faint);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;border-radius:0}
+.carga-fila:first-child{border-top:none}
+.carga-fila:hover .carga-fila-txt b{text-decoration:underline;text-underline-offset:3px}
+.carga-fila-bar{width:3px;height:32px;border-radius:var(--radius-pill);flex:none}
+.carga-fila-fecha{width:34px;flex:none;display:flex;flex-direction:column;align-items:center}
+.carga-fila-fecha b{font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:21px}
+.carga-fila-fecha span{font-size:11px;font-weight:500;color:var(--c-ink3)}
+.carga-fila-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.carga-fila-txt b{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.carga-fila-txt span{font-size:var(--fs-12);color:var(--c-ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.carga-fila-estado{font-size:var(--fs-12);color:var(--c-ink3);flex:none}
+.carga-fila-estado.is-warn{color:var(--c-warning-text)}
+.carga-fila-estado.is-danger{color:var(--c-danger-text)}
+.carga-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.carga-stat{display:flex;flex-direction:column;gap:3px;padding:var(--space-12);border:none;border-radius:var(--radius);background:var(--c-surfaceAlt);font:inherit;color:inherit;text-align:left}
+button.carga-stat:not(:disabled){cursor:pointer}
+button.carga-stat:not(:disabled):hover{background:var(--c-muted4)}
+.carga-stat b{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:24px}
+.carga-stat span{font-size:var(--fs-12);color:var(--c-ink2);line-height:15px}
+/* Agenda como tarjetas por ítem en los dos temas (igual que la app). */
+.agenda-list{background:none!important;box-shadow:none!important;border:none!important;display:flex;flex-direction:column;gap:var(--space-8)}
+.agenda-row{background:var(--c-surface);border-radius:var(--radius);border-top:none}
+.agenda-group-head .t{font-size:var(--fs-20);font-weight:700;letter-spacing:-.02em;text-transform:none;color:var(--c-ink)}
+.agenda-group-head .t.danger{color:var(--c-danger-text)}
+.agenda-group-head .n{font-size:13px;font-weight:600}
+.agenda-group-head .rule{display:none}
+
+/* ---------- tarjetas y controles ---------- */
+.materia-card,.detalle-head,.detalle-col{border-radius:var(--r-card)}
+.chip,.badge{font-weight:600}
+.field input,.field select,.field textarea{border-radius:var(--radius-sm)}
 
 @media(max-width:760px){
 
@@ -1854,7 +2086,7 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .topbar.is-searching .topbar-actions{flex:1}
   .topbar.is-searching .search-input{width:100%;flex:1;height:38px}
 
-  .view{padding:14px 14px calc(104px + env(safe-area-inset-bottom));gap:var(--space-16)}
+  .view{padding:14px 14px calc(112px + env(safe-area-inset-bottom));gap:var(--space-16)}
 
   /* ---------- tab bar ---------- */
   /* Mismo set de íconos lineales que el sidebar (Cambio 2 del rediseño
@@ -1862,38 +2094,42 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
      debajo, sólo ícono, así la barra puede ser más fina (44px de alto por
      tab en vez de 50 + una línea de texto). El nombre sigue disponible
      como aria-label/title en cada botón para lectores de pantalla. */
+  /* Píldora flotante de vidrio, como la tab bar de la app: 20px de margen
+     lateral, 54px de alto, íconos con rótulo de 10px. */
   .tabbar{
-    position:fixed;left:0;right:0;bottom:0;z-index:120;
-    display:grid;grid-template-columns:repeat(5,1fr);
-    padding:5px 8px calc(5px + env(safe-area-inset-bottom));
-    background:rgba(251,251,253,.86);backdrop-filter:blur(24px) saturate(180%);
-    -webkit-backdrop-filter:blur(24px) saturate(180%);
-    border-top:1px solid var(--c-line);
+    position:fixed;left:20px;right:20px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:120;
+    height:54px;display:grid;grid-template-columns:repeat(5,1fr);padding:0 6px;
+    border-radius:var(--radius-pill);border:1px solid rgba(15,17,22,.08);
+    background:rgba(255,255,255,.55);backdrop-filter:blur(28px) saturate(180%);
+    -webkit-backdrop-filter:blur(28px) saturate(180%);
+    box-shadow:0 12px 28px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.9);
   }
-  html[data-theme="oscuro"] .tabbar{background:rgba(15,17,22,.86)}
+  html[data-theme="oscuro"] .tabbar{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);box-shadow:0 12px 28px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.35)}
   .tab{
-    display:flex;align-items:center;justify-content:center;
-    height:44px;border:none;background:transparent;border-radius:var(--radius);color:var(--c-ink3);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    height:100%;border:none;background:transparent;border-radius:var(--radius-pill);color:var(--c-ink2);
   }
-  .tab .nav-ico{width:22px;height:22px;color:inherit}
+  html[data-theme="oscuro"] .tab{color:rgba(255,255,255,.75)}
+  .tab .nav-ico{width:20px;height:20px;color:inherit}
+  .tab span{font-size:10px;font-weight:600;line-height:1}
   .tab.is-on{color:var(--c-accent)}
 
   /* ---------- FAB ---------- */
   .fab{
     position:fixed;right:16px;z-index:121;
-    bottom:calc(64px + env(safe-area-inset-bottom));
-    width:56px;height:56px;border-radius:var(--radius);border:none;
-    background:linear-gradient(180deg,var(--c-accent),var(--c-accent-to));
+    bottom:calc(80px + env(safe-area-inset-bottom));
+    width:56px;height:56px;border-radius:20px;border:none;
+    background:var(--c-accent);
     color:var(--c-white);font-size:var(--fs-24);font-weight:300;line-height:1;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 8px 24px rgba(10,99,240,.34),inset 0 1px 0 rgba(255,255,255,.28);
+    box-shadow:0 10px 20px rgba(10,99,240,.34);
   }
   .fab:active{transform:scale(.94)}
   /* display:flex acá (no sólo en .is-open): la regla de afuera del @media
      la pone display:none para que no se vea en desktop; adentro del
      breakpoint ya tiene que estar en flex siempre para poder animar
      opacity/transform al abrir — un elemento display:none no transiciona. */
-  .quick-sheet{position:fixed;left:12px;right:12px;bottom:calc(128px + env(safe-area-inset-bottom));z-index:122;
+  .quick-sheet{position:fixed;left:12px;right:12px;bottom:calc(144px + env(safe-area-inset-bottom));z-index:122;
     display:flex;flex-direction:column;
     background:var(--c-surface);border-radius:var(--radius);box-shadow:var(--c-modal-shadow);overflow:hidden;
     opacity:0;visibility:hidden;transform:translateY(8px) scale(.97);pointer-events:none;
@@ -1912,7 +2148,6 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .btn-sm{height:40px;font-size:var(--fs-14)}
   .icon-btn{height:44px;width:44px}
   .pill{height:38px;font-size:var(--fs-14)}
-  .acceso-btn{height:44px;font-size:var(--fs-14)}
   .seg-item{height:36px;padding:0 var(--space-16)}
   .cal-nav button{width:40px;height:40px}
   .filtros-row,.materias-toolbar{flex:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
@@ -1965,55 +2200,40 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
      escalón abajo (32), no dos, para no perder la relación entre ambos. */
   .inicio-hello{font-size:var(--fs-32);letter-spacing:-.03em}
   .inicio-note{font-size:var(--fs-14)}
-  .kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-12)}
-  .kpi-card{min-width:0;padding:var(--space-16) var(--space-16);gap:var(--space-8)}
-  .kpi-label{font-size:var(--fs-12);line-height:1.3}
-  .kpi-value{font-size:var(--fs-32);letter-spacing:-.028em}
-  .kpi-sub{font-size:var(--fs-12)}
+  .kpi-card{padding:var(--space-16)}
+  .kpi-card .icon-tile{top:var(--space-16);right:var(--space-16)}
   .inicio-cols{flex-direction:column;gap:var(--space-12)}
   .inicio-cols > *{min-width:0!important;width:100%;flex:none!important}
-  .panel{padding:var(--space-16) var(--space-16) var(--space-16);border-radius:var(--radius);gap:var(--space-8)}
-  .panel-title{font-size:var(--fs-16)}
+  .panel{padding:var(--space-16) var(--space-16) var(--space-16);border-radius:var(--r-card);gap:var(--space-8)}
+  .panel-title{font-size:var(--fs-20)}
   .panel-hint{font-size:var(--fs-12)}
   .prox-row{gap:var(--space-12);padding:var(--space-12) 0}
-  .prox-date{width:34px}
-  .prox-date .d{font-size:var(--fs-16)}
+  .prox-date{width:44px}
+  #proximos-list{max-height:none;overflow:visible}
+  .prox-date .d{font-size:var(--fs-24)}
   .prox-date .m{font-size:var(--fs-12)}
   .prox-title{font-size:var(--fs-14)}
   .prox-meta .m{font-size:var(--fs-12)}
   .prox-row{flex-wrap:wrap;row-gap:var(--space-8)}
   .prox-body{flex:1 1 160px}
-  .prox-row > .badge{margin-left:var(--space-48)}
   .riesgo-row{gap:var(--space-12)}
   .riesgo-body b{font-size:var(--fs-14)}
   .accesos-row{gap:var(--space-8)}
-  /* "Accesos rápidos" como 4ta celda de la grilla 2x2 de #kpi-row (ver
-     posicionarAccesosRapidos() en runtime.js) — se achica al tamaño de una
-     kpi-card y sus 4 botones pasan a un grid 2x2 sólo ícono; el texto queda
-     como aria-label en el <button> (accesibilidad) y .acceso-label se
-     esconde nada más acá, no cuando el panel está en su lugar de desktop. */
-  #kpi-row > #accesos-panel{padding:var(--space-16) var(--space-16);gap:var(--space-8);justify-content:center}
-  #kpi-row > #accesos-panel .panel-title{font-size:var(--fs-12);font-weight:400;color:var(--c-ink2)}
-  #kpi-row > #accesos-panel .accesos-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-8)}
-  #kpi-row > #accesos-panel .acceso-btn{height:auto;aspect-ratio:1;flex-direction:column;justify-content:center;padding:var(--space-4);gap:0}
-  #kpi-row > #accesos-panel .acceso-btn .ico{width:19px;height:19px}
-  #kpi-row > #accesos-panel .acceso-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
-
   /* ---------- Materias ---------- */
-  .materia-card{padding:var(--space-16);gap:var(--space-12);border-radius:var(--radius)}
+  .materia-card{padding:var(--space-16);gap:var(--space-12);border-radius:var(--r-card)}
   .mc-name .n{font-size:var(--fs-16)}
   .materia-add{min-height:104px}
   .materias-toolbar > .seg{display:none}
   #materias-table-wrap{display:none!important}
 
   /* ---------- Detalle ---------- */
-  .detalle-head{padding:var(--space-16);gap:var(--space-16);border-radius:var(--radius)}
+  .detalle-head{padding:var(--space-16);gap:var(--space-16);border-radius:var(--r-card)}
   .detalle-avatar{width:52px;height:52px;border-radius:var(--radius);font-size:var(--fs-14)}
   .detalle-title .n{font-size:var(--fs-24)}
   .detalle-title{flex:1 1 180px}
   .detalle-side{margin-left:0;width:100%;gap:0;display:grid;grid-template-columns:1fr 1fr;
     padding-top:var(--space-12);border-top:1px solid var(--c-line-faint)}
-  .detalle-col{min-width:0;padding:var(--space-16);border-radius:var(--radius);gap:var(--space-16)}
+  .detalle-col{min-width:0;padding:var(--space-16);border-radius:var(--r-card);gap:var(--space-16)}
   .detalle-ring-row{gap:var(--space-16)}
   .nota-row .bar-wrap{width:56px}
   .nota-row .v{width:56px;font-size:var(--fs-14)}
@@ -2123,7 +2343,8 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .horario-grid{grid-template-columns:26px repeat(6,1fr)!important}
   .hg-day-label{font-size:var(--fs-12);letter-spacing:.02em}
   .hg-hour-label{font-size:var(--fs-12);padding-right:3px}
-  .hg-block{padding:var(--space-4) var(--space-4);border-radius:var(--radius-sm);gap:0;margin:.5px;border-left-width:2.5px}
+  .hg-block{padding:var(--space-4) var(--space-4);border-radius:var(--radius-sm);gap:0;margin:.5px}
+  .hg-block .n::before{width:6px;height:6px;margin-right:3px}
   .hg-block .n{font-size:var(--fs-12);line-height:1.12;letter-spacing:-.01em;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hg-block .h,.hg-block .s{display:none}
@@ -2138,27 +2359,35 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
   .horario-grid-wrap{display:none}
   .horario-daysel{display:flex;gap:var(--space-8);margin-bottom:var(--space-4)}
   .horario-day{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-4);
-    height:56px;border:none;border-radius:var(--radius);background:var(--c-surfaceAlt);color:var(--c-ink);
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    height:64px;border:none;border-radius:var(--radius);background:var(--c-surfaceAlt);color:var(--c-ink);
   }
-  .horario-day .wd{font-size:var(--fs-12);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--c-ink3)}
-  .horario-day .dot{width:5px;height:5px;border-radius:50%;background:var(--c-ink3);opacity:.5}
-  .horario-day.is-on{background:var(--c-accent);color:var(--c-white)}
+  .horario-day .wd{font-size:var(--fs-12);font-weight:600;letter-spacing:0;text-transform:none;color:var(--c-ink3)}
+  .horario-day .num{font-size:17px;font-weight:600;line-height:1.2}
+  .horario-day .dot{width:14px;height:2px;border-radius:1px;background:var(--c-accent);opacity:.9}
+  .horario-day.is-hoy:not(.is-on){box-shadow:inset 0 0 0 1.5px var(--c-accent)}
+  .horario-day.is-on{background:var(--c-accent-deep);color:var(--c-white)}
   .horario-day.is-on .wd{color:rgba(255,255,255,.8)}
-  .horario-day.is-on .dot{background:var(--c-white);opacity:1}
+  .horario-day.is-on .num{font-weight:700}
+  .horario-day.is-on .dot{background:var(--c-white)}
+  .horario-dayhead{display:flex;flex-direction:column;gap:2px;padding-top:var(--space-8)}
+  .horario-dayhead b{font-size:22px;font-weight:700;letter-spacing:-.025em}
+  .horario-dayhead span{font-size:var(--fs-14);color:var(--c-ink2)}
   .horario-timeline{display:flex;flex-direction:column;gap:0;overflow-y:auto}
-  .horario-timeline-row{display:flex;gap:var(--space-16);padding:var(--space-16) 0;border-top:1px solid var(--c-line-faint)}
-  .horario-timeline-row:first-child{border-top:none}
-  .horario-timeline-hora{width:46px;flex:none;font-size:var(--fs-12);color:var(--c-ink3);font-variant-numeric:tabular-nums;padding-top:2px}
+  .horario-timeline-row{display:flex;gap:var(--space-16);padding:var(--space-8) 0}
+  .horario-timeline-hora{width:44px;flex:none;display:flex;flex-direction:column;gap:2px;padding-top:var(--space-16);font-variant-numeric:tabular-nums}
+  .horario-timeline-hora b{font-size:var(--fs-14);font-weight:600;color:var(--c-ink)}
+  .horario-timeline-hora span{font-size:var(--fs-12);color:var(--c-ink3)}
   .horario-timeline-block{
-    flex:1;min-width:0;border-radius:0 var(--radius) var(--radius) 0;border-left:3px solid;
-    padding:var(--space-12) var(--space-16);display:flex;flex-direction:column;gap:var(--space-4);
+    flex:1;min-width:0;border-radius:var(--r-card);padding:var(--space-16);
+    display:flex;flex-direction:column;gap:var(--space-4);justify-content:center;min-height:76px;
   }
-  .horario-timeline-block .n{font-size:var(--fs-16);font-weight:600;letter-spacing:-.01em}
-  .horario-timeline-block .h{font-size:var(--fs-14);color:var(--c-ink2);font-variant-numeric:tabular-nums}
-  .horario-timeline-block .s{font-size:var(--fs-14);color:var(--c-ink3);display:flex;align-items:center;gap:var(--space-4)}
-  .horario-timeline-block .s:not(:empty)::before{content:'';flex:none;width:11px;height:11px;background:currentColor;
-    -webkit-mask:var(--ico-pin) center/contain no-repeat;mask:var(--ico-pin) center/contain no-repeat}
+  .horario-timeline-block .n{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .horario-timeline-block .n::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--blk);margin-right:var(--space-8);vertical-align:1px}
+  .horario-timeline-block .s{font-size:13px;color:var(--c-ink2);display:block}
+  .horario-timeline-block .s::before{content:none!important}
+  .horario-timeline-gap{display:flex;align-items:center;gap:var(--space-8);padding:var(--space-8) 0 var(--space-8) 60px;font-size:var(--fs-12);color:var(--c-ink3)}
+  .horario-timeline-gap i{flex:1;border-top:1px dashed var(--c-line)}
   .horario-timeline-empty{padding:var(--space-32) 0;text-align:center;font-size:var(--fs-14);color:var(--c-ink3)}
 
   /* ---------- Modales: pantalla completa, entran desde la derecha ---------- */
@@ -2346,3 +2575,20 @@ html[data-theme="oscuro"] .toast{background:var(--c-surface);color:var(--c-ink);
    .topbar-menu, para que un cambio futuro en .topbar-brand no reabra ese
    gap sin querer. */
 @media(min-width:761px){.topbar .topbar-menu,.topbar .topbar-brand{display:none}}
+
+/* ---------- Horario: primer uso ("Armá tu semana") ---------- */
+.horario-armar{display:flex;flex-direction:column;gap:var(--space-24);max-width:560px}
+.horario-armar-copy{display:flex;flex-direction:column;gap:var(--space-8)}
+.horario-armar-t{font-family:var(--font-display);font-size:var(--fs-24);font-weight:700;letter-spacing:-.025em;margin:0}
+.horario-armar-s{font-size:var(--fs-16);line-height:1.5;color:var(--c-ink2);margin:0}
+.horario-armar-list{background:var(--c-surface);border-radius:var(--r-card);padding:0 var(--space-16)}
+.horario-armar-row{display:flex;align-items:center;gap:var(--space-12);width:100%;min-height:56px;padding:var(--space-8) 0;background:none;border:none;border-top:1px solid var(--c-line-faint);color:var(--c-ink);text-align:left;font:inherit;cursor:pointer}
+.horario-armar-row:first-child{border-top:none}
+.horario-armar-row .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.horario-armar-row .n{flex:1;min-width:0;font-size:var(--fs-16);font-weight:500}
+.horario-armar-row .a{font-size:var(--fs-14);font-weight:600;color:var(--c-accent);flex:none}
+.horario-armar-row:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px;border-radius:var(--radius)}
+.horario-armar.is-pie{margin-top:var(--space-32);gap:var(--space-12)}
+.horario-armar.is-pie .horario-armar-t{font-size:var(--fs-14);font-weight:600;letter-spacing:0;color:var(--c-ink2)}
+#horario.is-vacio .horario-daysel,#horario.is-vacio .horario-dayhead,#horario.is-vacio .horario-timeline,#horario.is-vacio .horario-grid-wrap{display:none}
+@media(max-width:760px){.horario-armar .btn{width:100%;justify-content:center}}

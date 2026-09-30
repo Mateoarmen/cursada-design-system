@@ -38,7 +38,7 @@
   // Ícono de cada kpi-card de Inicio, por el label fijo que arma
   // computeKpis() — ver renderInicio(). Los 3 templates viven junto a
   // data-template="kpi-card" en app.html.
-  var KPI_ICON = { 'Próxima evaluación': 'ico-kpi-evaluacion', 'Promedio general': 'ico-kpi-promedio', 'Pendientes esta semana': 'ico-kpi-pendientes' };
+  var KPI_ICON = { 'Cursando': 'ico-kpi-cursando', 'Próxima evaluación': 'ico-kpi-evaluacion', 'Promedio general': 'ico-kpi-promedio', 'Pendientes esta semana': 'ico-kpi-pendientes' };
   // Notificaciones (in-app + Web Push). La pública es pública por diseño
   // (va en el cliente, como la anon key de Supabase) — la privada vive como
   // secret de la Edge Function notifications-send, nunca acá.
@@ -1170,6 +1170,10 @@
     // "Pendientes esta semana" nunca se oculta: un 0 ahí es una respuesta
     // real y útil ("no tenés nada pendiente"), no un placeholder.
     var kpis = [];
+    // "Cursando" es el conteo del semestre activo, igual que la primera tile
+    // de Inicio en la app móvil (paridad: 4 tiles, grilla 2x2 / fila de 4).
+    var cursandoN = materias.filter(function (m) { return m.estado === 'cursando'; }).length;
+    kpis.push({ label: 'Cursando', valor: String(cursandoN), sub: 'este semestre', tone: 'neutral' });
     if (proxExamen) kpis.push({ label: 'Próxima evaluación', valor: DIAS_CORTOS[proxExamen.d.getDay()] + ' ' + proxExamen.d.getDate(), sub: proxExamen.a.tipo + ' · ' + materiaNombre(proxExamen.a.materiaId), tone: 'warning' });
     kpis.push(promedio != null
       ? { label: 'Promedio general', valor: promedio + '%', sub: 'normalizado · 3 escalas distintas', tone: 'success' }
@@ -1226,8 +1230,8 @@
     var deltaEl = document.getElementById('progreso-semestre-delta');
     if (p.deltaVsAnterior != null) {
       var tone = p.deltaVsAnterior > 0 ? 'success' : (p.deltaVsAnterior < 0 ? 'danger' : 'neutral');
-      deltaEl.style.color = TONE[tone];
-      deltaEl.textContent = (p.deltaVsAnterior > 0 ? '▲ ' : p.deltaVsAnterior < 0 ? '▼ ' : '— ') + Math.abs(p.deltaVsAnterior) + ' pts vs. ' + p.nombreAnterior;
+      deltaEl.style.color = tone === 'neutral' ? 'var(--c-ink2)' : 'var(--c-' + tone + '-text)';
+      deltaEl.textContent = (p.deltaVsAnterior > 0 ? '▲ ' : p.deltaVsAnterior < 0 ? '▼ ' : '— ') + Math.abs(p.deltaVsAnterior) + (Math.abs(p.deltaVsAnterior) === 1 ? ' pt' : ' pts') + ' vs. ' + p.nombreAnterior;
     } else {
       deltaEl.textContent = '';
     }
@@ -1330,6 +1334,238 @@
     });
   }
 
+
+  // ================================================================
+  // CURVA DEL SEMESTRE (paridad con CargaSemestreWidget de la app móvil)
+  // ================================================================
+  // Evaluaciones del semestre activo agrupadas por semana (lun–dom). Misma
+  // lógica que src/lib/cargaSemestre.ts de la app: ventana mínima de 16
+  // semanas (máx. 26); `semestres` no guarda fecha de inicio, así que se usa
+  // la convención ORT — periodo "AAAA-1" arranca en marzo, "AAAA-2" en agosto.
+  var CARGA_SEMANAS_MIN = 16, CARGA_SEMANAS_MAX = 26;
+  var CARGA = { data: null, sel: 0 };
+  function cargaAddDias(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function cargaLunesDe(d) { return cargaAddDias(d, -((d.getDay() + 6) % 7)); }
+  function cargaInicioNominal(periodo) {
+    var m = /^(\d{4})-([12])$/.exec(periodo || '');
+    if (!m) return null;
+    var d = new Date(Number(m[1]), m[2] === '1' ? 2 : 7, 1);
+    return cargaAddDias(d, (8 - d.getDay()) % 7);
+  }
+  function computeCargaSemestre() {
+    var t = today();
+    var activo = loadSemestresRaw().filter(function (x) { return x.activo; })[0] || null;
+    var materias = {};
+    loadMateriasRaw().forEach(function (m) { materias[m.id] = m; });
+    var evals = agendaDeSemestre(activeSemestreId())
+      .filter(function (a) { return a.kind === 'evaluacion'; })
+      .sort(function (a, b) { return a.fecha.localeCompare(b.fecha) || (a.hora || '').localeCompare(b.hora || ''); });
+    var fechas = evals.map(function (e) { return parseISODate(e.fecha); });
+    var primera = fechas.length ? fechas.reduce(function (a, b) { return b < a ? b : a; }) : null;
+    var ultima = fechas.length ? fechas.reduce(function (a, b) { return b > a ? b : a; }) : null;
+    var inicio = cargaInicioNominal(activo && activo.periodo);
+    if (!inicio) {
+      var creado = activo && activo.createdAt ? parseISODate(activo.createdAt.slice(0, 10)) : null;
+      var anclas = [creado, primera].filter(function (d) { return d; });
+      inicio = cargaLunesDe(anclas.length ? anclas.reduce(function (a, b) { return b < a ? b : a; }) : t);
+    }
+    if (primera && primera < inicio) inicio = cargaLunesDe(primera);
+    var semanaDe = function (d) { return Math.floor(diffDias(d, inicio) / 7); };
+    var n = CARGA_SEMANAS_MIN;
+    if (ultima) n = Math.max(n, semanaDe(ultima) + 1);
+    if (t >= inicio) n = Math.max(n, semanaDe(t) + 1);
+    n = Math.min(n, CARGA_SEMANAS_MAX);
+    var semanas = [];
+    for (var i = 0; i < n; i++) semanas.push({ n: i + 1, inicio: cargaAddDias(inicio, i * 7), fin: cargaAddDias(inicio, i * 7 + 6), evaluaciones: [] });
+    var total = 0;
+    evals.forEach(function (e) {
+      var i = semanaDe(parseISODate(e.fecha));
+      if (i < 0 || i >= n) return;
+      var m = materias[e.materiaId];
+      semanas[i].evaluaciones.push({ id: e.id, titulo: e.titulo, fecha: e.fecha, hora: e.hora, hecho: e.hecho, nota: e.nota, notaMaxima: e.notaMaxima, materiaNombre: m ? m.nombre : '', colorId: m ? m.colorId : null });
+      total++;
+    });
+    var hoyIdx = t >= inicio ? semanaDe(t) : -1;
+    var hoy = hoyIdx >= 0 && hoyIdx < n ? hoyIdx : null;
+    var maxCantidad = 0, pico = null;
+    semanas.forEach(function (s, i) { if (s.evaluaciones.length > maxCantidad) { maxCantidad = s.evaluaciones.length; pico = i; } });
+    var libre = null;
+    for (var j = hoy == null ? 0 : hoy; j < n; j++) { if (!semanas[j].evaluaciones.length) { libre = j; break; } }
+    var sig = null;
+    for (var k = 0; k < evals.length; k++) { if (!evals[k].hecho && diffDias(parseISODate(evals[k].fecha), t) >= 0) { sig = evals[k]; break; } }
+    var proxima = null;
+    if (sig) { var ms = materias[sig.materiaId]; proxima = { titulo: sig.titulo, materiaNombre: ms ? ms.nombre : '', dias: diffDias(parseISODate(sig.fecha), t) }; }
+    return { semanas: semanas, total: total, hoy: hoy, pico: pico, libre: libre, maxCantidad: maxCantidad, proxima: proxima };
+  }
+  // Agrupa semanas por su mes "dominante" (el del jueves de la semana).
+  function cargaSegmentosPorMes(semanas) {
+    var out = [];
+    semanas.forEach(function (s, i) {
+      var j = cargaAddDias(s.inicio, 3);
+      var last = out[out.length - 1];
+      if (last && last.mes === j.getMonth() && last.anio === j.getFullYear()) last.hasta = i;
+      else out.push({ mes: j.getMonth(), anio: j.getFullYear(), desde: i, hasta: i });
+    });
+    return out;
+  }
+  function cargaRango(a, b) {
+    return a.getMonth() === b.getMonth()
+      ? a.getDate() + '–' + b.getDate() + ' ' + MESES_CORTOS[b.getMonth()]
+      : a.getDate() + ' ' + MESES_CORTOS[a.getMonth()] + ' – ' + b.getDate() + ' ' + MESES_CORTOS[b.getMonth()];
+  }
+  function cargaPlural(n, uno, varios) { return n + ' ' + (n === 1 ? uno : varios); }
+  // SVG con viewBox fijo: escala uniforme al ancho del contenedor, sin medir
+  // el DOM (círculos sin deformar). Sólo interpola números — nada de texto de
+  // usuario, por eso es seguro armarlo como string.
+  function cargaChartSvg(carga, sel, W, H, interactivo) {
+    var PT = 12, PB = 4, n = carga.semanas.length;
+    var yMax = Math.max(carga.maxCantidad, 4), yBase = H - PB, colW = W / n;
+    var pts = carga.semanas.map(function (s, i) { return { x: (i + 0.5) * colW, y: yBase - (s.evaluaciones.length / yMax) * (yBase - PT) }; });
+    var linea = pts.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
+    var area = 'M' + pts[0].x.toFixed(1) + ',' + yBase + ' ' + pts.map(function (p) { return 'L' + p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ') + ' L' + pts[n - 1].x.toFixed(1) + ',' + yBase + ' Z';
+    var h = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="presentation" focusable="false">';
+    [PT, (PT + yBase) / 2, yBase].forEach(function (y, i) { h += '<line class="carga-grid' + (i === 2 ? ' base' : '') + '" x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '"/>'; });
+    if (interactivo) cargaSegmentosPorMes(carga.semanas).slice(0, -1).forEach(function (sg) { var x = (sg.hasta + 1) * colW; h += '<line class="carga-grid" x1="' + x + '" x2="' + x + '" y1="' + PT + '" y2="' + yBase + '"/>'; });
+    h += '<path class="carga-area" d="' + area + '"/><polyline class="carga-line" points="' + linea + '"/>';
+    if (carga.pico != null) h += '<circle class="carga-pico-dot" cx="' + pts[carga.pico].x + '" cy="' + pts[carga.pico].y + '" r="4"/>';
+    var selPt = (interactivo || carga.hoy != null) ? pts[sel] : null;
+    if (selPt) h += '<line class="carga-cursor" x1="' + selPt.x + '" x2="' + selPt.x + '" y1="' + (PT - 8) + '" y2="' + yBase + '"/>';
+    if (carga.hoy != null && carga.hoy !== sel) {
+      var hp = pts[carga.hoy];
+      h += '<line class="carga-hoy-stem" x1="' + hp.x + '" x2="' + hp.x + '" y1="' + hp.y + '" y2="' + yBase + '"/><circle class="carga-hoy-dot" cx="' + hp.x + '" cy="' + hp.y + '" r="4.5"/>';
+    }
+    if (selPt) h += '<circle class="carga-sel-dot" cx="' + selPt.x + '" cy="' + selPt.y + '" r="3.5"/>';
+    return h + '</svg>';
+  }
+  function renderCargaCard() {
+    var card = document.getElementById('carga-card');
+    if (!card) return;
+    var carga = computeCargaSemestre();
+    CARGA.data = carga;
+    if (!carga.total) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    var n = carga.semanas.length;
+    document.getElementById('carga-card-meta').textContent = carga.hoy != null ? 'S' + (carga.hoy + 1) + ' / ' + n : n + ' semanas';
+    document.getElementById('carga-chart-mini').innerHTML = cargaChartSvg(carga, carga.hoy != null ? carga.hoy : 0, 320, 88, false);
+    var p = carga.proxima;
+    document.getElementById('carga-card-next-l').textContent = p ? 'Próxima · ' + (p.dias === 0 ? 'hoy' : p.dias === 1 ? 'mañana' : 'en ' + p.dias + ' días') : '';
+    document.getElementById('carga-card-next-t').textContent = p ? p.titulo + (p.materiaNombre ? ' — ' + p.materiaNombre : '') : 'Sin evaluaciones pendientes';
+    document.getElementById('carga-card-pico').textContent = carga.pico != null ? 'Pico S' + (carga.pico + 1) : '';
+    document.getElementById('carga-card-pico').classList.toggle('hidden', carga.pico == null);
+    if (!card._cargaBound) {
+      card._cargaBound = true;
+      card.addEventListener('click', openCargaModal);
+    }
+  }
+  function openCargaModal() {
+    var carga = computeCargaSemestre();
+    CARGA.data = carga;
+    CARGA.sel = carga.hoy != null ? carga.hoy : 0;
+    openModal('modal-carga');
+    bindCargaModal();
+    renderCargaModal();
+  }
+  function bindCargaModal() {
+    var chart = document.getElementById('carga-chart');
+    if (chart._cargaBound) return;
+    chart._cargaBound = true;
+    var selDesdeX = function (clientX) {
+      var r = chart.getBoundingClientRect(), n = CARGA.data.semanas.length;
+      var i = Math.max(0, Math.min(n - 1, Math.floor(((clientX - r.left) / r.width) * n)));
+      if (i !== CARGA.sel) { CARGA.sel = i; renderCargaModal(); }
+    };
+    // Hover en mouse, arrastre en touch/lápiz (igual que el dedo sobre la
+    // curva en la app); un click también selecciona.
+    chart.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' || e.buttons) selDesdeX(e.clientX); });
+    chart.addEventListener('pointerdown', function (e) { selDesdeX(e.clientX); });
+    chart.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      var i = Math.max(0, Math.min(CARGA.data.semanas.length - 1, CARGA.sel + d));
+      if (i !== CARGA.sel) { CARGA.sel = i; renderCargaModal(); }
+    });
+    var ir = function (key) { return function () { var v = CARGA.data[key]; if (v != null) { CARGA.sel = v; renderCargaModal(); } }; };
+    document.getElementById('carga-stat-pico').addEventListener('click', ir('pico'));
+    document.getElementById('carga-stat-libre').addEventListener('click', ir('libre'));
+  }
+  function renderCargaModal() {
+    var carga = CARGA.data, sel = CARGA.sel, n = carga.semanas.length;
+    var semana = carga.semanas[sel];
+    var chart = document.getElementById('carga-chart');
+    chart.innerHTML = cargaChartSvg(carga, sel, 640, 150, true);
+    chart.setAttribute('aria-valuemax', String(n));
+    chart.setAttribute('aria-valuenow', String(sel + 1));
+    chart.setAttribute('aria-valuetext', 'Semana ' + (sel + 1) + ', ' + cargaPlural(semana.evaluaciones.length, 'evaluación', 'evaluaciones'));
+    document.getElementById('carga-chip-hoy').textContent = carga.hoy != null ? 'Estás en S' + (carga.hoy + 1) : 'Fuera del semestre';
+    // Eje de meses
+    var axis = document.getElementById('carga-axis');
+    clear(axis);
+    var anioBase = carga.semanas[0].inicio.getFullYear();
+    cargaSegmentosPorMes(carga.semanas).forEach(function (sg) {
+      var sp = el('span', 'carga-mes' + (carga.hoy != null && carga.hoy >= sg.desde && carga.hoy <= sg.hasta ? ' is-hoy' : (sel >= sg.desde && sel <= sg.hasta ? ' is-sel' : '')));
+      sp.style.left = (sg.desde / n * 100) + '%'; sp.style.width = ((sg.hasta - sg.desde + 1) / n * 100) + '%';
+      var lbl = MESES_CORTOS[sg.mes]; lbl = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+      sp.textContent = lbl + (sg.anio !== anioBase ? " '" + String(sg.anio).slice(2) : '');
+      axis.appendChild(sp);
+    });
+    // Detalle de la semana
+    var det = document.getElementById('carga-detalle');
+    clear(det);
+    var head = el('div', 'carga-det-head');
+    var l = el('div', 'carga-det-title');
+    var b = el('b'); b.textContent = 'Semana ' + semana.n;
+    var r = el('span'); r.textContent = cargaRango(semana.inicio, semana.fin);
+    l.appendChild(b); l.appendChild(r);
+    head.appendChild(l);
+    var tags = el('div', 'carga-det-tags');
+    if (sel === carga.hoy) { var th = el('span', 'carga-tag is-acento'); th.textContent = 'Hoy'; tags.appendChild(th); }
+    if (sel === carga.pico) { var tp = el('span', 'carga-tag'); tp.textContent = 'Pico'; tags.appendChild(tp); }
+    head.appendChild(tags);
+    det.appendChild(head);
+    var cnt = el('span', 'carga-det-count'); cnt.textContent = semana.evaluaciones.length ? cargaPlural(semana.evaluaciones.length, 'evaluación', 'evaluaciones') : 'Semana libre';
+    det.appendChild(cnt);
+    var lista = el('div', 'carga-det-lista');
+    // Alto reservado (hasta 2 filas) para que lo de abajo no salte entre semanas.
+    lista.style.minHeight = (Math.min(Math.max(carga.maxCantidad, 1), 2) * 56) + 'px';
+    semana.evaluaciones.forEach(function (e) {
+      var f = parseISODate(e.fecha), color = (ACCENTS[e.colorId] || ACCENTS.gris).strong;
+      var fila = el('button', 'carga-fila'); fila.type = 'button';
+      var bar = el('span', 'carga-fila-bar'); bar.style.background = color;
+      var fecha = el('span', 'carga-fila-fecha');
+      var d1 = el('b'); d1.textContent = String(f.getDate());
+      var d2 = el('span'); d2.textContent = DIAS_CORTOS[f.getDay()];
+      fecha.appendChild(d1); fecha.appendChild(d2);
+      var txt = el('span', 'carga-fila-txt');
+      var t1 = el('b'); t1.textContent = e.titulo;
+      var t2 = el('span'); t2.textContent = [e.materiaNombre, e.hora].filter(Boolean).join(' · ');
+      txt.appendChild(t1); txt.appendChild(t2);
+      var est = el('span', 'carga-fila-estado mono');
+      if (e.hecho) {
+        est.textContent = e.nota != null ? fmtNotaCarga(e.nota) + (e.notaMaxima != null ? '/' + fmtNotaCarga(e.notaMaxima) : '') : 'Sin nota';
+        if (e.nota == null) est.classList.add('is-warn');
+      } else {
+        est.textContent = formatCountdown(e.fecha, e.hora, new Date());
+        if (est.textContent === 'vencido') est.classList.add('is-danger');
+      }
+      fila.appendChild(bar); fila.appendChild(fecha); fila.appendChild(txt); fila.appendChild(est);
+      fila.setAttribute('aria-label', e.titulo + (e.materiaNombre ? ', ' + e.materiaNombre : '') + ', ' + est.textContent);
+      fila.addEventListener('click', function () { closeAllModals(); openEvaluacionModal({ editId: e.id }); });
+      lista.appendChild(fila);
+    });
+    det.appendChild(lista);
+    // Stats
+    var setStat = function (id, valor, label, activo) {
+      var nodo = document.getElementById(id);
+      nodo.querySelector('b').textContent = valor; nodo.querySelector('span').textContent = label;
+      if (nodo.tagName === 'BUTTON') nodo.disabled = !activo;
+    };
+    setStat('carga-stat-pico', carga.pico != null ? 'S' + (carga.pico + 1) : '—', 'semana más cargada', carga.pico != null);
+    setStat('carga-stat-libre', carga.libre != null ? 'S' + (carga.libre + 1) : '—', carga.libre != null ? 'semana libre' : 'sin semanas libres', carga.libre != null);
+    setStat('carga-stat-total', String(carga.total), carga.total === 1 ? 'evaluación total' : 'evaluaciones totales', false);
+  }
+  function fmtNotaCarga(n) { return n % 1 === 0 ? String(n) : n.toFixed(1); }
+
   function renderInicio() {
     var t = today();
     var nombre = primerNombre(CURRENT_PROFILE && CURRENT_PROFILE.nombre);
@@ -1389,7 +1625,7 @@
       qf(node, 'valor').textContent = k.valor;
       var sub = qf(node, 'sub');
       sub.textContent = k.sub;
-      sub.style.color = k.tone === 'neutral' ? 'var(--c-ink3)' : TONE[k.tone];
+      sub.style.color = k.tone === 'neutral' ? 'var(--c-ink3)' : 'var(--c-' + k.tone + '-text)';
       kpiRow.appendChild(node);
     });
 
@@ -1446,7 +1682,17 @@
       empty.textContent = usandoMes ? 'No tenés nada agendado este mes.' : 'No tenés nada agendado para los próximos 7 días.';
       proxList.appendChild(empty);
     }
-    proximos.forEach(function (p) {
+    // Máx. 6 filas, priorizando lo académico sobre lo personal (después se
+    // reordena por fecha): antes una tanda de eventos personales dejaba el
+    // parcial al final y la lista cortaba una fila a la mitad con scroll
+    // interno. El resto queda en Agenda ("Ver N más").
+    var PROX_MAX = 6, proxVisibles = proximos;
+    if (proximos.length > PROX_MAX) {
+      var acad = proximos.filter(function (x) { return x.tipo === 'materia'; }).slice(0, PROX_MAX);
+      var pers = proximos.filter(function (x) { return x.tipo !== 'materia'; }).slice(0, PROX_MAX - acad.length);
+      proxVisibles = acad.concat(pers).sort(function (a, b) { return a.d - b.d; });
+    }
+    proxVisibles.forEach(function (p) {
       var node = tpl('prox-row');
       qf(node, 'dia').textContent = String(p.d.getDate());
       qf(node, 'mes').textContent = MESES_CORTOS[p.d.getMonth()].toUpperCase();
@@ -1471,10 +1717,17 @@
       if (p.tipo === 'materia') makeRowClickable(node, function () { openEvaluacionModal({ editId: p.item.id }); }, 'Abrir ' + p.item.titulo);
       proxList.appendChild(node);
     });
+    if (proximos.length > proxVisibles.length) {
+      var mas = el('button', 'prox-mas'); mas.type = 'button';
+      mas.textContent = 'Ver ' + (proximos.length - proxVisibles.length) + ' más en la agenda';
+      mas.addEventListener('click', function () { location.hash = '#agenda'; });
+      proxList.appendChild(mas);
+    }
 
     posicionarInicioHero();
     posicionarAccesosRapidos();
     renderInicioHero(proximos[0], t7);
+    renderCargaCard();
 
     var riesgo = computeMateriasDelActivo().filter(function (m) { return m.tone === 'danger' || m.tone === 'warning'; });
     var riesgoPanel = document.getElementById('riesgo-panel');
@@ -1491,7 +1744,7 @@
         inner.setAttribute('style', ringInnerStyle(64, 7));
         clear(inner);
         var v1 = el('span', 'ring-val mono'); v1.style.fontSize = '16px'; v1.textContent = m.notaTxt;
-        var v2 = el('span', 'ring-aprob mono'); v2.style.fontSize = '9px'; v2.textContent = '/' + val(m.esc.aprob, m.esc);
+        var v2 = el('span', 'ring-aprob mono'); v2.style.fontSize = '11px'; v2.textContent = '/' + val(m.esc.aprob, m.esc);
         inner.appendChild(v1); inner.appendChild(v2);
         qf(node, 'nombre').textContent = m.nombre;
         qf(node, 'riesgoTxt').textContent = m.riesgoTxt;
@@ -1515,14 +1768,13 @@
   // riesgo/Progreso/Accesos. Idempotente: llamarla de nuevo sin haber
   // cambiado de ancho no mueve nada.
   function posicionarInicioHero() {
+    // Paridad con la app: "Lo próximo" abre Inicio a todo el ancho en
+    // cualquier viewport, antes de las KPI — vive ahí en app.html, no se
+    // reubica más (antes iba a la columna derecha en desktop).
+    // (ahora los avisos van DEBAJO del hero, ver app.html: el hero es lo primero)
     var hero = document.getElementById('inicio-hero');
-    if (esMobile()) {
-      var kpiRow = document.getElementById('kpi-row');
-      if (hero.nextElementSibling !== kpiRow) kpiRow.parentNode.insertBefore(hero, kpiRow);
-    } else {
-      var colDerecha = document.getElementById('inicio-cols-right');
-      if (colDerecha.firstElementChild !== hero) colDerecha.insertBefore(hero, colDerecha.firstElementChild);
-    }
+    var primerAviso = document.getElementById('inicio-push-banner');
+    if (hero.nextElementSibling !== primerAviso) primerAviso.parentNode.insertBefore(hero, primerAviso);
   }
 
   // "Accesos rápidos" — en mobile pasa a ser la 4ta celda de la grilla 2x2
@@ -1533,14 +1785,11 @@
   // #kpi-row > #accesos-panel en styles.css para el estilo compacto que
   // toma sólo en esa posición.
   function posicionarAccesosRapidos() {
+    // Igual que en la app: una fila de accesos justo debajo de las KPI, en
+    // todos los anchos (vive ahí en app.html; ya no se mueve según viewport).
     var panel = document.getElementById('accesos-panel');
-    if (esMobile()) {
-      var kpiRow = document.getElementById('kpi-row');
-      if (panel.parentNode !== kpiRow) kpiRow.appendChild(panel);
-    } else {
-      var colDerecha = document.getElementById('inicio-cols-right');
-      if (panel.parentNode !== colDerecha) colDerecha.appendChild(panel);
-    }
+    var kpiRow = document.getElementById('kpi-row');
+    if (kpiRow.nextElementSibling !== panel) kpiRow.parentNode.insertBefore(panel, kpiRow.nextElementSibling);
   }
 
   // Card "Lo próximo" — el mismo primer ítem de proximos-list ya ordenado
@@ -1551,7 +1800,13 @@
   // C4) — ver posicionarInicioHero() para dónde cae en cada ancho.
   function renderInicioHero(p, t7) {
     var hero = document.getElementById('inicio-hero');
-    if (!p) { hero.style.display = 'none'; return; }
+    var materiasActivo = computeMateriasDelActivo();
+    // Sin nada por delante pero con materias ya cargadas: el hero pasa a ser
+    // el siguiente paso de la activación (agendar la primera evaluación, que
+    // es lo que hace aparecer countdown, "Lo próximo" y promedio). Sin
+    // materias no hay paso siguiente acá — Materias ya tiene su propio
+    // estado vacío con la primera acción.
+    if (!p && !materiasActivo.length) { hero.style.display = 'none'; return; }
     hero.style.display = '';
     var badgeEl = document.getElementById('inicio-hero-badge');
     var progressWrap = document.getElementById('inicio-hero-progress');
@@ -1559,18 +1814,38 @@
     var primary = document.getElementById('inicio-hero-primary');
     progressWrap.classList.add('hidden');
     secondary.classList.add('hidden');
+    if (!p) {
+      var sinAgenda = !agendaDeSemestre(activeSemestreId()).length;
+      badgeEl.removeAttribute('data-countdown-fecha'); badgeEl.setAttribute('style', css({ color: 'var(--c-ink2)' })); badgeEl.textContent = '';
+      document.getElementById('inicio-hero-title').textContent = sinAgenda ? 'Agendá tu primer parcial o entrega' : 'No tenés nada por delante';
+      document.getElementById('inicio-hero-meta').textContent = sinAgenda
+        ? 'Con una fecha cargada acá vas a ver cuánto falta, y con la nota, cómo venís en la materia.'
+        : 'Agregá lo que viene para tenerlo a la vista.';
+      renderTagChipInto(document.getElementById('inicio-hero-tag'), null);
+      primary.textContent = 'Agregar evaluación';
+      primary.onclick = function () { openEvaluacionModal({ materiaId: materiasActivo[0].id }); };
+      return;
+    }
 
     if (p.tipo === 'materia') {
       var m = computeMateriaById(p.item.materiaId);
       var badgeInfo = agendaBadgeInfo(p.item, t7);
-      badgeEl.setAttribute('style', badgeStyle(badgeInfo.tone)); badgeEl.textContent = badgeInfo.label;
+      // En la app el tiempo que falta es un dato chico y gris del encabezado,
+      // no una píldora de color: sólo urgente/vencido toma su tono.
+      badgeEl.setAttribute('style', css({ color: 'var(--c-ink2)' }));
+      // Cuenta regresiva en vivo (mismo helper que Próximos 7 días/Agenda,
+      // lo refresca tickCountdowns). Si el ítem ya está hecho no hay hacia
+      // qué contar: queda el estado ("Esperando nota", "Rendido").
+      if (p.item.hecho) { badgeEl.removeAttribute('data-countdown-fecha'); badgeEl.textContent = badgeInfo.label; }
+      else setCountdownEnNodo(badgeEl, p.item.fecha, p.item.hora, false);
       document.getElementById('inicio-hero-title').textContent = p.item.titulo;
       document.getElementById('inicio-hero-meta').textContent = (m ? m.nombre + ' · ' : '') + (p.item.hora ? p.item.hora + ' · ' : '') + p.item.tipo;
       if (m && m.actual != null) {
         progressWrap.classList.remove('hidden');
         var pct = Math.max(0, Math.min(100, (m.actual / m.esc.total) * 100));
         document.getElementById('inicio-hero-bar').setAttribute('style', css({ width: pct + '%', background: TONE[m.tone] }));
-        document.getElementById('inicio-hero-sub').textContent = m.riesgoTxt || ('Vas aprobando · aprobás con ' + m.aprobTxt + '.');
+        document.getElementById('inicio-hero-sub').textContent = m.riesgoTxt || ('Vas aprobando · aprobás con ' + m.aprobTxt);
+        document.getElementById('inicio-hero-progress').setAttribute('title', 'Tu nota actual en la materia sobre el total');
       }
       // Bloque 6: "Abrir materia" va a la materia (antes abría el modal de
       // la evaluación, que ya tiene su propio punto de entrada en la fila
@@ -1592,7 +1867,9 @@
         location.hash = '#agenda';
       };
     } else {
-      badgeEl.setAttribute('style', badgeStyle('neutral')); badgeEl.textContent = 'Personal';
+      badgeEl.setAttribute('style', css({ color: 'var(--c-ink2)' }));
+      if (p.item.fecha) setCountdownEnNodo(badgeEl, p.item.fecha, p.item.todoElDia ? '' : p.item.hora, false);
+      else { badgeEl.removeAttribute('data-countdown-fecha'); badgeEl.textContent = 'Personal'; }
       document.getElementById('inicio-hero-title').textContent = p.item.titulo;
       document.getElementById('inicio-hero-meta').textContent = p.item.todoElDia ? 'Todo el día' : (p.item.hora || '');
       primary.textContent = 'Ver en agenda';
@@ -1681,7 +1958,7 @@
     if (p.deltaVsAnterior != null) {
       var tone = p.deltaVsAnterior > 0 ? 'success' : (p.deltaVsAnterior < 0 ? 'danger' : 'neutral');
       deltaEl.style.color = TONE[tone];
-      deltaEl.textContent = (p.deltaVsAnterior > 0 ? '▲ ' : p.deltaVsAnterior < 0 ? '▼ ' : '— ') + Math.abs(p.deltaVsAnterior) + ' pts vs. ' + p.nombreAnterior;
+      deltaEl.textContent = (p.deltaVsAnterior > 0 ? '▲ ' : p.deltaVsAnterior < 0 ? '▼ ' : '— ') + Math.abs(p.deltaVsAnterior) + (Math.abs(p.deltaVsAnterior) === 1 ? ' pt' : ' pts') + ' vs. ' + p.nombreAnterior;
     } else {
       deltaEl.textContent = '';
     }
@@ -1966,10 +2243,10 @@
       var delta = puntoActivo.promedio - puntoAnterior.promedio;
       var tone = delta > 0 ? 'success' : (delta < 0 ? 'danger' : 'neutral');
       var row = el('div', 'progreso-delta');
-      row.style.color = TONE[tone];
+      row.style.color = tone === 'neutral' ? 'var(--c-ink2)' : 'var(--c-' + tone + '-text)';
       var val = el('span', 'progreso-delta-val'); val.textContent = puntoActivo.promedio + '%';
       var d = el('span', 'progreso-delta-d');
-      d.textContent = (delta > 0 ? '▲ ' : delta < 0 ? '▼ ' : '— ') + Math.abs(delta) + ' pts vs. ' + anterior.nombre;
+      d.textContent = (delta > 0 ? '▲ ' : delta < 0 ? '▼ ' : '— ') + Math.abs(delta) + (Math.abs(delta) === 1 ? ' pt' : ' pts') + ' vs. ' + anterior.nombre;
       row.appendChild(val); row.appendChild(d);
       deltaWrap.appendChild(row);
     }
@@ -3163,7 +3440,13 @@
     var list = document.getElementById('cal-side-list');
     clear(list);
     if (!all.length) {
-      var e = el('div', 'cal-side-empty'); e.textContent = 'Nada agendado este día.'; list.appendChild(e);
+      var e = el('div', 'cal-side-empty');
+      // Primer uso: sin ninguna fecha cargada en todo el semestre, el texto
+      // pasa de "este día" a decir qué llega acá (mismo criterio que "Tu
+      // agenda está vacía" en la app).
+      var calVacio = !agendaDeSemestre(activeSemestreId()).length;
+      e.textContent = calVacio ? 'Tu calendario está vacío. Agregá un parcial, una entrega o un plan y aparece acá, junto con tus clases.' : 'Nada agendado este día.';
+      list.appendChild(e);
     }
     all.forEach(function (item) {
       var node = tpl('cal-day-card');
@@ -3236,8 +3519,10 @@
         node.style.gridColumn = Number(dia) + 1;
         // *2: la grilla ahora tiene una fila cada media hora, no cada hora.
         node.style.gridRow = ((b.ini - 8) * 2 + 2) + ' / span ' + ((b.fin - b.ini) * 2);
-        node.style.background = b.m.soft; node.style.color = b.m.strong;
-        node.style.borderColor = rgba(b.m.strong, .35); node.style.borderLeftColor = b.m.strong;
+        // Como en la app: fondo suave de la materia, texto en tinta y un punto
+        // del color de identidad junto al nombre (el color por sí solo no da
+        // contraste como texto sobre su propio tinte). --blk lo lee el CSS.
+        node.style.background = b.m.soft; node.style.setProperty('--blk', b.m.strong);
         var anchoPct = 100 / b.cols;
         node.style.width = 'calc(' + anchoPct + '% - 2px)';
         node.style.marginLeft = 'calc(' + (anchoPct * b.slot) + '% + 1px)';
@@ -3262,6 +3547,44 @@
       onClick: function (m) { location.hash = '#materia-' + m.id; }
     });
     renderHorarioMobile(res.dias, res.porDia, res.cols);
+    renderHorarioArmar();
+  }
+
+  // Primer uso de Horario (misma lógica que la app): el semestre sin ninguna
+  // franja cargada pasa entero a "Armá tu semana", con las materias a un
+  // click de su formulario; con algunas clases ya cargadas, las que faltan
+  // quedan al pie como "Sin horario todavía". Las aprobadas no cursan.
+  function renderHorarioArmar() {
+    var materias = computeMateriasDelActivo();
+    var conHorario = materias.filter(function (m) { return m.bloques && m.bloques.length; }).length;
+    var sinHorario = materias.filter(function (m) { return m.estado !== 'aprobada' && !(m.bloques && m.bloques.length); });
+    var vacia = conHorario === 0;
+    var box = document.getElementById('horario-armar');
+    document.getElementById('horario').classList.toggle('is-vacio', vacia);
+    box.classList.toggle('hidden', !sinHorario.length && !vacia);
+    box.classList.toggle('is-pie', !vacia);
+    var nueva = document.getElementById('btn-horario-armar-nueva');
+    nueva.classList.toggle('hidden', sinHorario.length > 0);
+    nueva.onclick = function () { openMateriaModal(null); };
+    var list = document.getElementById('horario-armar-list');
+    clear(list);
+    list.classList.toggle('hidden', !sinHorario.length);
+    document.getElementById('horario-armar-t').textContent = vacia ? 'Armá tu semana' : 'Sin horario todavía';
+    document.getElementById('horario-armar-s').textContent = !vacia ? ''
+      : (sinHorario.length
+        ? 'Tocá cada materia y sumá el día y la hora en que la cursás. Cada clase aparece acá apenas la guardás.'
+        : 'Todavía no tenés materias en este semestre. Cargá la primera y después sumale su horario.');
+    document.getElementById('horario-armar-s').classList.toggle('hidden', !vacia);
+    sinHorario.forEach(function (m) {
+      var row = el('button', 'horario-armar-row'); row.type = 'button';
+      var dot = el('span', 'dot'); dot.style.background = m.strong;
+      var n = el('span', 'n'); n.textContent = m.nombre;
+      var a = el('span', 'a'); a.textContent = '+ Horario';
+      row.appendChild(dot); row.appendChild(n); row.appendChild(a);
+      row.setAttribute('aria-label', 'Agregar horario de ' + m.nombre);
+      row.addEventListener('click', function () { openMateriaModal(m.id); });
+      list.appendChild(row);
+    });
   }
 
   // Día seleccionado + timeline vertical (mobile, dirección Pro Edition) —
@@ -3283,6 +3606,11 @@
       btn.classList.toggle('is-on', STATE.horarioDia === dayNum);
       var wd = el('span', 'wd'); wd.textContent = dd;
       btn.appendChild(wd);
+      // Fecha de ese día en la semana en curso (lun–sáb), como el selector de la app.
+      var t0 = today(), fechaDia = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate() - ((t0.getDay() + 6) % 7) + i);
+      var num = el('span', 'num'); num.textContent = String(fechaDia.getDate());
+      btn.appendChild(num);
+      if (fechaDia.getTime() === t0.getTime()) btn.classList.add('is-hoy');
       var dot = el('span', 'dot');
       if (!(porDia[dayNum] && porDia[dayNum].length)) dot.style.visibility = 'hidden';
       btn.appendChild(dot);
@@ -3294,21 +3622,45 @@
     var timeline = document.getElementById('horario-timeline');
     clear(timeline);
     var bloquesDia = (porDia[STATE.horarioDia] || []).slice().sort(function (a, b) { return a.ini - b.ini; });
+    // Título del día + resumen ("3 clases · 5 h · primera 08:00"), como en la app.
+    var DIAS_LARGOS_H = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    var t1 = today(), fechaSel = new Date(t1.getFullYear(), t1.getMonth(), t1.getDate() - ((t1.getDay() + 6) % 7) + (STATE.horarioDia - 1));
+    var dayhead = document.getElementById('horario-dayhead');
+    clear(dayhead);
+    var dh1 = el('b'); dh1.textContent = DIAS_LARGOS_H[STATE.horarioDia] + ' ' + fechaSel.getDate();
+    var dh2 = el('span');
+    if (bloquesDia.length) {
+      var horasTot = bloquesDia.reduce(function (acc, b) { return acc + (b.fin - b.ini); }, 0);
+      dh2.textContent = cargaPlural(bloquesDia.length, 'clase', 'clases') + ' · ' + (horasTot % 1 === 0 ? horasTot : horasTot.toFixed(1)) + ' h · primera ' + horaTexto(bloquesDia[0].ini);
+    } else dh2.textContent = 'Sin clases este día';
+    dayhead.appendChild(dh1); dayhead.appendChild(dh2);
     if (!bloquesDia.length) {
       var empty = el('div', 'horario-timeline-empty');
       empty.textContent = 'No tenés clases este día.';
       timeline.appendChild(empty);
       return;
     }
-    bloquesDia.forEach(function (b) {
+    bloquesDia.forEach(function (b, bi) {
+      // Hueco libre entre dos clases (más de 1 h), línea punteada como en la app.
+      var prevB = bloquesDia[bi - 1];
+      if (prevB && b.ini - prevB.fin > 1) {
+        var hueco = b.ini - prevB.fin;
+        var gapEl = el('div', 'horario-timeline-gap');
+        gapEl.appendChild(el('i'));
+        var gt = el('span'); gt.textContent = (hueco % 1 === 0 ? hueco : hueco.toFixed(1)) + ' h libres';
+        gapEl.appendChild(gt); gapEl.appendChild(el('i'));
+        timeline.appendChild(gapEl);
+      }
       var row = el('div', 'horario-timeline-row');
-      var hora = el('span', 'horario-timeline-hora'); hora.textContent = horaTexto(b.ini);
+      var hora = el('span', 'horario-timeline-hora');
+      var hIni = el('b'); hIni.textContent = horaTexto(b.ini);
+      var hFin = el('span'); hFin.textContent = horaTexto(b.fin);
+      hora.appendChild(hIni); hora.appendChild(hFin);
       var block = el('div', 'horario-timeline-block');
-      block.style.background = b.m.soft; block.style.borderLeftColor = b.m.strong; block.style.color = b.m.strong;
+      block.style.background = b.m.soft; block.style.setProperty('--blk', b.m.strong);
       var n = el('span', 'n'); n.textContent = b.m.nombre;
-      var h = el('span', 'h'); h.textContent = horaTexto(b.ini) + ' – ' + horaTexto(b.fin);
-      var s = el('span', 's'); s.textContent = b.m.salon || 'Sin salón asignado';
-      block.appendChild(n); block.appendChild(h); block.appendChild(s);
+      var s = el('span', 's'); s.textContent = [b.m.salon, b.m.doc].filter(Boolean).join(' · ') || 'Sin salón asignado';
+      block.appendChild(n); block.appendChild(s);
       makeRowClickable(block, function () { location.hash = '#materia-' + b.m.id; }, 'Ver materia ' + b.m.nombre);
       row.appendChild(hora); row.appendChild(block);
       timeline.appendChild(row);

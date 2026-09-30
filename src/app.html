@@ -216,11 +216,32 @@
       </header>
       <div class="view">
         <div class="inicio-head">
-          <div style="display:flex;flex-direction:column;gap:5px">
+          <div class="inicio-head-text">
             <span class="inicio-hello" id="inicio-hello">Hola, Joaquín</span>
             <span class="inicio-date mono" id="inicio-date"></span>
           </div>
           <span class="inicio-note" id="inicio-note"></span>
+        </div>
+        <div class="inicio-hero" id="inicio-hero">
+          <div class="inicio-hero-inner">
+            <div class="inicio-hero-head">
+              <span class="inicio-hero-label">Lo próximo</span>
+              <span class="badge" id="inicio-hero-badge"></span>
+            </div>
+            <div class="inicio-hero-body">
+              <span class="inicio-hero-title" id="inicio-hero-title"></span>
+              <span class="inicio-hero-meta" id="inicio-hero-meta"></span>
+              <span class="chip hidden" id="inicio-hero-tag" style="margin-top:2px"></span>
+            </div>
+            <div class="inicio-hero-progress hidden" id="inicio-hero-progress">
+              <div class="bar-wrap" role="img" aria-label="Tu nota actual en la materia sobre el total"><div class="bar-fill" id="inicio-hero-bar"></div></div>
+              <span class="inicio-hero-sub" id="inicio-hero-sub"></span>
+            </div>
+            <div class="inicio-hero-actions">
+              <button type="button" class="btn btn-primary" id="inicio-hero-primary"></button>
+              <button type="button" class="btn btn-ghost hidden" id="inicio-hero-secondary">Ver en agenda</button>
+            </div>
+          </div>
         </div>
         <div class="card push-banner hidden" id="inicio-push-banner">
           <div class="push-banner-text">
@@ -250,28 +271,17 @@
             <button type="button" class="btn btn-primary" id="btn-inicio-notas-pendientes">Cargar notas</button>
           </div>
         </div>
-        <div class="inicio-hero" id="inicio-hero">
-          <div class="inicio-hero-inner">
-            <div class="inicio-hero-head">
-              <span class="inicio-hero-eyebrow">Lo próximo</span>
-              <span class="badge" id="inicio-hero-badge"></span>
-            </div>
-            <div class="inicio-hero-body">
-              <span class="inicio-hero-title" id="inicio-hero-title"></span>
-              <span class="inicio-hero-meta" id="inicio-hero-meta"></span>
-              <span class="chip hidden" id="inicio-hero-tag" style="margin-top:2px"></span>
-            </div>
-            <div class="inicio-hero-progress hidden" id="inicio-hero-progress">
-              <div class="bar-wrap"><div class="bar-fill" id="inicio-hero-bar"></div></div>
-              <span class="inicio-hero-sub" id="inicio-hero-sub"></span>
-            </div>
-            <div class="inicio-hero-actions">
-              <button type="button" class="btn btn-primary" id="inicio-hero-primary"></button>
-              <button type="button" class="btn btn-ghost hidden" id="inicio-hero-secondary">Ver en agenda</button>
-            </div>
+        <div class="kpi-row" id="kpi-row"></div>
+        <div class="accesos-panel" id="accesos-panel">
+          <h2 class="panel-title">Accesos rápidos</h2>
+          <div class="accesos-row">
+            <button class="acceso-btn" id="acceso-materia" aria-label="Materia"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span class="acceso-label">Materia</span></button>
+            <button class="acceso-btn" id="acceso-entrega" aria-label="Tarea o evaluación"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="acceso-label">Tarea o evaluación</span></button>
+            <button class="acceso-btn" id="acceso-evento" aria-label="Evento personal"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg><span class="acceso-label">Evento personal</span></button>
+            <button class="acceso-btn" data-nav="horario" aria-label="Ver horario"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span class="acceso-label">Ver horario</span></button>
           </div>
         </div>
-        <div class="kpi-row" id="kpi-row"></div>
+
         <div class="inicio-cols">
           <div class="card panel" style="flex:1.55;min-width:340px">
             <div class="panel-head">
@@ -302,23 +312,20 @@
               </div>
               <div id="inicio-esperando-nota-list"></div>
             </div>
-            <div class="card panel hidden" id="progreso-widget">
-              <div class="panel-head">
-                <h2 class="panel-title">Progreso</h2>
-                <a class="panel-hint" href="#progreso">ver detalle</a>
-              </div>
-              <div id="progreso-widget-delta"></div>
-              <div id="progreso-widget-materias"></div>
-            </div>
-            <div class="card panel" id="accesos-panel">
-              <h2 class="panel-title">Accesos rápidos</h2>
-              <div class="accesos-row">
-                <button class="acceso-btn" id="acceso-materia" aria-label="Materia"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span class="acceso-label">Materia</span></button>
-                <button class="acceso-btn" id="acceso-entrega" aria-label="Tarea o evaluación"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="acceso-label">Tarea o evaluación</span></button>
-                <button class="acceso-btn" id="acceso-evento" aria-label="Evento personal"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg><span class="acceso-label">Evento personal</span></button>
-                <button class="acceso-btn" data-nav="horario" aria-label="Ver horario"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span class="acceso-label">Ver horario</span></button>
-              </div>
-            </div>
+            <button type="button" class="card carga-card hidden" id="carga-card" aria-haspopup="dialog">
+              <span class="carga-card-head">
+                <span class="panel-title">Curva del semestre</span>
+                <span class="carga-card-meta" id="carga-card-meta"></span>
+              </span>
+              <span class="carga-chart-mini" id="carga-chart-mini" aria-hidden="true"></span>
+              <span class="carga-card-foot">
+                <span class="carga-card-next">
+                  <span class="carga-card-next-l" id="carga-card-next-l"></span>
+                  <span class="carga-card-next-t" id="carga-card-next-t"></span>
+                </span>
+                <span class="carga-pico" id="carga-card-pico"></span>
+              </span>
+            </button>
           </div>
         </div>
         <!-- Movida al final de Inicio (antes iba arriba, antes de "Próximos 7
@@ -354,6 +361,12 @@
               <div class="progreso-semestre-ring" id="progreso-semestre-ring"></div>
             </div>
             <div class="progreso-semestre-materias" id="progreso-semestre-materias"></div>
+          </div>
+          <!-- "Hacia el título": antes vivía en una tarjeta "Progreso" aparte que
+               repetía el promedio y el delta de esta. Ahora es una fila más. -->
+          <div class="progreso-titulo hidden" id="progreso-widget">
+            <div id="progreso-widget-delta" hidden></div>
+            <div id="progreso-widget-materias"></div>
           </div>
         </div>
       </div>
@@ -607,10 +620,23 @@
         </div>
       </header>
       <div class="view">
+        <!-- Primer uso (ver renderHorario): materias del semestre sin ninguna
+             franja. Con la semana vacía ocupa toda la vista ("Armá tu
+             semana"); con algunas clases cargadas queda al pie como "Sin
+             horario todavía". Misma lógica que Horario en la app. -->
+        <div class="horario-armar hidden" id="horario-armar">
+          <div class="horario-armar-copy">
+            <h2 class="horario-armar-t" id="horario-armar-t"></h2>
+            <p class="horario-armar-s" id="horario-armar-s"></p>
+          </div>
+          <div class="horario-armar-list" id="horario-armar-list"></div>
+          <button type="button" class="btn btn-primary hidden" id="btn-horario-armar-nueva">Cargar una materia</button>
+        </div>
         <!-- Mobile (≤760px): día seleccionado + timeline en vez de la
              grilla Lun–Sáb (ver renderHorario() en runtime.js). Ocultos por
              defecto (ver styles.css) — invisibles fuera de ese breakpoint. -->
         <div class="horario-daysel" id="horario-daysel"></div>
+        <div class="horario-dayhead" id="horario-dayhead"></div>
         <div class="horario-timeline" id="horario-timeline"></div>
         <div class="horario-grid-wrap">
           <div class="horario-grid" id="horario-grid"></div>
@@ -744,11 +770,11 @@
     <button type="button" id="row-menu-eliminar" class="danger">Eliminar</button>
   </div>
   <nav class="tabbar" id="tabbar" aria-label="Navegación principal">
-    <button class="tab" data-nav="inicio" aria-label="Inicio" title="Inicio"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></button>
-    <button class="tab" data-nav="materias" aria-label="Materias" title="Materias"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg></button>
-    <button class="tab" data-nav="agenda" aria-label="Agenda" title="Agenda"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg></button>
-    <button class="tab" data-nav="calendario" aria-label="Calendario" title="Calendario"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
-    <button class="tab" data-nav="horario" aria-label="Horario" title="Horario"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></button>
+    <button class="tab" data-nav="inicio" aria-label="Inicio" title="Inicio"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span>Inicio</span></button>
+    <button class="tab" data-nav="materias" aria-label="Materias" title="Materias"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg><span>Materias</span></button>
+    <button class="tab" data-nav="agenda" aria-label="Agenda" title="Agenda"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Agenda</span></button>
+    <button class="tab" data-nav="calendario" aria-label="Calendario" title="Calendario"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Calendario</span></button>
+    <button class="tab" data-nav="horario" aria-label="Horario" title="Horario"><svg class="ico nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg><span>Horario</span></button>
   </nav>
 </div>
 
@@ -767,7 +793,7 @@
       </div>
       <div class="ob-cta">
         <div class="cta-glow" style="--cta-glow-r:12px"><button class="btn btn-primary" id="btn-ob-empezar">Crear mi primera materia</button></div>
-        <span class="hint">Toma 40 segundos · sin registro</span>
+        <span class="hint">Toma 40 segundos · lo editás cuando quieras</span>
       </div>
     </div>
     <span class="ob-foot">Nota 0–12, puntaje o porcentaje · pensado para facultades uruguayas</span>
@@ -1079,6 +1105,28 @@
     <div class="modal-foot" style="justify-content:flex-end">
       <button type="button" class="btn" data-close-modal>Ahora no</button>
       <button type="button" class="btn btn-primary" id="btn-asistencia-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL CURVA DEL SEMESTRE ============ -->
+<div class="modal-backdrop is-sheet" id="modal-carga" role="dialog" aria-modal="true" aria-labelledby="modal-carga-title">
+  <div class="modal modal-lg">
+    <div class="sheet-grabber"></div>
+    <div class="modal-head">
+      <div class="titles"><h2 class="t" id="modal-carga-title">Curva del semestre</h2><span class="s">Evaluaciones por semana</span></div>
+      <span class="carga-chip-hoy" id="carga-chip-hoy"></span>
+      <button class="modal-close" data-close-modal aria-label="Cerrar">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="carga-chart" id="carga-chart" tabindex="0" role="slider" aria-label="Curva de carga por semana" aria-valuemin="1"></div>
+      <div class="carga-axis" id="carga-axis" aria-hidden="true"></div>
+      <div class="carga-detalle" id="carga-detalle" aria-live="polite"></div>
+      <div class="carga-stats">
+        <button type="button" class="carga-stat" id="carga-stat-pico"><b></b><span></span></button>
+        <button type="button" class="carga-stat" id="carga-stat-libre"><b></b><span></span></button>
+        <div class="carga-stat" id="carga-stat-total"><b></b><span></span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1503,6 +1551,9 @@
      computeKpis() — ver renderInicio(). No van en <defs>/<symbol> porque
      tpl() clona firstElementChild tal cual, mismo mecanismo que cualquier
      otro template de fila. -->
+<template data-template="ico-kpi-cursando">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>
+</template>
 <template data-template="ico-kpi-evaluacion">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
 </template>
