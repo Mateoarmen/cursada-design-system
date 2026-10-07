@@ -195,7 +195,90 @@
     return { message: 'JWT expired', code: 'PGRST301' };
   }
 
+  // ---------------------------------------------------------------
+  // Cuadernos de apuntes: builder más completo (insert/update/delete
+  // encadenables con .eq() y .select().single()) para cuadernos/apuntes, y
+  // Storage en memoria (los "signed URLs" son blob: URLs del archivo subido).
+  // window.__CURSADA_MOCK_APUNTES_FAIL__ = true hace fallar las escrituras de
+  // apuntes (para probar el reintento del autoguardado).
+  // window.__CURSADA_MOCK_CUOTA__ = n cambia la cuota (bytes) para probarla.
+  // ---------------------------------------------------------------
+  TABLES.cuadernos = [];
+  TABLES.apuntes = [];
+  var STORAGE_APUNTES = {}; // path -> { file, size, type }
+  window.__CURSADA_MOCK_STORAGE__ = STORAGE_APUNTES;
+  function richBuilder(table) {
+    var filters = [], op = 'select', payload = null, single = false, maybe = false;
+    function match(r) { return filters.every(function (f) { return r[f[0]] === f[1]; }); }
+    function run() {
+      if (op !== 'select' && table === 'apuntes' && window.__CURSADA_MOCK_APUNTES_FAIL__) return { data: null, error: { message: 'network error (mock)' } };
+      var now = new Date().toISOString(), rows;
+      if (op === 'insert') {
+        var r = Object.assign({ id: (crypto.randomUUID ? crypto.randomUUID() : 'mock-' + Date.now()), user_id: FAKE_USER.id, created_at: now, updated_at: now, orden: null }, payload);
+        if (table === 'apuntes' && r.tipo === 'archivo') {
+          var cuota = window.__CURSADA_MOCK_CUOTA__ || 500 * 1024 * 1024;
+          var usado = TABLES.apuntes.reduce(function (acc, a) { return acc + (a.tamano_bytes || 0); }, 0);
+          if (usado + r.tamano_bytes > cuota) return { data: null, error: { message: 'cuota_excedida', code: 'P0001' } };
+        }
+        TABLES[table].push(r); rows = [r];
+      } else if (op === 'update') {
+        rows = TABLES[table].filter(match);
+        rows.forEach(function (r) { Object.assign(r, payload, { updated_at: now }); });
+      } else if (op === 'delete') {
+        rows = TABLES[table].filter(match);
+        TABLES[table] = TABLES[table].filter(function (r) { return !match(r); });
+        if (table === 'cuadernos') TABLES.apuntes = TABLES.apuntes.filter(function (a) { return rows.every(function (c) { return c.id !== a.cuaderno_id; }); });
+      } else {
+        rows = TABLES[table].filter(match);
+      }
+      rows = rows.map(function (r) { return JSON.parse(JSON.stringify(r)); });
+      if (single || maybe) return { data: rows[0] || null, error: single && !rows[0] ? { message: 'no rows' } : null };
+      return { data: rows, error: null };
+    }
+    var b = {
+      select: function () { return b; },
+      order: function () { return b; },
+      eq: function (c, v) { filters.push([c, v]); return b; },
+      insert: function (row) { op = 'insert'; payload = row; return b; },
+      update: function (patch) { op = 'update'; payload = patch; return b; },
+      delete: function () { op = 'delete'; return b; },
+      single: function () { single = true; return b; },
+      maybeSingle: function () { maybe = true; return b; },
+      then: function (res, rej) {
+        return new Promise(function (r) { setTimeout(r, 120); }).then(run).then(res, rej);
+      }
+    };
+    return b;
+  }
+  function storageApuntes() {
+    return {
+      upload: function (path, file) {
+        return new Promise(function (r) { setTimeout(r, 600); }).then(function () {
+          if (STORAGE_APUNTES[path]) return { data: null, error: { message: 'The resource already exists' } };
+          STORAGE_APUNTES[path] = { file: file, size: file.size, type: file.type };
+          return { data: { path: path }, error: null };
+        });
+      },
+      remove: function (paths) {
+        paths.forEach(function (p) { delete STORAGE_APUNTES[p]; });
+        return Promise.resolve({ data: paths.map(function (p) { return { name: p }; }), error: null });
+      },
+      list: function (prefix, opts) {
+        var pre = prefix.replace(/\/$/, '') + '/';
+        var names = Object.keys(STORAGE_APUNTES).filter(function (p) { return p.indexOf(pre) === 0 && p.slice(pre.length).indexOf('/') < 0; })
+          .map(function (p) { return { id: p, name: p.slice(pre.length) }; });
+        return Promise.resolve({ data: names.slice(0, (opts && opts.limit) || 100), error: null });
+      },
+      createSignedUrl: function (path) {
+        var o = STORAGE_APUNTES[path];
+        if (!o) return Promise.resolve({ data: null, error: { message: 'Object not found' } });
+        return Promise.resolve({ data: { signedUrl: URL.createObjectURL(o.file) }, error: null });
+      }
+    };
+  }
+
   function queryBuilder(table) {
+    if (table === 'cuadernos' || table === 'apuntes') return richBuilder(table);
     var state = { filters: [] };
     var api = {
       select: function () { return api; },
@@ -482,6 +565,17 @@
     } else if (name === 'aplicar_plan') {
       (params.p_materia_ids || []).forEach(function (id) { mockUpsertMateriaSinHorario(params.p_semestre_id, id); });
       data = null;
+    } else if (name === 'obtener_cuaderno_default') {
+      var c = TABLES.cuadernos.filter(function (x) { return x.materia_id === params.p_materia_id && x.es_default; })[0];
+      if (!c) {
+        if (!TABLES.materias.some(function (m) { return m.id === params.p_materia_id; })) return Promise.resolve({ data: null, error: { message: 'new row violates row-level security policy for table "cuadernos"' } });
+        var ts = new Date().toISOString();
+        c = { id: 'cuad-' + params.p_materia_id, user_id: FAKE_USER.id, materia_id: params.p_materia_id, titulo: 'Apuntes', orden: 0, es_default: true, created_at: ts, updated_at: ts };
+        TABLES.cuadernos.push(c);
+      }
+      data = Object.assign({}, c);
+    } else if (name === 'uso_almacenamiento') {
+      data = { usado: TABLES.apuntes.reduce(function (acc, a) { return acc + (a.tamano_bytes || 0); }, 0), cuota: window.__CURSADA_MOCK_CUOTA__ || 500 * 1024 * 1024 };
     } else if (name === 'aplicar_agenda') {
       mockGenerarAgendaParaSemestre(params.p_semestre_id);
       data = null;
@@ -526,7 +620,8 @@
     from: queryBuilder,
     rpc: mockRpc,
     storage: {
-      from: function () {
+      from: function (bucket) {
+        if (bucket === 'apuntes') return storageApuntes();
         return {
           upload: function () { return Promise.resolve({ data: {}, error: null }); },
           getPublicUrl: function () { return { data: { publicUrl: 'https://placehold.co/256x256/0A63F0/ffffff.jpg?text=Q' } }; }

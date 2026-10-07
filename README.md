@@ -123,6 +123,10 @@ src/app.html                → chrome estático + <template> de cada listado di
 src/styles.css              → tokens claro/oscuro, acentos de materia, layout
 src/supabase-client.js      → credenciales + inicialización del cliente de Supabase
 src/runtime.js              → router, auth, persistencia (Supabase), lógica de estilo/notas, CRUD
+src/apuntes.js              → Cuadernos de apuntes (pestaña Apuntes del detalle de materia)
+src/apuntes-editor.entry.js → editor Tiptap + DOMPurify, empaquetado aparte a out/apuntes-editor.js
+supabase/migrations/        → migraciones SQL versionadas (desde Cuadernos de apuntes)
+docs/apuntes-backend.md     → contrato de backend de apuntes (referencia para la app iOS)
 src/seed.js                  → datos de ejemplo (sin usar hoy, ver arriba)
 out/Cursada.html             → el entregable final
 ```
@@ -4770,3 +4774,145 @@ No se tocó el contrato de `runtime.js` (`data-f`, `TONE`, `MODAL_FORMS`).
 - "Próximos 7 días": máx. 6 filas priorizando lo académico, sin scroll interno, con "Ver N más en la agenda".
 - Se fusionó "Progreso" en "Progreso del semestre" ("Hacia el título" quedó como fila); "Materias en riesgo" sube al primer lugar de la columna derecha.
 - El primario en claro vuelve a ser el azul de marca #0A63F0 (antes #0847B4, el `accentDeep` de la app).
+
+## Cuadernos de apuntes (MVP)
+
+Cada materia tiene un cuaderno donde se escriben notas (solo en la web, por
+ahora) y se suben archivos (PDF, imágenes, Word, PowerPoint y Excel). La app
+iOS va a usar el mismo backend: el contrato completo (esquema, políticas,
+rutas del bucket, formato de `contenido_html` y constantes) está en
+[`docs/apuntes-backend.md`](docs/apuntes-backend.md). Esta sección cuenta
+las decisiones; la referencia está en ese documento.
+
+### Backend: primeras migraciones versionadas del repo
+
+Hasta acá el esquema se había aplicado directo en el proyecto, sin archivos.
+Las dos migraciones de apuntes son las primeras en `supabase/migrations/` y
+ya están aplicadas con el MCP de Supabase:
+
+- `20261006120000_apuntes_tablas.sql`: tablas `cuadernos` y `apuntes`, RLS, triggers de `updated_at`, cuota y las RPC `obtener_cuaderno_default()` y `uso_almacenamiento()`.
+- `20261006120100_apuntes_storage.sql`: bucket privado `apuntes` y sus cuatro políticas sobre `storage.objects`.
+
+Para aplicarlas en otro proyecto, usá `supabase db push` (con el CLI
+vinculado) o pegá los dos archivos en orden en el SQL Editor.
+
+Decisiones que no venían en el pedido:
+
+- **`cuadernos.es_default` con índice único parcial** en lugar de un `unique (materia_id)`. El esquema sigue permitiendo varios cuadernos por materia, pero el de defecto es uno solo aunque dos pestañas lo creen a la vez. La RPC `obtener_cuaderno_default()` hace `insert … on conflict do nothing` y después un `select`.
+- **FK compuesta `(cuaderno_id, user_id) → cuadernos(id, user_id)`.** Así la base garantiza que nadie meta un apunte en el cuaderno de otro usuario, sin depender de una subconsulta en la política de RLS.
+- **Check `storage_path like user_id || '/%'`.** Evita registrar como propio un objeto de otra carpeta.
+- **La cuota también se valida en el servidor**, con un trigger que lanza `cuota_excedida`. El cliente valida antes de subir, como se pidió, pero sin este trigger un cliente modificado podía saltearse la validación.
+- **La constante de cuota vive en un solo lugar:** la función SQL `apuntes_cuota_bytes()`. `uso_almacenamiento()` devuelve `{usado, cuota}`, así que ni la web ni iOS repiten el número.
+- **El bucket también acepta `image/heif`**, además de lo pedido, porque iOS a veces etiqueta así las fotos HEIC.
+
+**Probado contra la base real** (dos usuarios reales, dentro de transacciones que se revierten):
+- B no ve, no modifica ni borra los apuntes y cuadernos de A.
+- B tampoco puede insertar en el cuaderno de A (falla por la FK compuesta).
+- A no puede crear un cuaderno en una materia de B (falla por RLS).
+- Los checks por tipo y de ruta propia rechazan lo que tienen que rechazar.
+- La cuota rechaza 600 MB.
+- En Storage, A no puede subir a la carpeta de B, B no ve ni renombra objetos de A, y `anon` no ve nada.
+
+### Build: primera dependencia real
+
+El editor (Tiptap v3 + DOMPurify) no se puede concatenar como el resto de
+`src/`, así que el build pasó a necesitar `npm install`. Son
+devDependencies: `esbuild`, `@tiptap/*` y `dompurify`. `build-app.mjs`
+empaqueta `src/apuntes-editor.entry.js` con esbuild a
+**`out/apuntes-editor.js`**, un archivo aparte (unos 450 KB minificados) que
+`src/apuntes.js` carga recién la primera vez que se abre una nota.
+Embebido, todas las cargas de `Cursada.html` (Inicio, Agenda…) pagaban un
+editor que no usan. No se agregó ningún CDN nuevo. `out/apuntes-editor.js` se
+sirve junto a `Cursada.html`, igual que `sw.js` y `manifest.json`.
+
+`src/apuntes.js` sí se concatena antes que `runtime.js`. No puede ver las
+variables privadas del IIFE de `runtime.js`, así que expone una fábrica
+(`window.CursadaApuntes(ctx)`) que `runtime.js` inicializa con los helpers
+que necesita (`sb`, usuario actual, `el`/`clear`, manejo de sesión vencida).
+Si el archivo faltara, la pestaña se oculta y el resto de la app sigue igual.
+
+### UI
+
+- **Pestañas `Resumen · Apuntes`** en el detalle de materia (`.seg`, el componente que ya existía). Todo lo que había antes quedó dentro de "Resumen", sin cambios.
+  - La pestaña vive en la URL (`#materia-<id>`, `#materia-<id>/apuntes`, `#materia-<id>/apuntes/<apunteId>`), así que "atrás" y recargar la respetan.
+  - En Apuntes se ocultan los botones de la topbar ("Nueva evaluación"…) para que no compitan con los de la lista.
+- **Lista**:
+  - Cada fila muestra título, tipo, tamaño (en archivos), fecha y, en las notas, el principio del texto.
+  - El orden por defecto es "Recientes"; el selector "Manual" muestra flechas ↑/↓ que escriben `orden`. La preferencia se guarda por usuario en `localStorage`.
+  - Renombrar se hace en línea, en la misma fila (no con un `prompt()`). Eliminar usa `confirm()`, como el resto de la app.
+- **Archivos**:
+  - Se suben con el botón o con drag & drop sobre toda la tarjeta.
+  - Antes de subir se valida tipo (por MIME o, si el SO no lo informa, por extensión: HEIC y a veces docx llegan sin tipo), tamaño y cuota, con la cuota consultada en ese momento. Los rechazados se listan con el motivo de cada uno.
+  - El progreso real usa XHR contra el mismo endpoint de Storage que usa el SDK, porque supabase-js no expone progreso. Si el cliente no expone la URL y la clave (el mock de pruebas), cae al SDK sin progreso.
+  - Si el insert de la fila falla después de subir el archivo, se borra el objeto, para que no quede espacio ocupado invisible.
+  - **Visor**: imágenes en lightbox; PDF en `<iframe>` con "Abrir en pestaña"; Office como descarga con el nombre original. HEIC se muestra solo en Safari; en los demás navegadores va como descarga.
+- **Uso de almacenamiento**: al pie de la sección y en Ajustes › Datos y cuenta.
+- **Editor**:
+  - Barra de herramientas propia, con los tokens de la app, no el estilo de Tiptap: H1–H3, negrita, cursiva, subrayado, listas, checklist, cita, código, link y tabla. Con el cursor dentro de una tabla aparecen las operaciones de fila y columna.
+  - El link se carga en una barra en línea (⌘K), no con un `prompt()` del navegador.
+  - La tipografía del contenido usa la escala de la app (`--fs-*`, `--font-display`).
+  - En mobile, la barra de herramientas tiene scroll horizontal.
+
+### Autoguardado sin perder lo escrito
+
+- Guarda con debounce de 1,5 s y muestra "Guardando… / Guardado". Si falla, muestra "No se pudo guardar · reintentando", con un botón para reintentar ya, y reintenta con backoff de 2 a 30 s.
+- Ante un error, al ocultar la pestaña y en `beforeunload`, el contenido se escribe además como **borrador en `localStorage`**, por usuario y por nota. Al abrir la nota, si el borrador es más nuevo que el `updated_at` del servidor, se usa el borrador y se guarda. Esto cubre pestañas cerradas sin conexión y sesiones vencidas.
+- **Salir de la vista** (cambiar de pestaña, de materia o de sección) nunca descarta nada. Si hay cambios sin confirmar, pasan a una cola en memoria que se sigue reintentando en segundo plano, y la lista avisa que hay notas sin guardar.
+- Una nota que se deja completamente vacía (sin título ni contenido) se borra al salir, en lugar de dejar "Nota sin título" vacías.
+- **Cerrar sesión no intenta guardar contra el servidor:** sin sesión, el 401 disparaba la pantalla de "sesión vencida" encima de un logout deliberado. Lo pendiente queda como borrador y se recupera al volver a entrar.
+
+### Borrado en cascada y Storage
+
+Las filas de `cuadernos` y `apuntes` se borran solas con la materia (on
+delete cascade), pero los objetos del bucket no. Eliminar una materia,
+eliminar un semestre y "Borrar todo" llaman antes a
+`borrarArchivosDeMaterias()`, que lista `{user_id}/{materia_id}/` y borra
+todo lo que encuentra (incluidos huérfanos). Si eso falla, se aborta antes
+de tocar la materia. Los `confirm()` y el texto de "Borrar todo" ahora
+mencionan los apuntes.
+
+`delete_my_account()` (la usa la app móvil) no limpia Storage. Está anotado en
+`docs/apuntes-backend.md` para resolverlo del lado de iOS.
+
+### Bugs encontrados probando (no por lectura de código)
+
+- **DOMPurify borraba `colspan`, `start`, `data-type`, `data-checked` y el `<input>` del checklist.** La causa era que `ALLOWED_URI_REGEXP` (puesto para restringir los links a http/https/mailto) se aplica a **todos** los atributos permitidos, no solo a `href`: cualquier valor que no fuera una URL se descartaba. Se sacó, y el filtro de `href` quedó en el hook `afterSanitizeAttributes`. Sin este arreglo, la app iOS iba a recibir checklists sin estado.
+- **El outline de foco global de la app** (`[tabindex]:focus-visible`) dibujaba un recuadro azul alrededor de todo el editor mientras se escribía.
+- **`.apunte-prose p{margin:0}` le ganaba en especificidad** a la regla de separación entre bloques, así que los párrafos quedaban pegados. Se resolvió bajando la especificidad con `:where()`.
+- **Una nota con un guardado pendiente aparecía como "Nota sin título"** al volver a la lista, porque la recarga desde el servidor pisaba el título local. Ahora lo pendiente se aplica sobre las filas recibidas.
+
+### Probado contra el mock (`test-harness/mock-supabase-client.js`)
+
+El mock suma `cuadernos`, `apuntes`, las dos RPC y un Storage en memoria
+(las URLs firmadas son `blob:` del archivo subido). También tiene dos
+palancas: `window.__CURSADA_MOCK_APUNTES_FAIL__` (hace fallar las escrituras)
+y `window.__CURSADA_MOCK_CUOTA__` (cambia la cuota).
+
+Se probó lo siguiente:
+- Crear y editar notas con todos los formatos.
+- Fallo de red con reintento, salir con cambios pendientes y recuperarlos.
+- Subir con rechazos por tipo, tamaño y cuota.
+- Lightbox con Escape y devolución del foco.
+- Renombrar, eliminar (con el objeto de Storage incluido) y orden manual.
+- Eliminar la materia y verificar que se limpie Storage.
+- Indicador en Ajustes.
+- Resto de las vistas sin cambios.
+- Mobile a 375 px y tema oscuro.
+
+### Pruebas manuales contra Supabase real
+
+1. **Aislamiento entre usuarios.**
+   - Con la cuenta A, subí un archivo y escribí una nota. Copiá el `storage_path` (Table Editor › `apuntes`).
+   - Con la cuenta B, en otra ventana privada, entrá a cualquier materia › Apuntes: no tiene que aparecer nada de A.
+   - Desde la consola de B, `await CURSADA_SUPABASE.storage.from('apuntes').createSignedUrl('<path de A>', 60)` tiene que devolver error, y `await CURSADA_SUPABASE.from('apuntes').select('*')` solo filas de B.
+   - Abrir `#materia-<id de materia de A>/apuntes/<id de nota de A>` con B tiene que redirigir o mostrar "Esta nota no existe".
+2. **Autoguardado.**
+   - Escribí en una nota y mirá que pase a "Guardando…" y después a "Guardado" (~1,5 s). Recargá y verificá que el contenido sigue ahí.
+   - En DevTools › Network › Offline, escribí más: tiene que aparecer "Sin conexión · se guarda al volver".
+   - Volvé a la lista: tiene que avisar "Una nota tiene cambios que todavía no se guardaron".
+   - Volvé a poner Online: en segundos se guarda solo y el aviso desaparece. Recargá y abrí la nota: el texto escrito offline tiene que estar.
+   - Variante: con la red offline y cambios sin guardar, intentá cerrar la pestaña: el navegador tiene que pedir confirmación.
+3. **Cuota.** En el SQL Editor, cambiá temporalmente `apuntes_cuota_bytes()` para que devuelva `1048576` (1 MB). Subí un archivo de 2 MB: tiene que rechazarse antes de subir, con "no te alcanza el espacio". Volvé a dejar `500::bigint * 1024 * 1024`.
+4. **Eliminar borra en Storage.** Subí un archivo, verificá que exista en Storage › `apuntes/<user>/<materia>/` y eliminalo desde la lista: tienen que desaparecer el objeto y la fila. Repetí con "Eliminar materia" sobre una materia con archivos: la carpeta tiene que quedar vacía.
+5. **Tamaño y tipo.** Un PDF de más de 20 MB y un `.txt` tienen que rechazarse con su motivo. Una foto `.HEIC` del iPhone se tiene que subir; en Chrome se descarga y en Safari se ve.
+

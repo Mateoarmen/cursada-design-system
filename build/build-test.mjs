@@ -19,18 +19,20 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildEditorBundle } from './build-app.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'out');
 
 async function main() {
-  const [appHtml, stylesCss, mockJs, seedJs, simuladorJs, runtimeJs] = await Promise.all([
+  const [appHtml, stylesCss, mockJs, seedJs, simuladorJs, apuntesJs, runtimeJs] = await Promise.all([
     readFile(path.join(SRC, 'app.html'), 'utf8'),
     readFile(path.join(SRC, 'styles.css'), 'utf8'),
     readFile(path.join(ROOT, 'test-harness', 'mock-supabase-client.js'), 'utf8'),
     readFile(path.join(SRC, 'seed.js'), 'utf8'),
     readFile(path.join(SRC, 'simulador.js'), 'utf8'),
+    readFile(path.join(SRC, 'apuntes.js'), 'utf8'),
     readFile(path.join(SRC, 'runtime.js'), 'utf8')
   ]);
 
@@ -57,6 +59,9 @@ ${seedJs}
 ${simuladorJs}
 </script>
 <script>
+${apuntesJs}
+</script>
+<script>
 ${runtimeJs}
 </script>
 </body>
@@ -64,6 +69,7 @@ ${runtimeJs}
 `;
 
   await mkdir(OUT, { recursive: true });
+  await buildEditorBundle();
   const outPath = path.join(OUT, 'Cursada.test.html');
   await writeFile(outPath, html, 'utf8');
   console.log('[build-test] listo → ' + path.relative(ROOT, outPath));

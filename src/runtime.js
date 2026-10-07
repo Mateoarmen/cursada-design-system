@@ -760,6 +760,20 @@
     alert(msg || 'No se pudo guardar. Revisá tu conexión a internet e intentá de nuevo.');
   }
 
+  // Cuadernos de apuntes (src/apuntes.js, concatenado antes que este
+  // archivo): módulo aparte que recibe sólo los helpers que necesita. Si por
+  // algún motivo no viajó en el build, la pestaña Apuntes se oculta y el
+  // resto de la app sigue igual.
+  var APUNTES = typeof window.CursadaApuntes === 'function' ? window.CursadaApuntes({
+    sb: sb,
+    getUser: function () { return CURRENT_USER; },
+    el: el,
+    clear: clear,
+    avisarError: avisarError,
+    esErrorSesionVencida: esErrorSesionVencida,
+    mostrarSesionVencida: mostrarSesionVencida
+  }) : null;
+
   // ---------- migración: datos de la versión anterior (localStorage, sin cuenta) ----------
   function getDocId() {
     try {
@@ -2598,6 +2612,31 @@
     document.getElementById('btn-detalle-escala').onclick = function () { openMateriaModal(m.id); };
     renderDetalleSimulador(m);
     renderDetalleAsistencia(m);
+    renderDetalleTabs(m);
+  }
+
+  // Pestañas Resumen / Apuntes (Cuadernos de apuntes). Son links reales al
+  // hash, así "atrás" del navegador y recargar mantienen la pestaña.
+  function renderDetalleTabs(m) {
+    var tabs = document.querySelector('#detalle .detalle-tabs');
+    var enApuntes = !!APUNTES && STATE.route.tab === 'apuntes';
+    tabs.classList.toggle('hidden', !APUNTES);
+    var tRes = document.getElementById('detalle-tab-resumen');
+    var tAp = document.getElementById('detalle-tab-apuntes');
+    tRes.href = '#materia-' + encodeURIComponent(m.id);
+    tAp.href = '#materia-' + encodeURIComponent(m.id) + '/apuntes';
+    [[tRes, !enApuntes], [tAp, enApuntes]].forEach(function (x) {
+      x[0].classList.toggle('is-on', x[1]);
+      x[0].setAttribute('aria-selected', x[1] ? 'true' : 'false');
+      if (x[1]) x[0].setAttribute('aria-current', 'page'); else x[0].removeAttribute('aria-current');
+    });
+    document.getElementById('detalle-panel-resumen').classList.toggle('hidden', enApuntes);
+    var panelAp = document.getElementById('detalle-panel-apuntes');
+    panelAp.classList.toggle('hidden', !enApuntes);
+    // Las acciones de la topbar (nueva evaluación/tarea, editar) son del
+    // Resumen; en Apuntes se ocultan para no competir con las de la lista.
+    document.querySelector('#detalle .topbar-actions').classList.toggle('hidden', enApuntes);
+    if (enApuntes) APUNTES.mostrar(panelAp, m.id, STATE.route.apunteId);
   }
 
   // Fase 6: extraído de renderDetalle para reusarlo en la sección
@@ -2824,7 +2863,10 @@
   async function eliminarMateriaId(id) {
     var m = materiaRawById(id);
     if (!m) return false;
-    if (!confirm('¿Eliminar "' + m.nombre + '"? También se van a borrar sus evaluaciones de la agenda.')) return false;
+    if (!confirm('¿Eliminar "' + m.nombre + '"? También se van a borrar sus evaluaciones de la agenda y sus apuntes (notas y archivos).')) return false;
+    // Archivos de apuntes en Storage antes que la fila: el CASCADE borra
+    // cuadernos/apuntes, pero no los objetos del bucket.
+    if (APUNTES && !(await APUNTES.borrarArchivosDeMaterias([id]))) { avisarError('No se pudieron borrar los archivos de apuntes de la materia. Revisá tu conexión e intentá de nuevo.'); return false; }
     var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return a.materiaId === id; }).map(function (a) { return a.id; });
     for (var i = 0; i < idsAgendaBorrados.length; i++) await syncToGoogleCalendar('delete', 'agenda', idsAgendaBorrados[i]);
     var okMat = await saveMateriasRaw(loadMateriasRaw().filter(function (x) { return x.id !== id; }));
@@ -6519,6 +6561,9 @@
         el.classList.remove('is-entering');
       }
     });
+    // Salir de la pestaña Apuntes (otra vista u otra pestaña del detalle):
+    // guarda lo pendiente del editor y lo desmonta — ver src/apuntes.js.
+    if (APUNTES && !(STATE.route.view === 'detalle' && STATE.route.tab === 'apuntes')) APUNTES.salir();
     if (STATE.route.view === 'inicio') renderInicio();
     else if (STATE.route.view === 'materias') renderMaterias();
     else if (STATE.route.view === 'detalle') renderDetalle(STATE.route.materiaId);
@@ -6580,10 +6625,12 @@
       renderRoute();
       return;
     }
-    var m = hash.match(/^#materia-(.+)$/);
+    // #materia-<id> (Resumen) | #materia-<id>/apuntes | #materia-<id>/apuntes/<apunteId>
+    var m = hash.match(/^#materia-([^/]+)(?:\/(apuntes)(?:\/([^/]+))?)?$/);
     if (m) {
       var id = decodeURIComponent(m[1]);
-      if (materiaRawById(id)) STATE.route = { view: 'detalle', materiaId: id };
+      var tab = m[2] && APUNTES ? 'apuntes' : 'resumen';
+      if (materiaRawById(id)) STATE.route = { view: 'detalle', materiaId: id, tab: tab, apunteId: tab === 'apuntes' && m[3] ? decodeURIComponent(m[3]) : null };
       else { location.hash = '#materias'; return; }
     } else if (CORE_VIEWS.indexOf(hash.slice(1)) >= 0 && hash.slice(1) !== 'detalle') {
       STATE.route = { view: hash.slice(1) };
@@ -6722,7 +6769,7 @@
   async function eliminarSemestre(s) {
     var materiasDelSemestre = loadMateriasRaw().filter(function (m) { return m.semestreId === s.id; });
     var msg = materiasDelSemestre.length
-      ? '¿Eliminar "' + s.nombre + '"? También se van a borrar sus ' + materiasDelSemestre.length + (materiasDelSemestre.length === 1 ? ' materia' : ' materias') + ' y todas sus evaluaciones de la agenda. Esta acción no se puede deshacer.'
+      ? '¿Eliminar "' + s.nombre + '"? También se van a borrar sus ' + materiasDelSemestre.length + (materiasDelSemestre.length === 1 ? ' materia' : ' materias') + ', todas sus evaluaciones de la agenda y sus apuntes. Esta acción no se puede deshacer.'
       : '¿Eliminar "' + s.nombre + '"? Esta acción no se puede deshacer.';
     if (!confirm(msg)) return;
     var materiaIds = {};
@@ -6739,6 +6786,7 @@
       var masNuevo = candidatos.slice(-1)[0];
       if (masNuevo) restantes = restantes.map(function (x) { return Object.assign({}, x, { activo: x.id === masNuevo.id }); });
     }
+    if (APUNTES && !(await APUNTES.borrarArchivosDeMaterias(Object.keys(materiaIds)))) { avisarError('No se pudieron borrar los archivos de apuntes del semestre. Revisá tu conexión e intentá de nuevo.'); return; }
     var idsAgendaBorrados = loadAgendaRaw().filter(function (a) { return materiaIds[a.materiaId]; }).map(function (a) { return a.id; });
     // Antes de borrar de Supabase: sync-google-event lee la fila para
     // conseguir el google_event_id — después de borrada ya no la encuentra.
@@ -7078,7 +7126,7 @@
       e.target.value = '';
     });
     document.getElementById('btn-borrar-todo').addEventListener('click', async function () {
-      if (!confirm('¿Borrar todas tus materias, entregas, eventos personales y semestres? Esta acción no se puede deshacer.')) return;
+      if (!confirm('¿Borrar todas tus materias, entregas, eventos personales, semestres y apuntes? Esta acción no se puede deshacer.')) return;
       var btn = document.getElementById('btn-borrar-todo');
       setBtnBusy(btn, true, 'Borrando…');
       // Mismo motivo que en eliminarMateria/eliminarSemestre: sync-google-event
@@ -7086,6 +7134,11 @@
       // tiene que correr antes de que saveAgendaRaw/savePersonalRaw las borren
       // de Supabase, si no siempre responde "Registro no encontrado" y el
       // evento queda huérfano en Google Calendar.
+      if (APUNTES && !(await APUNTES.borrarArchivosDeMaterias(loadMateriasRaw().map(function (m) { return m.id; })))) {
+        setBtnBusy(btn, false);
+        avisarError('No se pudieron borrar tus archivos de apuntes. Revisá tu conexión e intentá de nuevo.');
+        return;
+      }
       var idsAgenda = loadAgendaRaw().map(function (a) { return a.id; });
       var idsPersonal = loadPersonalRaw().map(function (p) { return p.id; });
       var i;
@@ -8261,6 +8314,8 @@
     renderAjustesNotificaciones();
     renderAjustesGoogle();
     refrescarEstadoGoogleCalendar(); // por si se conectó/desconectó desde otra pestaña
+    if (APUNTES) APUNTES.renderUso(document.getElementById('ajustes-apuntes-uso'));
+    document.querySelector('.ajustes-apuntes-uso').classList.toggle('hidden', !APUNTES);
     openModal('modal-ajustes');
     snapshotModalForm('modal-ajustes');
   }
@@ -8797,6 +8852,7 @@
   }
 
   function onSignedOut() {
+    if (APUNTES) APUNTES.reset(); // antes de soltar CURRENT_USER: los borradores se guardan por usuario
     CURRENT_USER = null; CURRENT_PROFILE = null;
     CACHE.semestres = []; CACHE.materias = []; CACHE.agenda = []; CACHE.personal = []; CACHE.asistencias = [];
     CACHE.notificaciones = []; CACHE.notifPrefs = []; CACHE.pushDevices = [];

@@ -446,6 +446,14 @@
             <div class="col"><span class="lbl">Cursada</span><span class="val mono" id="detalle-cursada"></span></div>
           </div>
         </div>
+        <!-- Cuadernos de apuntes: Resumen (todo lo que ya existía, sin tocar)
+             vs. Apuntes (src/apuntes.js). La pestaña vive en la URL:
+             #materia-<id> | #materia-<id>/apuntes | #materia-<id>/apuntes/<apunteId> -->
+        <div class="seg detalle-tabs" role="tablist" aria-label="Secciones de la materia">
+          <a class="seg-item is-on" role="tab" id="detalle-tab-resumen" aria-selected="true" aria-controls="detalle-panel-resumen">Resumen</a>
+          <a class="seg-item" role="tab" id="detalle-tab-apuntes" aria-selected="false" aria-controls="detalle-panel-apuntes">Apuntes</a>
+        </div>
+        <div class="detalle-panel" id="detalle-panel-resumen" role="tabpanel" aria-labelledby="detalle-tab-resumen">
         <div class="detalle-cols">
           <div class="card detalle-col">
             <div class="detalle-col-title"><h2 class="t">Calificación y aprobación</h2><span class="escala-badge" id="detalle-escala-badge"></span></div>
@@ -516,6 +524,8 @@
             <span style="font-size:13px;color:var(--c-ink2)" id="detalle-asistencia-txt"></span>
           </div>
         </div>
+        </div>
+        <div class="detalle-panel hidden" id="detalle-panel-apuntes" role="tabpanel" aria-labelledby="detalle-tab-apuntes"></div>
       </div>
     </section>
 
@@ -1350,6 +1360,10 @@
             <div class="ajustes-row-label-text"><span class="lbl">Datos y cuenta</span></div>
           </div>
           <div class="ajustes-row-content">
+            <div class="ajustes-apuntes-uso">
+              <span class="hint">Almacenamiento de apuntes</span>
+              <div id="ajustes-apuntes-uso"></div>
+            </div>
             <div class="accesos-row">
               <button type="button" class="btn" id="btn-exportar">Exportar</button>
               <button type="button" class="btn" id="btn-importar">Importar</button>
@@ -1361,7 +1375,7 @@
             <div class="ajustes-danger-zone">
               <div class="ajustes-danger-zone-text">
                 <span class="lbl">Borrar todo</span>
-                <span class="hint">Elimina materias, evaluaciones, tareas y eventos personales. No se puede deshacer.</span>
+                <span class="hint">Elimina materias, evaluaciones, tareas, eventos personales y apuntes. No se puede deshacer.</span>
               </div>
               <button type="button" class="btn btn-danger-solid" id="btn-borrar-todo"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Borrar todo</button>
             </div>

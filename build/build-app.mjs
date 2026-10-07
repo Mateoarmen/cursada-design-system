@@ -38,6 +38,14 @@
 // llamadas de red que agrega el build en sí (además de las que la propia
 // app hace en runtime contra Supabase).
 //
+// Cuadernos de apuntes: primera dependencia real del build. El editor
+// (Tiptap + DOMPurify, devDependencies) se empaqueta con esbuild a un
+// archivo APARTE, out/apuntes-editor.js, que src/apuntes.js carga recién al
+// abrir una nota (no viaja en Cursada.html: ~450 KB que Inicio no
+// necesita). Nada de CDN nuevo. src/apuntes.js sí se concatena como el
+// resto, antes de runtime.js (define window.CursadaApuntes, que runtime.js
+// inicializa con sus helpers). Requiere `npm install` antes del build.
+//
 // Uso: npm run build:app  (o: node build/build-app.mjs)
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -47,6 +55,24 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'out');
+
+// Exportada para que build-test.mjs genere el mismo bundle.
+export async function buildEditorBundle() {
+  const { build } = await import('esbuild');
+  const outfile = path.join(OUT, 'apuntes-editor.js');
+  await build({
+    entryPoints: [path.join(SRC, 'apuntes-editor.entry.js')],
+    bundle: true,
+    format: 'iife',
+    globalName: 'CursadaEditor',
+    minify: true,
+    target: ['es2019', 'safari14'],
+    legalComments: 'none',
+    outfile,
+    logLevel: 'warning'
+  });
+  return outfile;
+}
 
 // Favicon: el isotipo de marca (anillo abierto sobre tile azul), como SVG
 // embebido directo — no depende de ningún archivo de assets/.
@@ -65,12 +91,13 @@ const FAVICON_B64 =
   'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMkM3QkZGIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBBNjNGMCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTgiIGZpbGw9InVybCgjZykiLz4KICA8cGF0aCBkPSJNIDQxLjkgMjIuMSBBIDE0IDE0IDAgMSAxIDIyLjEgMjIuMSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgdHJhbnNmb3JtPSJyb3RhdGUoNDUgMzIgMzIpIi8+Cjwvc3ZnPgo=';
 
 async function main() {
-  const [appHtml, stylesCss, supabaseClientJs, seedJs, simuladorJs, runtimeJs] = await Promise.all([
+  const [appHtml, stylesCss, supabaseClientJs, seedJs, simuladorJs, apuntesJs, runtimeJs] = await Promise.all([
     readFile(path.join(SRC, 'app.html'), 'utf8'),
     readFile(path.join(SRC, 'styles.css'), 'utf8'),
     readFile(path.join(SRC, 'supabase-client.js'), 'utf8'),
     readFile(path.join(SRC, 'seed.js'), 'utf8'),
     readFile(path.join(SRC, 'simulador.js'), 'utf8'),
+    readFile(path.join(SRC, 'apuntes.js'), 'utf8'),
     readFile(path.join(SRC, 'runtime.js'), 'utf8')
   ]);
 
@@ -104,6 +131,9 @@ ${seedJs}
 ${simuladorJs}
 </script>
 <script>
+${apuntesJs}
+</script>
+<script>
 ${runtimeJs}
 </script>
 </body>
@@ -111,6 +141,8 @@ ${runtimeJs}
 `;
 
   await mkdir(OUT, { recursive: true });
+  const editorPath = await buildEditorBundle();
+  console.log('[build] listo → ' + path.relative(ROOT, editorPath));
   const outPath = path.join(OUT, 'Cursada.html');
   await writeFile(outPath, html, 'utf8');
   const sizeMb = (Buffer.byteLength(html, 'utf8') / (1024 * 1024)).toFixed(2);
@@ -120,7 +152,7 @@ ${runtimeJs}
   }
 }
 
-main().catch(err => {
+if (process.argv[1] === fileURLToPath(import.meta.url)) main().catch(err => {
   console.error(err);
   process.exit(1);
 });
